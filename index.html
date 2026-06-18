@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diecast Post Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Modal Animation */
+        .modal-enter { animation: modalFadeIn 0.2s ease-out forwards; }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Print Styles for 4x6 Label */
+        @media print {
+            body { background: white !important; color: black !important; }
+            aside, header, #modal-container, .no-print { display: none !important; }
+            main, #content-area { overflow: visible !important; height: auto !important; padding: 0 !important; display: block !important; }
+            #printable-area {
+                position: fixed !important;
+                top: 0; left: 0;
+                width: 4in !important;
+                height: 6in !important;
+                margin: 0 !important;
+                padding: 0.2in !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans h-screen flex overflow-hidden transition-colors duration-200">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-20 lg:w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-colors duration-200 shrink-0">
+        <div>
+            <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
+                <i class="ph-fill ph-car-profile text-3xl text-indigo-600 dark:text-indigo-400"></i>
+                <span class="hidden lg:block ml-3 font-bold text-xl tracking-tight">Diecast Tracker</span>
+            </div>
+            <nav class="p-4 space-y-2 mt-4" id="main-nav">
+                <button data-page="dashboard" onclick="window.switchPage('dashboard')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <i class="ph ph-squares-four text-2xl"></i>
+                    <span class="hidden lg:block ml-3 font-medium">Dashboard</span>
+                </button>
+                <button data-page="posts" onclick="window.switchPage('posts')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <i class="ph ph-article text-2xl"></i>
+                    <span class="hidden lg:block ml-3 font-medium">Posts</span>
+                </button>
+                <button data-page="bidders" onclick="window.switchPage('bidders')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <i class="ph ph-users text-2xl"></i>
+                    <span class="hidden lg:block ml-3 font-medium">Bidders</span>
+                </button>
+                <button data-page="openbox" onclick="window.switchPage('openbox')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors relative">
+                    <i class="ph ph-package text-2xl"></i>
+                    <span class="hidden lg:block ml-3 font-medium">Open Box</span>
+                    <span id="openbox-badge" class="absolute top-2 right-2 lg:right-4 bg-indigo-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full hidden">0</span>
+                </button>
+                <button data-page="reports" onclick="window.switchPage('reports')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                    <i class="ph ph-chart-line-up text-2xl"></i>
+                    <span class="hidden lg:block ml-3 font-medium">Reports</span>
+                </button>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+            <button data-page="settings" onclick="window.switchPage('settings')" class="nav-btn w-full flex items-center p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                <i class="ph ph-gear text-2xl"></i>
+                <span class="hidden lg:block ml-3 font-medium">Settings</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header class="h-16 flex items-center px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <h1 id="page-title" class="text-2xl font-bold">Connecting...</h1>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8" id="content-area">
+            <div class="flex h-full items-center justify-center">
+                <div class="flex flex-col items-center">
+                    <i class="ph ph-spinner-gap animate-spin text-4xl text-indigo-500 mb-4"></i>
+                    <p class="text-slate-500 dark:text-slate-400">Loading Database...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modals Container -->
+    <div id="modal-container" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <!-- Modal content injected here -->
+    </div>
+
+    <!-- Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            // Used for the Canvas preview environment
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // PORTING TO YOUR OWN SERVER: Paste your Firebase config object here!
+            firebaseConfig = {
+                apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
+                authDomain: "facebook-auction-tracker.firebaseapp.com",
+                projectId: "facebook-auction-tracker",
+                storageBucket: "facebook-auction-tracker.firebasestorage.app",
+                messagingSenderId: "936018615344",
+                appId: "1:936018615344:web:91a29634684467ba5121f5",
+                measurementId: "G-7J35PYN94P"
+            };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let userId = null;
+        let docRef = null;
+        let isInitialized = false;
+
+       // --- State Management ---
+        const defaultState = {
+            theme: 'dark',
+            currentPage: 'dashboard',
+            activePostId: null,
+            activeShippingPurchaserId: null,
+            // Keep your brands list intact so you still have your picklist options
+            brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
+            // Empty out the demo data entirely
+            posts: [],
+            bidders: [],
+            items: []
+        };
+
+        let state = null; // Will be populated from Firebase
+
+        // Expose functions globally for HTML inline handlers
+        window.switchPage = switchPage;
+        window.setTheme = setTheme;
+        window.togglePaid = togglePaid;
+        window.markBoxPaid = markBoxPaid;
+        window.shipBox = shipBox;
+        window.resetData = resetData;
+        window.updateShippingFee = updateShippingFee;
+        window.processShipment = processShipment;
+        window.markSold = markSold;
+        window.reopenItem = reopenItem;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.submitForm = submitForm;
+        window.viewPost = viewPost;
+        
+        async function saveState() {
+            if (!docRef) return;
+            try {
+                await setDoc(docRef, state);
+            } catch(e) {
+                console.error("Error saving to Firebase:", e);
+            }
+        }
+
+        // --- Auth & Initial Load ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication failed", error);
+                document.getElementById('content-area').innerHTML = `<div class="text-rose-500 p-8">Auth Error: ${error.message}</div>`;
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                
+                // Document paths must have an even number of segments (Collection -> Document).
+                if (typeof __firebase_config !== 'undefined') {
+                    // Strict paths required when testing in this preview canvas
+                    docRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'appState');
+                } else {
+                    // Your simplified path for your own server
+                    // This creates a document with the ID of the userId inside the 'users' collection
+                    docRef = doc(db, 'users', userId); 
+                }
+                
+                onSnapshot(docRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        state = snapshot.data();
+                    } else {
+                        // Initialize database with default sample data
+                        state = defaultState;
+                        saveState();
+                    }
+                    
+                    if (!isInitialized) {
+                        isInitialized = true;
+                        
+                        if (state.theme === 'dark') {
+                            document.documentElement.classList.add('dark');
+                        } else {
+                            document.documentElement.classList.remove('dark');
+                        }
+                        switchPage(state.currentPage || 'dashboard');
+                    } else {
+                        // Update UI seamlessly when data syncs from cloud
+                        renderCurrentPage();
+                        updateBadges();
+                    }
+                }, (error) => {
+                    console.error("Firebase Database error:", error);
+                });
+            }
+        });
+
+        // Start connection
+        initAuth();
+
+        // --- Core Functions ---
+
+        function generateId() {
+            return Math.floor(Math.random() * 1000000);
+        }
+
+        function switchPage(page) {
+            state.currentPage = page;
+            if (page !== 'posts') state.activePostId = null; // Reset sub-views
+            if (page !== 'shipping') state.activeShippingPurchaserId = null;
+            
+            // Save page location to Firebase 
+            saveState();
+
+            // Update Title
+            const titles = {
+                dashboard: 'Dashboard', posts: 'Manage Posts', bidders: 'Bidders Directory',
+                openbox: 'Open Box Tracking', reports: 'Sales Reports', settings: 'Settings',
+                shipping: 'Generate Packing Slip'
+            };
+            document.getElementById('page-title').innerText = titles[page] || 'Diecast Tracker';
+
+            // Update Nav Highlighting
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.page === page) {
+                    btn.classList.add('bg-indigo-50', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+                    btn.classList.remove('text-slate-600', 'dark:text-slate-400');
+                } else {
+                    btn.classList.remove('bg-indigo-50', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
+                    btn.classList.add('text-slate-600', 'dark:text-slate-400');
+                }
+            });
+
+            renderCurrentPage();
+            updateBadges();
+        }
+
+        function updateBadges() {
+            if(!state) return;
+            const unshippedCount = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
+            const badge = document.getElementById('openbox-badge');
+            if (unshippedCount > 0) {
+                badge.textContent = unshippedCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+        }
+
+        // --- Rendering Logic ---
+
+        function renderCurrentPage() {
+            if(!state) return;
+            const content = document.getElementById('content-area');
+            content.innerHTML = ''; // Clear
+
+            switch (state.currentPage) {
+                case 'dashboard': content.innerHTML = getDashboardHTML(); break;
+                case 'posts': content.innerHTML = state.activePostId ? getPostDetailsHTML(state.activePostId) : getPostsHTML(); break;
+                case 'bidders': content.innerHTML = getBiddersHTML(); break;
+                case 'openbox': content.innerHTML = getOpenBoxHTML(); break;
+                case 'reports': content.innerHTML = getReportsHTML(); break;
+                case 'settings': content.innerHTML = getSettingsHTML(); break;
+                case 'shipping': content.innerHTML = getShippingHTML(); break;
+            }
+        }
+
+        // 1. Dashboard
+        function getDashboardHTML() {
+            const activePosts = state.posts.filter(p => p.status === 'active').length;
+            const openItems = state.items.filter(i => i.status === 'open').length;
+            const revenue = state.items.filter(i => i.status === 'sold').reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+            const unshipped = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
+
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-4">
+                            <h3 class="font-medium">Active Posts</h3>
+                            <i class="ph ph-article text-2xl text-indigo-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold">${activePosts}</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-4">
+                            <h3 class="font-medium">Items for Sale</h3>
+                            <i class="ph ph-tag text-2xl text-emerald-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold">${openItems}</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-4">
+                            <h3 class="font-medium">Total Revenue</h3>
+                            <i class="ph ph-currency-dollar text-2xl text-amber-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold">${formatCurrency(revenue)}</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm cursor-pointer hover:border-rose-500 transition-colors" onclick="window.switchPage('openbox')">
+                        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-4">
+                            <h3 class="font-medium">Pending Shipment</h3>
+                            <i class="ph ph-package text-2xl text-rose-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold">${unshipped}</p>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-bold mb-4">Recent Items</h3>
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
+                                <th class="p-4 font-medium">Item Name</th>
+                                <th class="p-4 font-medium">Type</th>
+                                <th class="p-4 font-medium">Price/Bid</th>
+                                <th class="p-4 font-medium">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${state.items.slice(-5).reverse().map(item => `
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td class="p-4 font-medium">${item.name}</td>
+                                    <td class="p-4"><span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span></td>
+                                    <td class="p-4">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                    <td class="p-4">
+                                        <span class="flex items-center gap-2">
+                                            <span class="w-2 h-2 rounded-full ${item.status === 'open' ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                                            ${item.status === 'open' ? 'Open' : 'Sold'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 2. Posts List
+        function getPostsHTML() {
+            return `
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-slate-500 dark:text-slate-400">Manage your Facebook posts and sales events.</p>
+                    <button onclick="window.openModal('addPost')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
+                        <i class="ph ph-plus-circle text-xl"></i> New Post
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${state.posts.map(post => {
+                        const postItems = state.items.filter(i => i.postId === post.id);
+                        const soldCount = postItems.filter(i => i.status === 'sold').length;
+                        return `
+                        <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-bold truncate pr-2">${post.name}</h3>
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">${post.date}</p>
+                                </div>
+                                <span class="px-2 py-1 text-xs rounded-md ${post.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}">${post.status.toUpperCase()}</span>
+                            </div>
+                            <div class="flex-1 mt-2 mb-6">
+                                <div class="flex justify-between text-sm mb-2">
+                                    <span class="text-slate-500">Items:</span>
+                                    <span class="font-medium">${postItems.length}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-slate-500">Sold:</span>
+                                    <span class="font-medium">${soldCount} / ${postItems.length}</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="window.viewPost(${post.id})" class="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 py-2 rounded-lg font-medium transition-colors">Manage Items</button>
+                                ${post.url ? `<a href="${post.url}" target="_blank" class="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-blue-500 transition-colors"><i class="ph ph-facebook-logo text-xl"></i></a>` : ''}
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function viewPost(postId) {
+            state.activePostId = postId;
+            saveState(); // sync the view change to firestore
+            renderCurrentPage();
+        }
+
+        // Post Details (Items Management)
+        function getPostDetailsHTML(postId) {
+            const post = state.posts.find(p => p.id === postId);
+            const postItems = state.items.filter(i => i.postId === postId);
+
+            return `
+                <div class="mb-6 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <button onclick="state.activePostId = null; window.saveState(); window.renderCurrentPage()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                            <i class="ph ph-arrow-left text-xl"></i>
+                        </button>
+                        <div>
+                            <h2 class="text-2xl font-bold">${post.name}</h2>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">${post.date}</p>
+                        </div>
+                    </div>
+                    <button onclick="window.openModal('addItem', {postId: ${postId}})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
+                        <i class="ph ph-plus-circle text-xl"></i> Add Item
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
+                                <th class="p-4 font-medium w-20">Item #</th>
+                                <th class="p-4 font-medium">Details</th>
+                                <th class="p-4 font-medium">Type</th>
+                                <th class="p-4 font-medium">Price/Highest Bid</th>
+                                <th class="p-4 font-medium">Winner/Buyer</th>
+                                <th class="p-4 font-medium text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${postItems.length === 0 ? `<tr><td colspan="6" class="p-8 text-center text-slate-500">No items added to this post yet.</td></tr>` : 
+                            postItems.map(item => {
+                                const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                                return `
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td class="p-4 text-slate-500 dark:text-slate-400 font-mono text-sm">
+                                        ${item.itemNumber || '-'}
+                                    </td>
+                                    <td class="p-4 font-medium">
+                                        ${item.brand ? `<span class="text-xs text-indigo-600 dark:text-indigo-400 font-bold block uppercase tracking-wider mb-0.5">${item.brand}</span>` : ''}
+                                        ${item.name}
+                                        ${item.status === 'sold' ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded align-middle">Sold</span>' : ''}
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span>
+                                    </td>
+                                    <td class="p-4">
+                                        ${item.type === 'auction' ? 
+                                            `<span class="${item.currentBid ? 'font-bold text-amber-600 dark:text-amber-400' : ''}">${formatCurrency(item.currentBid || item.startPrice)}</span> <span class="text-xs text-slate-500">(Start: ${formatCurrency(item.startPrice)})</span>` : 
+                                            `<span>${formatCurrency(item.startPrice)}</span>`
+                                        }
+                                    </td>
+                                    <td class="p-4 text-sm text-slate-600 dark:text-slate-300">
+                                        ${buyer ? buyer.name : '-'}
+                                    </td>
+                                    <td class="p-4 text-right">
+                                        ${item.status === 'open' ? `
+                                            ${item.type === 'auction' ? `
+                                                <button onclick="window.openModal('addBid', {itemId: ${item.id}})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-medium mr-2 transition-colors">Add Bid</button>
+                                                <button onclick="window.markSold(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">End</button>
+                                            ` : `
+                                                <button onclick="window.openModal('sellBin', {itemId: ${item.id}})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm font-medium transition-colors">Mark Sold</button>
+                                            `}
+                                        ` : `
+                                            <button onclick="window.reopenItem(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 rounded-lg text-sm font-medium transition-colors" title="Reopen Item"><i class="ph ph-arrow-u-up-left"></i> Reopen</button>
+                                        `}
+                                    </td>
+                                </tr>
+                                `
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 3. Bidders
+        function getBiddersHTML() {
+            return `
+                <div class="flex justify-between items-center mb-6">
+                    <p class="text-slate-500 dark:text-slate-400">Manage your buyers and their contact info.</p>
+                    <button onclick="window.openModal('addBidder')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
+                        <i class="ph ph-user-plus text-xl"></i> Add Bidder
+                    </button>
+                </div>
+
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
+                                <th class="p-4 font-medium">Name</th>
+                                <th class="p-4 font-medium">Items Won/Bought</th>
+                                <th class="p-4 font-medium">Total Spent</th>
+                                <th class="p-4 font-medium">Profile</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${state.bidders.map(bidder => {
+                                const purchases = state.items.filter(i => i.purchaserId === bidder.id && i.status === 'sold');
+                                const totalSpent = purchases.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+                                return `
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                    <td class="p-4 font-bold">${bidder.name}</td>
+                                    <td class="p-4">${purchases.length}</td>
+                                    <td class="p-4 font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(totalSpent)}</td>
+                                    <td class="p-4">
+                                        ${bidder.profile ? `<a href="${bidder.profile.startsWith('http') ? bidder.profile : 'https://'+bidder.profile}" target="_blank" class="text-blue-500 hover:underline"><i class="ph ph-link"></i> Link</a>` : '-'}
+                                    </td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 4. Open Box (Grouped by Purchaser)
+        function getOpenBoxHTML() {
+            // Find items sold but not shipped
+            const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
+            
+            // Group by purchaser
+            const grouped = {};
+            unshippedItems.forEach(item => {
+                if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
+                grouped[item.purchaserId].push(item);
+            });
+
+            if (Object.keys(grouped).length === 0) {
+                return `
+                    <div class="flex flex-col items-center justify-center py-20 text-slate-500">
+                        <i class="ph ph-check-circle text-6xl text-emerald-500 mb-4"></i>
+                        <p class="text-xl">All sold items have been shipped!</p>
+                        <p class="text-sm mt-2">No open boxes currently.</p>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="mb-6">
+                    <p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped. Grouped by buyer for easy combined shipping.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    ${Object.entries(grouped).map(([purchaserId, items]) => {
+                        const bidder = state.bidders.find(b => b.id == purchaserId) || { name: 'Unknown' };
+                        const totalOwed = items.filter(i => !i.paid).reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+                        const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+                        
+                        return `
+                        <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
+                            <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                                <h3 class="font-bold text-lg flex items-center gap-2"><i class="ph ph-user"></i> ${bidder.name}</h3>
+                                <div class="text-right">
+                                    <p class="text-xs text-slate-500">Box Value: ${formatCurrency(totalValue)}</p>
+                                    ${totalOwed > 0 ? `<p class="text-sm font-bold text-rose-500">Owes: ${formatCurrency(totalOwed)}</p>` : `<span class="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-md">Fully Paid</span>`}
+                                </div>
+                            </div>
+                            <div class="p-0 flex-1">
+                                <table class="w-full text-sm">
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                        ${items.map(item => `
+                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                                <td class="p-3 pl-4">${item.name}</td>
+                                                <td class="p-3 font-medium">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                                <td class="p-3 text-right">
+                                                    <button onclick="window.togglePaid(${item.id})" class="px-2 py-1 rounded text-xs font-medium mr-2 transition-colors ${item.paid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}">
+                                                        ${item.paid ? '<i class="ph ph-check"></i> Paid' : 'Unpaid'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex gap-3">
+                                ${totalOwed > 0 ? `<button onclick="window.markBoxPaid(${purchaserId})" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium transition-colors">Mark All Paid</button>` : ''}
+                                <button onclick="window.shipBox(${purchaserId})" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                                    <i class="ph ph-truck"></i> Ship Box
+                                </button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // 5. Reports
+        function getReportsHTML() {
+            const soldItems = state.items.filter(i => i.status === 'sold');
+            const revenue = soldItems.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+            const avgPrice = soldItems.length ? revenue / soldItems.length : 0;
+            
+            // Top Buyers
+            const buyerTotals = {};
+            soldItems.forEach(item => {
+                if(!buyerTotals[item.purchaserId]) buyerTotals[item.purchaserId] = 0;
+                buyerTotals[item.purchaserId] += (item.currentBid || item.startPrice);
+            });
+            const topBuyers = Object.entries(buyerTotals)
+                .map(([id, total]) => ({ id: parseInt(id), total }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 5);
+
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-money text-4xl text-emerald-500 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Gross Revenue</p>
+                        <p class="text-3xl font-bold">${formatCurrency(revenue)}</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-check-square-offset text-4xl text-indigo-500 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Items Sold</p>
+                        <p class="text-3xl font-bold">${soldItems.length}</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-calculator text-4xl text-purple-500 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Avg. Price per Item</p>
+                        <p class="text-3xl font-bold">${formatCurrency(avgPrice)}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6">
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="ph ph-trophy text-amber-500"></i> Top Buyers</h3>
+                    <div class="space-y-4">
+                        ${topBuyers.length === 0 ? '<p class="text-slate-500">No sales data yet.</p>' : topBuyers.map((b, index) => {
+                            const bidder = state.bidders.find(user => user.id === b.id);
+                            return `
+                                <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                                            #${index + 1}
+                                        </div>
+                                        <span class="font-bold">${bidder ? bidder.name : 'Unknown'}</span>
+                                    </div>
+                                    <span class="font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(b.total)}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 6. Settings
+        function getSettingsHTML() {
+            return `
+                <div class="max-w-2xl">
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
+                        
+                        <div class="flex items-center justify-between py-2">
+                            <div>
+                                <p class="font-medium">Theme Mode</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">Switch between dark and light appearance.</p>
+                            </div>
+                            <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                                <button onclick="window.setTheme('light')" class="${state.theme === 'light' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'} px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                                    <i class="ph ph-sun"></i> Light
+                                </button>
+                                <button onclick="window.setTheme('dark')" class="${state.theme === 'dark' ? 'bg-slate-800 shadow-sm text-white' : 'text-slate-500 hover:text-slate-300'} px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
+                                    <i class="ph ph-moon"></i> Dark
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 overflow-hidden p-6">
+                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Cloud Connected</h3>
+                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Your data is currently syncing in real-time to your Firebase Firestore database.</p>
+                        <div class="flex gap-3">
+                            <button onclick="window.openModal('resetData')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+                                Reset All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Actions & State Updates ---
+
+        function setTheme(theme) {
+            state.theme = theme;
+            saveState();
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            if(state.currentPage === 'settings') renderCurrentPage();
+        }
+
+        function togglePaid(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item) {
+                item.paid = !item.paid;
+                saveState();
+                renderCurrentPage();
+            }
+        }
+
+        function markBoxPaid(purchaserId) {
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            items.forEach(i => i.paid = true);
+            saveState();
+            renderCurrentPage();
+        }
+
+        function shipBox(purchaserId) {
+            state.activeShippingPurchaserId = purchaserId;
+            saveState();
+            switchPage('shipping');
+        }
+
+        function resetData() {
+            state = defaultState;
+            saveState();
+            closeModal();
+            switchPage('dashboard');
+        }
+
+        // --- Shipping & Packing Slip ---
+        function getShippingHTML() {
+            if (!state.activeShippingPurchaserId) return `<p>Error: No active shipment.</p>`;
+            const purchaserId = state.activeShippingPurchaserId;
+            const bidder = state.bidders.find(b => b.id == purchaserId);
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const subtotal = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+            
+            return `
+                <div class="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+                    <button onclick="window.switchPage('openbox')" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="ph ph-arrow-left text-xl"></i> Back to Open Box
+                    </button>
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <div class="flex items-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                            <span class="text-slate-500">$</span>
+                            <input type="number" id="shipping-fee-input" placeholder="Shipping Fee" min="0" step="0.5" class="bg-transparent border-none w-28 px-2 py-1 focus:outline-none dark:text-white" oninput="window.updateShippingFee(this.value, ${subtotal})">
+                        </div>
+                        <button onclick="window.processShipment(${purchaserId})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
+                            <i class="ph ph-printer"></i> Print & Ship
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-center w-full no-print mb-8">
+                    <p class="text-sm text-slate-500">A 4x6 label format is rendered below. Configure your printer to 4" x 6" label size.</p>
+                </div>
+
+                <!-- 4x6 Printable Area -->
+                <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
+                    <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
+                        <h1 class="text-2xl font-black tracking-tighter uppercase">Packing Slip</h1>
+                        <p class="text-xs text-gray-600 font-bold mt-1">DIECAST TRACKER</p>
+                    </div>
+                    
+                    <div class="mb-4 shrink-0">
+                        <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Ship To:</p>
+                        <h2 class="text-lg font-bold leading-tight">${bidder.name}</h2>
+                        ${bidder.profile ? `<p class="text-xs text-gray-600 mt-1 truncate">${bidder.profile}</p>` : ''}
+                    </div>
+
+                    <div class="flex-1 overflow-hidden">
+                        <table class="w-full text-xs mb-4 border-collapse">
+                            <thead>
+                                <tr class="border-b border-black text-left">
+                                    <th class="pb-1">Item Description</th>
+                                    <th class="pb-1 text-right">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${items.map(item => `
+                                    <tr>
+                                        <td class="py-1.5 pr-2 truncate max-w-[2.5in]">${item.name}</td>
+                                        <td class="py-1.5 text-right whitespace-nowrap">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t-2 border-black pt-3 shrink-0">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>Subtotal:</span>
+                            <span>${formatCurrency(subtotal)}</span>
+                        </div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>Shipping:</span>
+                            <span id="display-shipping-fee">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black mt-2">
+                            <span>Total:</span>
+                            <span id="display-total">${formatCurrency(subtotal)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
+                        Thank you for your purchase!
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateShippingFee(fee, subtotal) {
+            const feeVal = parseFloat(fee) || 0;
+            document.getElementById('display-shipping-fee').textContent = formatCurrency(feeVal);
+            document.getElementById('display-total').textContent = formatCurrency(subtotal + feeVal);
+        }
+
+        function processShipment(purchaserId) {
+            window.print();
+            
+            // Allow brief time for print dialog before completing action
+            setTimeout(() => {
+                const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+                items.forEach(i => i.shipped = true);
+                saveState();
+                updateBadges();
+                switchPage('openbox');
+            }, 500);
+        }
+
+        function markSold(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item && item.type === 'auction') {
+                if (!item.purchaserId) {
+                    window.openModal('error', { message: "Cannot end auction without any bids. Delete or edit item instead."});
+                    return;
+                }
+                item.status = 'sold';
+                item.paid = false;
+                item.shipped = false;
+                saveState();
+                updateBadges();
+                renderCurrentPage();
+            }
+        }
+
+        function reopenItem(itemId) {
+             const item = state.items.find(i => i.id === itemId);
+             if(item) {
+                 item.status = 'open';
+                 saveState();
+                 updateBadges();
+                 renderCurrentPage();
+             }
+        }
+
+        // --- Modals ---
+
+        function openModal(type, data = {}) {
+            const container = document.getElementById('modal-container');
+            let content = '';
+
+            if (type === 'error') {
+                 content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-sm modal-enter border border-slate-200 dark:border-slate-800 shadow-xl text-center">
+                        <i class="ph ph-warning-circle text-4xl text-rose-500 mb-3 block"></i>
+                        <h2 class="text-xl font-bold mb-2">Error</h2>
+                        <p class="text-slate-500 dark:text-slate-400 mb-6">${data.message}</p>
+                        <button onclick="window.closeModal()" class="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl font-medium transition-colors">Okay</button>
+                    </div>
+                 `;
+            } else if (type === 'resetData') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4 text-rose-600 dark:text-rose-400 flex items-center gap-2"><i class="ph ph-warning"></i> Confirm Reset</h2>
+                        <p class="text-slate-600 dark:text-slate-300 mb-6">Are you absolutely sure you want to reset all data? This will overwrite your Firebase database with default sample data and cannot be undone.</p>
+                        <div class="flex justify-end gap-3">
+                            <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                            <button type="button" onclick="window.resetData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-medium transition-colors">Yes, Reset Data</button>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'addPost') {
+                const today = new Date().toISOString().split('T')[0];
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Create New Post</h2>
+                        <form id="formAddPost" onsubmit="window.submitForm(event, 'addPost')">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Post/Event Name</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Date</label>
+                                    <input type="date" name="date" required value="${today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Facebook URL (Optional)</label>
+                                    <input type="url" name="url" placeholder="https://..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Create</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addItem') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add Item to Post</h2>
+                        <form id="formAddItem" onsubmit="window.submitForm(event, 'addItem', ${data.postId})">
+                            <div class="space-y-4 mb-6">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
+                                        <input type="text" name="itemNumber" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
+                                        <input type="text" name="brand" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <datalist id="brandOptions">
+                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Name/Description</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
+                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="auction">Auction</option>
+                                            <option value="bin">Buy It Now</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
+                                        <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Add Item</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBidder') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
+                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
+                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Bidder</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBid' || type === 'sellBin') {
+                const item = state.items.find(i => i.id === data.itemId);
+                const isBin = type === 'sellBin';
+                const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
+                
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${item.name} - ${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
+                        <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
+                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="" disabled selected>-- Choose --</option>
+                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                ${!isBin ? `
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bid Amount ($)</label>
+                                    <input type="number" name="amount" required min="${minBid}" step="1" value="${minBid}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>` : ''}
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 ${isBin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl font-medium transition-colors">${isBin ? 'Confirm Sale' : 'Submit Bid'}</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = content;
+            container.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const container = document.getElementById('modal-container');
+            container.classList.add('hidden');
+            container.innerHTML = '';
+        }
+
+        function submitForm(e, type, id) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const values = Object.fromEntries(formData.entries());
+
+            if (type === 'addPost') {
+                state.posts.push({
+                    id: generateId(),
+                    name: values.name,
+                    date: values.date,
+                    url: values.url,
+                    status: 'active'
+                });
+            } else if (type === 'addItem') {
+                if (values.brand && !state.brands.includes(values.brand)) {
+                    state.brands.push(values.brand);
+                }
+
+                state.items.push({
+                    id: generateId(),
+                    postId: id,
+                    itemNumber: values.itemNumber || '',
+                    brand: values.brand || '',
+                    name: values.name,
+                    type: values.type,
+                    startPrice: parseFloat(values.price),
+                    currentBid: null,
+                    purchaserId: null,
+                    status: 'open',
+                    paid: false,
+                    shipped: false
+                });
+            } else if (type === 'addBidder') {
+                state.bidders.push({
+                    id: generateId(),
+                    name: values.name,
+                    profile: values.profile
+                });
+            } else if (type === 'addBid') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.currentBid = parseFloat(values.amount);
+                    item.purchaserId = parseInt(values.bidderId);
+                }
+            } else if (type === 'sellBin') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.purchaserId = parseInt(values.bidderId);
+                    item.status = 'sold';
+                    item.paid = false;
+                    item.shipped = false;
+                }
+            }
+
+            saveState();
+            closeModal();
+            updateBadges();
+            renderCurrentPage();
+        }
+
+    </script>
+</body>
+</html>
