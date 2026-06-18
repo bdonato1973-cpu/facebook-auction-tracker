@@ -179,6 +179,7 @@
         window.closeModal = closeModal;
         window.submitForm = submitForm;
         window.viewPost = viewPost;
+        window.updateStoreName = updateStoreName;
         
         async function saveState() {
             if (!docRef) return;
@@ -691,10 +692,19 @@
             `;
         }
 
-        // 6. Settings
+       // 6. Settings
         function getSettingsHTML() {
             return `
                 <div class="max-w-2xl">
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
+                        <div class="flex flex-col py-2">
+                            <label class="font-medium mb-1">Store / Brand Name</label>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">This appears at the top of your printable packing slips.</p>
+                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        </div>
+                    </div>
+
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
                         
@@ -726,7 +736,10 @@
                 </div>
             `;
         }
-
+        function updateStoreName(name) {
+            state.storeName = name;
+            saveState();
+        }
         // --- Actions & State Updates ---
 
         function setTheme(theme) {
@@ -800,8 +813,11 @@
                 <!-- 4x6 Printable Area -->
                 <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
                     <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
-                        <h1 class="text-2xl font-black tracking-tighter uppercase">Packing Slip</h1>
-                        <p class="text-xs text-gray-600 font-bold mt-1">DIECAST TRACKER</p>
+                        <div class="flex items-center justify-center gap-2 mb-1">
+                            <i class="ph-fill ph-car-profile text-2xl"></i>
+                            <h1 class="text-2xl font-black tracking-tighter uppercase">${state.storeName || "Donato's Diecast"}</h1>
+                        </div>
+                        <p class="text-xs text-gray-600 font-bold tracking-widest">PACKING SLIP</p>
                     </div>
                     
                     <div class="mb-4 shrink-0">
@@ -845,11 +861,10 @@
                     </div>
                     
                     <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
-                        Thank you for your purchase!
+                        Thank you for shopping with ${state.storeName || "Donato's Diecast"}!
                     </div>
                 </div>
             `;
-        }
 
         function updateShippingFee(fee, subtotal) {
             const feeVal = parseFloat(fee) || 0;
