@@ -154,7 +154,7 @@
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
-            reportFilterPostId: 'all', // New state property for reports filter
+            reportFilterPostId: 'all', 
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
             posts: [],
             bidders: [],
@@ -208,38 +208,27 @@
             if (user) {
                 userId = user.uid;
                 
-                // Document paths must have an even number of segments (Collection -> Document).
                 if (typeof __firebase_config !== 'undefined') {
-                    // Strict paths required when testing in this preview canvas
                     docRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'appState');
                 } else {
-                    // Your simplified path for your own server
-                    // This creates a document with the ID of the userId inside the 'users' collection
                     docRef = doc(db, 'users', userId); 
                 }
                 
                 onSnapshot(docRef, (snapshot) => {
                     if (snapshot.exists()) {
                         state = snapshot.data();
-                        // Handle backwards compatibility for new properties added later
                         if (state.reportFilterPostId === undefined) state.reportFilterPostId = 'all';
                     } else {
-                        // Initialize database with default sample data
                         state = defaultState;
                         saveState();
                     }
                     
                     if (!isInitialized) {
                         isInitialized = true;
-                        
-                        if (state.theme === 'dark') {
-                            document.documentElement.classList.add('dark');
-                        } else {
-                            document.documentElement.classList.remove('dark');
-                        }
+                        if (state.theme === 'dark') document.documentElement.classList.add('dark');
+                        else document.documentElement.classList.remove('dark');
                         switchPage(state.currentPage || 'dashboard');
                     } else {
-                        // Update UI seamlessly when data syncs from cloud
                         renderCurrentPage();
                         updateBadges();
                     }
@@ -249,24 +238,17 @@
             }
         });
 
-        // Start connection
         initAuth();
 
         // --- Core Functions ---
-
-        function generateId() {
-            return Math.floor(Math.random() * 1000000);
-        }
+        function generateId() { return Math.floor(Math.random() * 1000000); }
 
         function switchPage(page) {
             state.currentPage = page;
-            if (page !== 'posts') state.activePostId = null; // Reset sub-views
+            if (page !== 'posts') state.activePostId = null; 
             if (page !== 'shipping') state.activeShippingPurchaserId = null;
-            
-            // Save page location to Firebase 
             saveState();
 
-            // Update Title
             const titles = {
                 dashboard: 'Dashboard', posts: 'Manage Posts', bidders: 'Bidders Directory',
                 openbox: 'Open Box Tracking', reports: 'Sales Reports', settings: 'Settings',
@@ -274,7 +256,6 @@
             };
             document.getElementById('page-title').innerText = titles[page] || 'Diecast Tracker';
 
-            // Update Nav Highlighting
             document.querySelectorAll('.nav-btn').forEach(btn => {
                 if (btn.dataset.page === page) {
                     btn.classList.add('bg-indigo-50', 'dark:bg-slate-800', 'text-indigo-600', 'dark:text-indigo-400');
@@ -284,7 +265,6 @@
                     btn.classList.add('text-slate-600', 'dark:text-slate-400');
                 }
             });
-
             renderCurrentPage();
             updateBadges();
         }
@@ -306,11 +286,10 @@
         }
 
         // --- Rendering Logic ---
-
         function renderCurrentPage() {
             if(!state) return;
             const content = document.getElementById('content-area');
-            content.innerHTML = ''; // Clear
+            content.innerHTML = ''; 
 
             switch (state.currentPage) {
                 case 'dashboard': content.innerHTML = getDashboardHTML(); break;
@@ -441,7 +420,7 @@
 
         function viewPost(postId) {
             state.activePostId = postId;
-            saveState(); // sync the view change to firestore
+            saveState(); 
             renderCurrentPage();
         }
 
@@ -488,6 +467,13 @@
                             ${postItems.length === 0 ? `<tr><td colspan="6" class="p-8 text-center text-slate-500">No items added to this post yet.</td></tr>` : 
                             postItems.map(item => {
                                 const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                                
+                                // Determine split badge for UI
+                                let splitBadge = '';
+                                let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
+                                if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
+                                if (actualRule === '50_50_under_3') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50 (<$3)</span>';
+
                                 return `
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                     <td class="p-4 text-slate-500 dark:text-slate-400 font-mono text-sm">
@@ -497,6 +483,7 @@
                                         ${item.brand ? `<span class="text-xs text-indigo-600 dark:text-indigo-400 font-bold block uppercase tracking-wider mb-0.5">${item.brand}</span>` : ''}
                                         ${item.name}
                                         ${item.status === 'sold' ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded align-middle">Sold</span>' : ''}
+                                        ${splitBadge}
                                     </td>
                                     <td class="p-4">
                                         <span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span>
@@ -655,8 +642,29 @@
                 soldItems = soldItems.filter(i => i.postId == filterPostId);
             }
             
-            const revenue = soldItems.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
-            const avgPrice = soldItems.length ? revenue / soldItems.length : 0;
+            let grossRevenue = 0;
+            let myRevenue = 0;
+            let consignmentRevenue = 0;
+
+            // Calculate splits for each item
+            soldItems.forEach(item => {
+                const price = item.currentBid || item.startPrice;
+                grossRevenue += price;
+
+                const post = state.posts.find(p => p.id === item.postId);
+                let rule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post && post.splitRule ? post.splitRule : 'none');
+
+                let myCut = price; // Default to 100%
+
+                if (rule === '50_50') {
+                    myCut = price * 0.5;
+                } else if (rule === '50_50_under_3' && price < 3) {
+                    myCut = price * 0.5;
+                }
+
+                myRevenue += myCut;
+                consignmentRevenue += (price - myCut);
+            });
             
             // Top Buyers
             const buyerTotals = {};
@@ -667,7 +675,7 @@
             const topBuyers = Object.entries(buyerTotals)
                 .map(([id, total]) => ({ id: parseInt(id), total }))
                 .sort((a, b) => b.total - a.total)
-                .slice(0, 3); // Changed from 5 to 3
+                .slice(0, 3);
 
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -678,26 +686,39 @@
                     </select>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-money text-4xl text-emerald-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Gross Revenue</p>
-                        <p class="text-3xl font-bold">${formatCurrency(revenue)}</p>
+                        <i class="ph ph-check-square-offset text-3xl text-indigo-500 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold tracking-wider">Items Sold</p>
+                        <p class="text-2xl font-black mt-1">${soldItems.length}</p>
                     </div>
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-check-square-offset text-4xl text-indigo-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Items Sold</p>
-                        <p class="text-3xl font-bold">${soldItems.length}</p>
+                        <i class="ph ph-money text-3xl text-slate-400 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold tracking-wider">Gross Revenue</p>
+                        <p class="text-2xl font-black mt-1">${formatCurrency(grossRevenue)}</p>
                     </div>
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-calculator text-4xl text-purple-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Avg. Price per Item</p>
-                        <p class="text-3xl font-bold">${formatCurrency(avgPrice)}</p>
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-wallet text-3xl text-emerald-500 mb-2"></i>
+                        <p class="text-emerald-700 dark:text-emerald-400 text-xs uppercase font-bold tracking-wider">My Cut</p>
+                        <p class="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">${formatCurrency(myRevenue)}</p>
                     </div>
+                    ${consignmentRevenue > 0 ? `
+                    <div class="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-100 dark:border-amber-800/30 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-users-three text-3xl text-amber-500 mb-2"></i>
+                        <p class="text-amber-700 dark:text-amber-400 text-xs uppercase font-bold tracking-wider">Consignment</p>
+                        <p class="text-2xl font-black text-amber-700 dark:text-amber-400 mt-1">${formatCurrency(consignmentRevenue)}</p>
+                    </div>
+                    ` : `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center opacity-50">
+                        <i class="ph ph-users-three text-3xl text-slate-300 dark:text-slate-600 mb-2"></i>
+                        <p class="text-slate-400 dark:text-slate-500 text-xs uppercase font-bold tracking-wider">Consignment</p>
+                        <p class="text-2xl font-black mt-1">$0.00</p>
+                    </div>
+                    `}
                 </div>
 
                 <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6">
-                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="ph ph-trophy text-amber-500"></i> Top Buyers</h3>
+                    <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="ph ph-trophy text-amber-500"></i> Top 3 Buyers</h3>
                     <div class="space-y-4">
                         ${topBuyers.length === 0 ? '<p class="text-slate-500">No sales data found for this selection.</p>' : topBuyers.map((b, index) => {
                             const bidder = state.bidders.find(user => user.id === b.id);
@@ -930,7 +951,6 @@
         }
 
         // --- Modals ---
-
         function openModal(type, data = {}) {
             const container = document.getElementById('modal-container');
             let content = '';
@@ -966,9 +986,19 @@
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Post/Event Name</label>
                                     <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Date</label>
-                                    <input type="date" name="date" required value="${today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Date</label>
+                                        <input type="date" name="date" required value="${today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Revenue Rule</label>
+                                        <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="none">100% to Me</option>
+                                            <option value="50_50">50/50 Split</option>
+                                            <option value="50_50_under_3">50/50 Split (If < $3)</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Facebook URL (Optional)</label>
@@ -1017,6 +1047,15 @@
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
                                         <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Override Revenue Rule</label>
+                                    <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="post_default">Use Post Default</option>
+                                        <option value="none">100% to Me</option>
+                                        <option value="50_50">50/50 Split</option>
+                                        <option value="50_50_under_3">50/50 Split (If < $3)</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
@@ -1102,6 +1141,7 @@
                     name: values.name,
                     date: values.date,
                     url: values.url,
+                    splitRule: values.splitRule || 'none',
                     status: 'active'
                 });
             } else if (type === 'addItem') {
@@ -1117,6 +1157,7 @@
                     name: values.name,
                     type: values.type,
                     startPrice: parseFloat(values.price),
+                    splitRule: values.splitRule || 'post_default',
                     currentBid: null,
                     purchaserId: null,
                     status: 'open',
