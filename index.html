@@ -180,6 +180,8 @@
         window.viewPost = viewPost;
         window.closePostView = closePostView;
         window.updateReportFilter = updateReportFilter;
+        window.updatePaymentLink = updatePaymentLink;
+        window.copyInvoice = copyInvoice;
         
         async function saveState() {
             if (!docRef) return;
@@ -619,9 +621,10 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex gap-3">
-                                ${totalOwed > 0 ? `<button onclick="window.markBoxPaid(${purchaserId})" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium transition-colors">Mark All Paid</button>` : ''}
-                                <button onclick="window.shipBox(${purchaserId})" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-2 md:gap-3">
+                                <button onclick="window.copyInvoice(${purchaserId}, this)" class="flex-1 py-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap"><i class="ph ph-copy"></i> Invoice</button>
+                                ${totalOwed > 0 ? `<button onclick="window.markBoxPaid(${purchaserId})" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium transition-colors whitespace-nowrap">Mark All Paid</button>` : ''}
+                                <button onclick="window.shipBox(${purchaserId})" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap">
                                     <i class="ph ph-truck"></i> Ship Box
                                 </button>
                             </div>
@@ -748,6 +751,20 @@
             return `
                 <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Payment & Invoicing</h3>
+                        <div class="flex flex-col py-2">
+                            <label class="font-medium mb-1">Payment Link (PayPal/Venmo)</label>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Automatically added to your Quick-Copy Messenger Invoices.</p>
+                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
+                        
+                        <div class="flex items-center justify-between py-2">
+                <div class="max-w-2xl">
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
                         
                         <div class="flex items-center justify-between py-2">
@@ -785,6 +802,47 @@
             state.reportFilterPostId = postId;
             saveState();
             renderCurrentPage();
+        }
+
+        function updatePaymentLink(link) {
+            state.paymentLink = link;
+            saveState();
+        }
+
+        function copyInvoice(purchaserId, btnElement) {
+            const bidder = state.bidders.find(b => b.id == purchaserId);
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+            const itemCount = items.length;
+            const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
+            
+            // Format the message
+            const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
+
+            // Create temporary textarea to execute the copy command
+            const textArea = document.createElement("textarea");
+            textArea.value = message;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                
+                // Temporarily change button to "Copied!" for visual feedback
+                const originalText = btnElement.innerHTML;
+                btnElement.innerHTML = `<i class="ph ph-check"></i> Copied!`;
+                btnElement.classList.add('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
+                btnElement.classList.remove('bg-sky-50', 'text-sky-600', 'dark:bg-sky-900/30', 'dark:text-sky-400');
+                
+                setTimeout(() => {
+                    btnElement.innerHTML = originalText;
+                    btnElement.classList.remove('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
+                    btnElement.classList.add('bg-sky-50', 'text-sky-600', 'dark:bg-sky-900/30', 'dark:text-sky-400');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textArea);
         }
 
         function setTheme(theme) {
