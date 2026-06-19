@@ -55,7 +55,6 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans h-screen flex overflow-hidden transition-colors duration-200">
 
-    <!-- Sidebar Navigation -->
     <aside class="w-20 lg:w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-colors duration-200 shrink-0">
         <div>
             <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
@@ -156,6 +155,11 @@
             activeShippingPurchaserId: null,
             reportFilterPostId: 'all', 
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
+            paymentMethods: {
+                paypal: { link: '', qr: '' },
+                venmo: { link: '', qr: '' },
+                cashapp: { link: '', qr: '' }
+            },
             posts: [],
             bidders: [],
             items: []
@@ -180,7 +184,8 @@
         window.viewPost = viewPost;
         window.closePostView = closePostView;
         window.updateReportFilter = updateReportFilter;
-        window.updatePaymentLink = updatePaymentLink;
+        window.updatePaymentMethod = updatePaymentMethod;
+        window.handleQRUpload = handleQRUpload;
         window.copyInvoice = copyInvoice;
         
         async function saveState() {
@@ -219,7 +224,12 @@
                 onSnapshot(docRef, (snapshot) => {
                     if (snapshot.exists()) {
                         state = snapshot.data();
+                        
+                        // Fallbacks for data structures added in later versions
                         if (state.reportFilterPostId === undefined) state.reportFilterPostId = 'all';
+                        if (!state.paymentMethods) {
+                            state.paymentMethods = { paypal: { link: '', qr: '' }, venmo: { link: '', qr: '' }, cashapp: { link: '', qr: '' } };
+                        }
                     } else {
                         state = defaultState;
                         saveState();
@@ -751,19 +761,39 @@
             return `
                 <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Payment & Invoicing</h3>
-                        <div class="flex flex-col py-2">
-                            <label class="font-medium mb-1">Payment Link (PayPal/Venmo)</label>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Automatically added to your Quick-Copy Messenger Invoices.</p>
-                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Payment Methods</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Add your payment links for quick-copy invoices, and optionally upload QR codes to print directly on your packing slips.</p>
+                        
+                        <div class="space-y-6">
+                            ${['paypal', 'venmo', 'cashapp'].map(method => `
+                                <div class="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                                    <div class="flex-1">
+                                        <label class="font-bold text-sm mb-1 capitalize block">${method} Link</label>
+                                        <input type="text" value="${state.paymentMethods?.[method]?.link || ""}" placeholder="e.g. ${method === 'cashapp' ? '$Cashtag' : method + '.me/username'}" onchange="window.updatePaymentMethod('${method}', 'link', this.value)" class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white mb-3">
+                                        
+                                        <label class="font-bold text-sm mb-1 block">QR Code Image</label>
+                                        <div class="flex items-center gap-3">
+                                            <label class="cursor-pointer bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                                                Upload Image
+                                                <input type="file" accept="image/*" class="hidden" onchange="window.handleQRUpload(event, '${method}')">
+                                            </label>
+                                            ${state.paymentMethods?.[method]?.qr ? `<button onclick="window.updatePaymentMethod('${method}', 'qr', '')" class="text-rose-500 text-sm hover:underline">Remove</button>` : ''}
+                                        </div>
+                                    </div>
+                                    ${state.paymentMethods?.[method]?.qr ? `
+                                        <div class="w-24 h-24 shrink-0 bg-white border border-slate-200 rounded-lg overflow-hidden flex items-center justify-center p-1">
+                                            <img src="${state.paymentMethods[method].qr}" class="max-w-full max-h-full object-contain">
+                                        </div>
+                                    ` : `
+                                        <div class="w-24 h-24 shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-400">
+                                            <i class="ph ph-qr-code text-3xl"></i>
+                                        </div>
+                                    `}
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
-                        
-                        <div class="flex items-center justify-between py-2">
-                <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
                         
@@ -804,9 +834,48 @@
             renderCurrentPage();
         }
 
-        function updatePaymentLink(link) {
-            state.paymentLink = link;
+        function updatePaymentMethod(method, type, value) {
+            if (!state.paymentMethods) state.paymentMethods = { paypal: { link: '', qr: '' }, venmo: { link: '', qr: '' }, cashapp: { link: '', qr: '' } };
+            state.paymentMethods[method][type] = value;
             saveState();
+            if (type === 'qr') renderCurrentPage();
+        }
+
+        function handleQRUpload(event, method) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 200; // Resize to keep database fast
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert back to small base64 string and save
+                    updatePaymentMethod(method, 'qr', canvas.toDataURL('image/jpeg', 0.8));
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
         }
 
         function copyInvoice(purchaserId, btnElement) {
@@ -814,10 +883,17 @@
             const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
             const itemCount = items.length;
-            const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
+            
+            let paymentText = "";
+            if (state.paymentMethods) {
+                if (state.paymentMethods.paypal?.link) paymentText += `\nPayPal: ${state.paymentMethods.paypal.link}`;
+                if (state.paymentMethods.venmo?.link) paymentText += `\nVenmo: ${state.paymentMethods.venmo.link}`;
+                if (state.paymentMethods.cashapp?.link) paymentText += `\nCashApp: ${state.paymentMethods.cashapp.link}`;
+            }
+            if (!paymentText) paymentText = "\n[Your Payment Links - Add them in Settings!]";
             
             // Format the message
-            const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
+            const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via:${paymentText}\n\nThanks!`;
 
             // Create temporary textarea to execute the copy command
             const textArea = document.createElement("textarea");
@@ -962,7 +1038,18 @@
                         </div>
                     </div>
                     
-                    <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
+                    ${(state.paymentMethods?.paypal?.qr || state.paymentMethods?.venmo?.qr || state.paymentMethods?.cashapp?.qr) ? `
+                    <div class="border-t border-gray-300 pt-2 mt-3 shrink-0">
+                        <p class="text-[10px] text-center font-bold mb-1">Scan to Pay</p>
+                        <div class="flex justify-center gap-4">
+                            ${state.paymentMethods.paypal?.qr ? `<div class="text-center"><img src="${state.paymentMethods.paypal.qr}" class="w-12 h-12 mx-auto"><p class="text-[8px] mt-0.5">PayPal</p></div>` : ''}
+                            ${state.paymentMethods.venmo?.qr ? `<div class="text-center"><img src="${state.paymentMethods.venmo.qr}" class="w-12 h-12 mx-auto"><p class="text-[8px] mt-0.5">Venmo</p></div>` : ''}
+                            ${state.paymentMethods.cashapp?.qr ? `<div class="text-center"><img src="${state.paymentMethods.cashapp.qr}" class="w-12 h-12 mx-auto"><p class="text-[8px] mt-0.5">CashApp</p></div>` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-2 shrink-0">
                         Thank you for your purchase!
                     </div>
                 </div>
