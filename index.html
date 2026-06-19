@@ -55,6 +55,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans h-screen flex overflow-hidden transition-colors duration-200">
 
+    <!-- Sidebar Navigation -->
     <aside class="w-20 lg:w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-colors duration-200 shrink-0">
         <div>
             <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
@@ -93,6 +94,7 @@
         </div>
     </aside>
 
+    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="h-16 flex items-center px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <h1 id="page-title" class="text-2xl font-bold">Connecting...</h1>
@@ -108,9 +110,12 @@
         </div>
     </main>
 
+    <!-- Global Modals Container -->
     <div id="modal-container" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        </div>
+        <!-- Modal content injected here -->
+    </div>
 
+    <!-- Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -129,7 +134,8 @@
                 projectId: "facebook-auction-tracker",
                 storageBucket: "facebook-auction-tracker.firebasestorage.app",
                 messagingSenderId: "936018615344",
-                appId: "1:936018615344:web:91a29634684467ba5121f5"
+                appId: "1:936018615344:web:91a29634684467ba5121f5",
+                measurementId: "G-7J35PYN94P"
             };
         }
 
@@ -142,14 +148,15 @@
         let docRef = null;
         let isInitialized = false;
 
-        // --- State Management ---
+       // --- State Management ---
         const defaultState = {
             theme: 'dark',
-            storeName: "Donato's Diecast",
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
+            // Keep your brands list intact so you still have your picklist options
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
+            // Empty out the demo data entirely
             posts: [],
             bidders: [],
             items: []
@@ -172,10 +179,6 @@
         window.closeModal = closeModal;
         window.submitForm = submitForm;
         window.viewPost = viewPost;
-        window.updateStoreName = updateStoreName;
-        window.closePostView = closePostView;
-        window.saveState = saveState;
-        window.renderCurrentPage = renderCurrentPage;
         
         async function saveState() {
             if (!docRef) return;
@@ -381,7 +384,6 @@
                                     </td>
                                 </tr>
                             `).join('')}
-                            ${state.items.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">No items created yet.</td></tr>` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -399,7 +401,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    ${state.posts.length === 0 ? `<div class="col-span-full p-8 text-center text-slate-500 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800">No posts created yet. Click 'New Post' to start.</div>` : ''}
                     ${state.posts.map(post => {
                         const postItems = state.items.filter(i => i.postId === post.id);
                         const soldCount = postItems.filter(i => i.status === 'sold').length;
@@ -439,12 +440,6 @@
             renderCurrentPage();
         }
 
-        function closePostView() {
-            state.activePostId = null;
-            saveState();
-            renderCurrentPage();
-        }
-
         // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
@@ -453,7 +448,7 @@
             return `
                 <div class="mb-6 flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                        <button onclick="window.closePostView()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        <button onclick="state.activePostId = null; window.saveState(); window.renderCurrentPage()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <i class="ph ph-arrow-left text-xl"></i>
                         </button>
                         <div>
@@ -546,7 +541,6 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                            ${state.bidders.length === 0 ? `<tr><td colspan="4" class="p-8 text-center text-slate-500">No bidders added yet.</td></tr>` : ''}
                             ${state.bidders.map(bidder => {
                                 const purchases = state.items.filter(i => i.purchaserId === bidder.id && i.status === 'sold');
                                 const totalSpent = purchases.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
@@ -702,15 +696,6 @@
             return `
                 <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
-                        <div class="flex flex-col py-2">
-                            <label class="font-medium mb-1">Store / Brand Name</label>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">This appears at the top of your printable packing slips.</p>
-                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                        </div>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
                         
                         <div class="flex items-center justify-between py-2">
@@ -743,11 +728,6 @@
         }
 
         // --- Actions & State Updates ---
-
-        function updateStoreName(name) {
-            state.storeName = name;
-            saveState();
-        }
 
         function setTheme(theme) {
             state.theme = theme;
@@ -817,13 +797,11 @@
                     <p class="text-sm text-slate-500">A 4x6 label format is rendered below. Configure your printer to 4" x 6" label size.</p>
                 </div>
 
+                <!-- 4x6 Printable Area -->
                 <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
                     <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
-                        <div class="flex items-center justify-center gap-2 mb-1">
-                            <i class="ph-fill ph-car-profile text-2xl"></i>
-                            <h1 class="text-2xl font-black tracking-tighter uppercase">${state.storeName || "Donato's Diecast"}</h1>
-                        </div>
-                        <p class="text-xs text-gray-600 font-bold tracking-widest">PACKING SLIP</p>
+                        <h1 class="text-2xl font-black tracking-tighter uppercase">Packing Slip</h1>
+                        <p class="text-xs text-gray-600 font-bold mt-1">DIECAST TRACKER</p>
                     </div>
                     
                     <div class="mb-4 shrink-0">
@@ -867,7 +845,7 @@
                     </div>
                     
                     <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
-                        Thank you for shopping with ${state.storeName || "Donato's Diecast"}!
+                        Thank you for your purchase!
                     </div>
                 </div>
             `;
@@ -978,3 +956,168 @@
                         <form id="formAddItem" onsubmit="window.submitForm(event, 'addItem', ${data.postId})">
                             <div class="space-y-4 mb-6">
                                 <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
+                                        <input type="text" name="itemNumber" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
+                                        <input type="text" name="brand" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <datalist id="brandOptions">
+                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Name/Description</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
+                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="auction">Auction</option>
+                                            <option value="bin">Buy It Now</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
+                                        <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Add Item</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBidder') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
+                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
+                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Bidder</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBid' || type === 'sellBin') {
+                const item = state.items.find(i => i.id === data.itemId);
+                const isBin = type === 'sellBin';
+                const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
+                
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${item.name} - ${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
+                        <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
+                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="" disabled selected>-- Choose --</option>
+                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                ${!isBin ? `
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bid Amount ($)</label>
+                                    <input type="number" name="amount" required min="${minBid}" step="1" value="${minBid}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>` : ''}
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 ${isBin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl font-medium transition-colors">${isBin ? 'Confirm Sale' : 'Submit Bid'}</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = content;
+            container.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const container = document.getElementById('modal-container');
+            container.classList.add('hidden');
+            container.innerHTML = '';
+        }
+
+        function submitForm(e, type, id) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const values = Object.fromEntries(formData.entries());
+
+            if (type === 'addPost') {
+                state.posts.push({
+                    id: generateId(),
+                    name: values.name,
+                    date: values.date,
+                    url: values.url,
+                    status: 'active'
+                });
+            } else if (type === 'addItem') {
+                if (values.brand && !state.brands.includes(values.brand)) {
+                    state.brands.push(values.brand);
+                }
+
+                state.items.push({
+                    id: generateId(),
+                    postId: id,
+                    itemNumber: values.itemNumber || '',
+                    brand: values.brand || '',
+                    name: values.name,
+                    type: values.type,
+                    startPrice: parseFloat(values.price),
+                    currentBid: null,
+                    purchaserId: null,
+                    status: 'open',
+                    paid: false,
+                    shipped: false
+                });
+            } else if (type === 'addBidder') {
+                state.bidders.push({
+                    id: generateId(),
+                    name: values.name,
+                    profile: values.profile
+                });
+            } else if (type === 'addBid') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.currentBid = parseFloat(values.amount);
+                    item.purchaserId = parseInt(values.bidderId);
+                }
+            } else if (type === 'sellBin') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.purchaserId = parseInt(values.bidderId);
+                    item.status = 'sold';
+                    item.paid = false;
+                    item.shipped = false;
+                }
+            }
+
+            saveState();
+            closeModal();
+            updateBadges();
+            renderCurrentPage();
+        }
+
+    </script>
+</body>
+</html>
