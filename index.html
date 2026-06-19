@@ -182,10 +182,11 @@
         window.submitForm = submitForm;
         window.viewPost = viewPost;
         window.closePostView = closePostView;
-        window.updatePaymentLink = updatePaymentLink;
+        window.updatePaymentLinks = updatePaymentLinks; // FIXED: Changed from updatePaymentLink
         window.copyInvoice = copyInvoice;
         window.updateStoreName = updateStoreName;
         window.executeDelete = executeDelete;
+        window.updateReportFilter = updateReportFilter; // FIXED: Exposed Report Filter
         
         async function saveState() {
             if (!docRef) return;
