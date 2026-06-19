@@ -148,15 +148,13 @@
         let docRef = null;
         let isInitialized = false;
 
-       // --- State Management ---
+        // --- State Management ---
         const defaultState = {
             theme: 'dark',
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
-            // Keep your brands list intact so you still have your picklist options
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
-            // Empty out the demo data entirely
             posts: [],
             bidders: [],
             items: []
@@ -179,6 +177,7 @@
         window.closeModal = closeModal;
         window.submitForm = submitForm;
         window.viewPost = viewPost;
+        window.closePostView = closePostView;
         
         async function saveState() {
             if (!docRef) return;
@@ -384,6 +383,7 @@
                                     </td>
                                 </tr>
                             `).join('')}
+                            ${state.items.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">No items created yet.</td></tr>` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -401,6 +401,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${state.posts.length === 0 ? `<div class="col-span-full p-8 text-center text-slate-500 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800">No posts created yet. Click 'New Post' to start.</div>` : ''}
                     ${state.posts.map(post => {
                         const postItems = state.items.filter(i => i.postId === post.id);
                         const soldCount = postItems.filter(i => i.status === 'sold').length;
@@ -440,6 +441,12 @@
             renderCurrentPage();
         }
 
+        function closePostView() {
+            state.activePostId = null;
+            saveState();
+            renderCurrentPage();
+        }
+
         // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
@@ -448,7 +455,7 @@
             return `
                 <div class="mb-6 flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                        <button onclick="state.activePostId = null; window.saveState(); window.renderCurrentPage()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        <button onclick="window.closePostView()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <i class="ph ph-arrow-left text-xl"></i>
                         </button>
                         <div>
@@ -541,6 +548,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                            ${state.bidders.length === 0 ? `<tr><td colspan="4" class="p-8 text-center text-slate-500">No bidders added yet.</td></tr>` : ''}
                             ${state.bidders.map(bidder => {
                                 const purchases = state.items.filter(i => i.purchaserId === bidder.id && i.status === 'sold');
                                 const totalSpent = purchases.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
