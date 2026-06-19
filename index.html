@@ -224,8 +224,6 @@
                     if (snapshot.exists()) {
                         state = snapshot.data();
                         if (state.reportFilterPostId === undefined) state.reportFilterPostId = 'all';
-                        
-                        // Migrate old single payment link to PayPal if needed
                         if (state.paypalLink === undefined) state.paypalLink = state.paymentLink || '';
                         if (state.cashappLink === undefined) state.cashappLink = '';
                         if (state.venmoLink === undefined) state.venmoLink = '';
@@ -842,11 +840,8 @@
             const bidder = state.bidders.find(b => b.id == purchaserId);
             const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+            const itemCount = items.length;
             
-            // Build items list
-            let itemList = items.map(i => `- ${i.name}: ${formatCurrency(i.currentBid || i.startPrice)}`).join('\n');
-            
-            // Build payments string
             let paymentSection = "";
             let links = [];
             if (state.paypalLink) links.push(`PayPal: ${state.paypalLink}`);
@@ -854,13 +849,13 @@
             if (state.venmoLink) links.push(`Venmo: ${state.venmoLink}`);
             
             if (links.length > 0) {
-                paymentSection = "Please send payment via:\n" + links.map(l => "• " + l).join('\n');
+                paymentSection = "Please send payment using one of the links below:\n" + links.map(l => "• " + l).join('\n');
             } else {
                 paymentSection = "Please send payment via: [Your Payment Link - Add in Settings]";
             }
             
-            // Format the final message
-            const message = `Hey ${bidder.name}!\n\nHere is your total for the recent drops:\n\n${itemList}\n\nSubtotal: ${formatCurrency(totalValue)}\nShipping: $5.00 (Standard Box)\nGrand Total: ${formatCurrency(totalValue + 5)}\n\n${paymentSection}\n\nThank you!`;
+            // Format the final friendly message
+            const message = `Hey ${bidder.name}! Thanks for grabbing cars in the recent drop! 🚗💨\n\nYou won ${itemCount} item${itemCount !== 1 ? 's' : ''} for a total of ${formatCurrency(totalValue)}.\n\n${paymentSection}\n\nLet me know if you have any questions. Thank you!`;
 
             // Create temporary textarea to execute the copy command
             const textArea = document.createElement("textarea");
