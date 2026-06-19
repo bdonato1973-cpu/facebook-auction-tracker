@@ -655,30 +655,7 @@
                 soldItems = soldItems.filter(i => i.postId == filterPostId);
             }
             
-            let revenue = 0;
-            let myRevenue = 0;
-            let otherRevenue = 0;
-
-            soldItems.forEach(item => {
-                const price = item.currentBid || item.startPrice;
-                revenue += price;
-                
-                // Determine distribution rule (Default to '100' for old items)
-                let dist = item.distribution;
-                if (!dist || dist === 'post_default') {
-                    const post = state.posts.find(p => p.id === item.postId);
-                    dist = post ? (post.distribution || '100') : '100';
-                }
-
-                // Apply logic rule
-                if (dist === '50_under_3' && price < 3) {
-                    myRevenue += (price / 2);
-                    otherRevenue += (price / 2);
-                } else {
-                    myRevenue += price;
-                }
-            });
-
+            const revenue = soldItems.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
             const avgPrice = soldItems.length ? revenue / soldItems.length : 0;
             
             // Top Buyers
@@ -701,32 +678,21 @@
                     </select>
                 </div>
 
-                <div class="flex flex-wrap gap-4 mb-8">
-                    <div class="flex-1 min-w-[140px] bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
                         <i class="ph ph-money text-4xl text-emerald-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Gross Rev</p>
-                        <p class="text-2xl lg:text-3xl font-bold">${formatCurrency(revenue)}</p>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Gross Revenue</p>
+                        <p class="text-3xl font-bold">${formatCurrency(revenue)}</p>
                     </div>
-                    <div class="flex-1 min-w-[140px] bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-wallet text-4xl text-indigo-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">My Cut</p>
-                        <p class="text-2xl lg:text-3xl font-bold">${formatCurrency(myRevenue)}</p>
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                        <i class="ph ph-check-square-offset text-4xl text-indigo-500 mb-2"></i>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Items Sold</p>
+                        <p class="text-3xl font-bold">${soldItems.length}</p>
                     </div>
-                    ${otherRevenue > 0 ? `
-                    <div class="flex-1 min-w-[140px] bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-users text-4xl text-rose-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Partner Cut</p>
-                        <p class="text-2xl lg:text-3xl font-bold">${formatCurrency(otherRevenue)}</p>
-                    </div>` : ''}
-                    <div class="flex-1 min-w-[140px] bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
-                        <i class="ph ph-check-square-offset text-4xl text-blue-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Sold</p>
-                        <p class="text-2xl lg:text-3xl font-bold">${soldItems.length}</p>
-                    </div>
-                    <div class="flex-1 min-w-[140px] bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center items-center text-center">
                         <i class="ph ph-calculator text-4xl text-purple-500 mb-2"></i>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm">Avg Price</p>
-                        <p class="text-2xl lg:text-3xl font-bold">${formatCurrency(avgPrice)}</p>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm">Avg. Price per Item</p>
+                        <p class="text-3xl font-bold">${formatCurrency(avgPrice)}</p>
                     </div>
                 </div>
 
@@ -1008,12 +974,49 @@
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Facebook URL (Optional)</label>
                                     <input type="url" name="url" placeholder="https://..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Create</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addItem') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add Item to Post</h2>
+                        <form id="formAddItem" onsubmit="window.submitForm(event, 'addItem', ${data.postId})">
+                            <div class="space-y-4 mb-6">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
+                                        <input type="text" name="itemNumber" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
+                                        <input type="text" name="brand" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <datalist id="brandOptions">
+                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
                                 <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Default Revenue Distribution</label>
-                                    <select name="distribution" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="100">100% to Me</option>
-                                        <option value="50_under_3">50/50 Split (If &lt; $3)</option>
-                                    </select>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Name/Description</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
+                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="auction">Auction</option>
+                                            <option value="bin">Buy It Now</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
+                                        <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
@@ -1024,18 +1027,18 @@
                     </div>
                 `;
             } else if (type === 'addBidder') {
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
-                                        <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
+                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Revenue Split</label>
-                                    <select name="distribution" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="post_default">Same as Post Default</option>
-                                        <option value="100">100% to Me</option>
-                                        <option value="50_under_3">50/50 Split (If &lt; $3)</option>
-                                    </select>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
+                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
@@ -1099,7 +1102,6 @@
                     name: values.name,
                     date: values.date,
                     url: values.url,
-                    distribution: values.distribution || '100',
                     status: 'active'
                 });
             } else if (type === 'addItem') {
@@ -1115,7 +1117,6 @@
                     name: values.name,
                     type: values.type,
                     startPrice: parseFloat(values.price),
-                    distribution: values.distribution || 'post_default',
                     currentBid: null,
                     purchaserId: null,
                     status: 'open',
