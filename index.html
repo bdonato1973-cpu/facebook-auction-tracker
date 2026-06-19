@@ -174,8 +174,10 @@
         window.submitForm = submitForm;
         window.viewPost = viewPost;
         window.updateStoreName = updateStoreName;
+        window.closePostView = closePostView;
         window.saveState = saveState;
         window.renderCurrentPage = renderCurrentPage;
+        
         async function saveState() {
             if (!docRef) return;
             try {
@@ -438,6 +440,12 @@
             renderCurrentPage();
         }
 
+        function closePostView() {
+            state.activePostId = null;
+            saveState();
+            renderCurrentPage();
+        }
+
         // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
@@ -446,7 +454,7 @@
             return `
                 <div class="mb-6 flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                        <button onclick="state.activePostId = null; window.saveState(); window.renderCurrentPage()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
+                        <button onclick="window.closePostView()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors">
                             <i class="ph ph-arrow-left text-xl"></i>
                         </button>
                         <div>
@@ -971,168 +979,3 @@
                         <form id="formAddItem" onsubmit="window.submitForm(event, 'addItem', ${data.postId})">
                             <div class="space-y-4 mb-6">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
-                                        <input type="text" name="itemNumber" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
-                                        <input type="text" name="brand" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <datalist id="brandOptions">
-                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
-                                        </datalist>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Name/Description</label>
-                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
-                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                            <option value="auction">Auction</option>
-                                            <option value="bin">Buy It Now</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
-                                        <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Add Item</button>
-                            </div>
-                        </form>
-                    </div>
-                `;
-            } else if (type === 'addBidder') {
-                content = `
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
-                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
-                            <div class="space-y-4 mb-6">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
-                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
-                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Bidder</button>
-                            </div>
-                        </form>
-                    </div>
-                `;
-            } else if (type === 'addBid' || type === 'sellBin') {
-                const item = state.items.find(i => i.id === data.itemId);
-                const isBin = type === 'sellBin';
-                const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
-                
-                content = `
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${item.name} - ${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
-                        <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
-                            <div class="space-y-4 mb-6">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
-                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="" disabled selected>-- Choose --</option>
-                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
-                                    </select>
-                                </div>
-                                ${!isBin ? `
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bid Amount ($)</label>
-                                    <input type="number" name="amount" required min="${minBid}" step="1" value="${minBid}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>` : ''}
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" class="px-4 py-2 ${isBin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl font-medium transition-colors">${isBin ? 'Confirm Sale' : 'Submit Bid'}</button>
-                            </div>
-                        </form>
-                    </div>
-                `;
-            }
-
-            container.innerHTML = content;
-            container.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            const container = document.getElementById('modal-container');
-            container.classList.add('hidden');
-            container.innerHTML = '';
-        }
-
-        function submitForm(e, type, id) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const values = Object.fromEntries(formData.entries());
-
-            if (type === 'addPost') {
-                state.posts.push({
-                    id: generateId(),
-                    name: values.name,
-                    date: values.date,
-                    url: values.url,
-                    status: 'active'
-                });
-            } else if (type === 'addItem') {
-                if (values.brand && !state.brands.includes(values.brand)) {
-                    state.brands.push(values.brand);
-                }
-
-                state.items.push({
-                    id: generateId(),
-                    postId: id,
-                    itemNumber: values.itemNumber || '',
-                    brand: values.brand || '',
-                    name: values.name,
-                    type: values.type,
-                    startPrice: parseFloat(values.price),
-                    currentBid: null,
-                    purchaserId: null,
-                    status: 'open',
-                    paid: false,
-                    shipped: false
-                });
-            } else if (type === 'addBidder') {
-                state.bidders.push({
-                    id: generateId(),
-                    name: values.name,
-                    profile: values.profile
-                });
-            } else if (type === 'addBid') {
-                const item = state.items.find(i => i.id === id);
-                if (item) {
-                    item.currentBid = parseFloat(values.amount);
-                    item.purchaserId = parseInt(values.bidderId);
-                }
-            } else if (type === 'sellBin') {
-                const item = state.items.find(i => i.id === id);
-                if (item) {
-                    item.purchaserId = parseInt(values.bidderId);
-                    item.status = 'sold';
-                    item.paid = false;
-                    item.shipped = false;
-                }
-            }
-
-            saveState();
-            closeModal();
-            updateBadges();
-            renderCurrentPage();
-        }
-
-    </script>
-</body>
-</html>
