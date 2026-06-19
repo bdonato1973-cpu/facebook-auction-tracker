@@ -472,7 +472,7 @@
                                 let splitBadge = '';
                                 let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
                                 if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
-                                if (actualRule === '50_50_under_3') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50 (<$3)</span>';
+                                if (actualRule === '50_50_under_3') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50 (0% if &lt;$3)</span>';
 
                                 return `
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -658,8 +658,12 @@
 
                 if (rule === '50_50') {
                     myCut = price * 0.5;
-                } else if (rule === '50_50_under_3' && price < 3) {
-                    myCut = price * 0.5;
+                } else if (rule === '50_50_under_3') {
+                    if (price >= 3) {
+                        myCut = price * 0.5; // Split 50/50 if $3 or more
+                    } else {
+                        myCut = 0; // 100% goes to other if less than $3
+                    }
                 }
 
                 myRevenue += myCut;
@@ -996,7 +1000,7 @@
                                         <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                                             <option value="none">100% to Me</option>
                                             <option value="50_50">50/50 Split</option>
-                                            <option value="50_50_under_3">50/50 Split (If < $3)</option>
+                                            <option value="50_50_under_3">50/50 Split (100% to Other if &lt; $3)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -1054,7 +1058,7 @@
                                         <option value="post_default">Use Post Default</option>
                                         <option value="none">100% to Me</option>
                                         <option value="50_50">50/50 Split</option>
-                                        <option value="50_50_under_3">50/50 Split (If < $3)</option>
+                                        <option value="50_50_under_3">50/50 Split (100% to Other if &lt; $3)</option>
                                     </select>
                                 </div>
                             </div>
