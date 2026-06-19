@@ -155,6 +155,9 @@
             activePostId: null,
             activeShippingPurchaserId: null,
             reportFilterPostId: 'all', 
+            paypalLink: '',
+            cashappLink: '',
+            venmoLink: '',
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
             posts: [],
             bidders: [],
@@ -180,8 +183,9 @@
         window.viewPost = viewPost;
         window.closePostView = closePostView;
         window.updateReportFilter = updateReportFilter;
-        window.updatePaymentLink = updatePaymentLink;
+        window.updatePaymentLinks = updatePaymentLinks;
         window.copyInvoice = copyInvoice;
+        window.updateStoreName = updateStoreName;
         
         async function saveState() {
             if (!docRef) return;
@@ -220,6 +224,11 @@
                     if (snapshot.exists()) {
                         state = snapshot.data();
                         if (state.reportFilterPostId === undefined) state.reportFilterPostId = 'all';
+                        
+                        // Migrate old single payment link to PayPal if needed
+                        if (state.paypalLink === undefined) state.paypalLink = state.paymentLink || '';
+                        if (state.cashappLink === undefined) state.cashappLink = '';
+                        if (state.venmoLink === undefined) state.venmoLink = '';
                     } else {
                         state = defaultState;
                         saveState();
@@ -390,11 +399,16 @@
                     ${state.posts.map(post => {
                         const postItems = state.items.filter(i => i.postId === post.id);
                         const soldCount = postItems.filter(i => i.status === 'sold').length;
+                        
+                        let splitLabel = '';
+                        if(post.splitRule === '50_50') splitLabel = '<span class="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded ml-2">50/50 Split</span>';
+                        else if(post.splitRule === '50_50_under_3') splitLabel = '<span class="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded ml-2">50/50 (<$3 Other)</span>';
+
                         return `
                         <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 class="text-lg font-bold truncate pr-2">${post.name}</h3>
+                                    <h3 class="text-lg font-bold truncate pr-2 flex items-center">${post.name} ${splitLabel}</h3>
                                     <p class="text-sm text-slate-500 dark:text-slate-400">${post.date}</p>
                                 </div>
                                 <span class="px-2 py-1 text-xs rounded-md ${post.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}">${post.status.toUpperCase()}</span>
@@ -586,7 +600,7 @@
 
             return `
                 <div class="mb-6">
-                    <p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped. Grouped by buyer for easy combined shipping.</p>
+                    <p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped.</p>
                 </div>
                 
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -624,7 +638,7 @@
                             <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-wrap gap-2 md:gap-3">
                                 <button onclick="window.copyInvoice(${purchaserId}, this)" class="flex-1 py-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap"><i class="ph ph-copy"></i> Invoice</button>
                                 ${totalOwed > 0 ? `<button onclick="window.markBoxPaid(${purchaserId})" class="flex-1 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium transition-colors whitespace-nowrap">Mark All Paid</button>` : ''}
-                                <button onclick="window.shipBox(${purchaserId})" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap">
+                                <button onclick="window.shipBox(${purchaserId})" class="w-full sm:w-auto flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors whitespace-nowrap">
                                     <i class="ph ph-truck"></i> Ship Box
                                 </button>
                             </div>
@@ -751,19 +765,34 @@
             return `
                 <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Payment & Invoicing</h3>
-                        <div class="flex flex-col py-2">
-                            <label class="font-medium mb-1">Payment Link (PayPal/Venmo)</label>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Automatically added to your Quick-Copy Messenger Invoices.</p>
-                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
+                        <div class="flex flex-col py-2 mb-4">
+                            <label class="font-medium mb-1">Store / Brand Name</label>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">This appears at the top of your printable packing slips.</p>
+                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                        </div>
+                        
+                        <div class="flex flex-col py-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                            <h4 class="font-bold mb-1">Payment Links</h4>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Automatically added to your Quick-Copy Messenger Invoices.</p>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">PayPal.Me</label>
+                                    <input type="text" value="${state.paypalLink || ""}" placeholder="paypal.me/YourName" onchange="window.updatePaymentLinks('paypalLink', this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">CashApp</label>
+                                    <input type="text" value="${state.cashappLink || ""}" placeholder="cash.app/$YourCashtag" onchange="window.updatePaymentLinks('cashappLink', this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Venmo</label>
+                                    <input type="text" value="${state.venmoLink || ""}" placeholder="venmo.com/u/YourUsername" onchange="window.updatePaymentLinks('venmoLink', this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
-                        
-                        <div class="flex items-center justify-between py-2">
-                <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
                         
@@ -804,8 +833,8 @@
             renderCurrentPage();
         }
 
-        function updatePaymentLink(link) {
-            state.paymentLink = link;
+        function updatePaymentLinks(platform, link) {
+            state[platform] = link;
             saveState();
         }
 
@@ -813,11 +842,25 @@
             const bidder = state.bidders.find(b => b.id == purchaserId);
             const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
-            const itemCount = items.length;
-            const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
             
-            // Format the message
-            const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
+            // Build items list
+            let itemList = items.map(i => `- ${i.name}: ${formatCurrency(i.currentBid || i.startPrice)}`).join('\n');
+            
+            // Build payments string
+            let paymentSection = "";
+            let links = [];
+            if (state.paypalLink) links.push(`PayPal: ${state.paypalLink}`);
+            if (state.cashappLink) links.push(`CashApp: ${state.cashappLink}`);
+            if (state.venmoLink) links.push(`Venmo: ${state.venmoLink}`);
+            
+            if (links.length > 0) {
+                paymentSection = "Please send payment via:\n" + links.map(l => "• " + l).join('\n');
+            } else {
+                paymentSection = "Please send payment via: [Your Payment Link - Add in Settings]";
+            }
+            
+            // Format the final message
+            const message = `Hey ${bidder.name}!\n\nHere is your total for the recent drops:\n\n${itemList}\n\nSubtotal: ${formatCurrency(totalValue)}\nShipping: $5.00 (Standard Box)\nGrand Total: ${formatCurrency(totalValue + 5)}\n\n${paymentSection}\n\nThank you!`;
 
             // Create temporary textarea to execute the copy command
             const textArea = document.createElement("textarea");
@@ -843,6 +886,11 @@
                 console.error('Failed to copy', err);
             }
             document.body.removeChild(textArea);
+        }
+
+        function updateStoreName(name) {
+            state.storeName = name;
+            saveState();
         }
 
         function setTheme(theme) {
@@ -1055,14 +1103,6 @@
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Date</label>
                                         <input type="date" name="date" required value="${today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Revenue Rule</label>
-                                        <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                            <option value="none">100% to Me</option>
-                                            <option value="50_50">50/50 Split</option>
-                                            <option value="50_50_under_3">50/50 Split (100% to Other if &lt; $3)</option>
-                                        </select>
-                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Facebook URL (Optional)</label>
@@ -1111,15 +1151,6 @@
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
                                         <input type="number" name="price" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Override Revenue Rule</label>
-                                    <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="post_default">Use Post Default</option>
-                                        <option value="none">100% to Me</option>
-                                        <option value="50_50">50/50 Split</option>
-                                        <option value="50_50_under_3">50/50 Split (100% to Other if &lt; $3)</option>
-                                    </select>
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
@@ -1205,7 +1236,6 @@
                     name: values.name,
                     date: values.date,
                     url: values.url,
-                    splitRule: values.splitRule || 'none',
                     status: 'active'
                 });
             } else if (type === 'addItem') {
@@ -1221,7 +1251,6 @@
                     name: values.name,
                     type: values.type,
                     startPrice: parseFloat(values.price),
-                    splitRule: values.splitRule || 'post_default',
                     currentBid: null,
                     purchaserId: null,
                     status: 'open',
