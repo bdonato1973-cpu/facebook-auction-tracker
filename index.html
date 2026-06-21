@@ -179,7 +179,8 @@
         window.submitForm = submitForm;
         window.viewPost = viewPost;
         window.closePostView = closePostView;
-        window.updateReportFilter = updateReportFilter;
+        window.applyReportFilter = applyReportFilter;
+        window.downloadPickListCSV = downloadPickListCSV;
         window.updatePaymentLink = updatePaymentLink;
         window.copyInvoice = copyInvoice;
         window.updateStoreName = updateStoreName;
@@ -523,6 +524,7 @@
                                         ` : `
                                             <button onclick="window.reopenItem(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 rounded-lg text-sm font-medium transition-colors" title="Reopen Item"><i class="ph ph-arrow-u-up-left"></i> Reopen</button>
                                         `}
+                                        <button onclick="window.openModal('editItem', {itemId: ${item.id}})" class="ml-2 px-2 py-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors inline-flex align-middle" title="Edit Item"><i class="ph ph-pencil-simple text-lg"></i></button>
                                         <button onclick="window.confirmDelete('item', ${item.id})" class="ml-2 px-2 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors inline-flex align-middle" title="Delete Item"><i class="ph ph-trash text-lg"></i></button>
                                     </td>
                                 </tr>
@@ -1256,6 +1258,68 @@
                         </form>
                     </div>
                 `;
+            } else if (type === 'editItem') {
+                const item = state.items.find(i => i.id === data.itemId);
+                if (!item) return;
+
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Edit Item</h2>
+                        <form id="formEditItem" onsubmit="window.submitForm(event, 'editItem', ${item.id})">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Move to Post / Event</label>
+                                    <select name="postId" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        ${state.posts.map(p => `<option value="${p.id}" ${p.id === item.postId ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
+                                        <input type="text" name="itemNumber" value="${item.itemNumber || ''}" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
+                                        <input type="text" name="brand" value="${item.brand || ''}" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <datalist id="brandOptions">
+                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                        </datalist>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Name/Description</label>
+                                    <input type="text" name="name" value="${item.name.replace(/"/g, '&quot;')}" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
+                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="auction" ${item.type === 'auction' ? 'selected' : ''}>Auction</option>
+                                            <option value="bin" ${item.type === 'bin' ? 'selected' : ''}>Buy It Now</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
+                                        <input type="number" name="price" value="${item.startPrice}" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Override Revenue Rule</label>
+                                    <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="post_default" ${item.splitRule === 'post_default' ? 'selected' : ''}>Use Post Default</option>
+                                        <option value="none" ${item.splitRule === 'none' ? 'selected' : ''}>100% to Me</option>
+                                        <option value="50_50" ${item.splitRule === '50_50' ? 'selected' : ''}>50/50 Split</option>
+                                        <option value="50_50_under_3" ${item.splitRule === '50_50_under_3' ? 'selected' : ''}>50/50 Split (100% to Other if &lt; $3)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
             } else if (type === 'addBidder') {
                 content = `
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
@@ -1374,6 +1438,20 @@
                     paid: false,
                     shipped: false
                 });
+            } else if (type === 'editItem') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    if (values.brand && !state.brands.includes(values.brand)) {
+                        state.brands.push(values.brand);
+                    }
+                    item.postId = parseInt(values.postId);
+                    item.itemNumber = values.itemNumber || '';
+                    item.brand = values.brand || '';
+                    item.name = values.name;
+                    item.type = values.type;
+                    item.startPrice = parseFloat(values.price);
+                    item.splitRule = values.splitRule || 'post_default';
+                }
             } else if (type === 'addBidder') {
                 state.bidders.push({
                     id: generateId(),
