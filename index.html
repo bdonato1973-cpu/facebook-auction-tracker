@@ -55,7 +55,6 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans h-screen flex overflow-hidden transition-colors duration-200">
 
-    <!-- Sidebar Navigation -->
     <aside class="w-20 lg:w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-colors duration-200 shrink-0">
         <div>
             <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
@@ -94,13 +93,22 @@
         </div>
     </aside>
 
-    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="h-16 flex items-center px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
-            <h1 id="page-title" class="text-2xl font-bold">Connecting...</h1>
+        <header class="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate mr-4">Connecting...</h1>
+            
+            <!-- Global Search Feature -->
+            <div class="relative w-full max-w-[200px] lg:max-w-xs" id="global-search-container">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="globalSearchInput" oninput="window.handleSearch(this.value)" placeholder="Search items to edit..." class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow">
+                
+                <div id="searchResults" class="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 lg:w-96 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden hidden flex-col max-h-96 z-50 overflow-y-auto">
+                    <!-- Search results injected here -->
+                </div>
+            </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-8" id="content-area">
+        <div class="flex-1 overflow-y-auto p-4 lg:p-8" id="content-area">
             <div class="flex h-full items-center justify-center">
                 <div class="flex flex-col items-center">
                     <i class="ph ph-spinner-gap animate-spin text-4xl text-indigo-500 mb-4"></i>
@@ -124,7 +132,6 @@
         // --- Firebase Configuration ---
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
-            // Used for the Canvas preview environment
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
             // PORTING TO YOUR OWN SERVER: Paste your Firebase config object here!
@@ -154,16 +161,15 @@
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
-            reportFilterPostIds: ['all'], // Changed to array for multi-select
+            reportFilterPostIds: ['all'], 
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
             posts: [],
             bidders: [],
             items: []
         };
 
-        let state = null; // Will be populated from Firebase
+        let state = null; 
 
-        // Expose functions globally for HTML inline handlers
         window.switchPage = switchPage;
         window.setTheme = setTheme;
         window.togglePaid = togglePaid;
@@ -186,6 +192,8 @@
         window.updateStoreName = updateStoreName;
         window.confirmDelete = confirmDelete;
         window.executeDelete = executeDelete;
+        window.handleSearch = handleSearch;
+        window.closeSearch = closeSearch;
         
         async function saveState() {
             if (!docRef) return;
@@ -205,7 +213,6 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Authentication failed", error);
                 document.getElementById('content-area').innerHTML = `<div class="text-rose-500 p-8">Auth Error: ${error.message}</div>`;
             }
         };
@@ -224,7 +231,6 @@
                     if (snapshot.exists()) {
                         state = snapshot.data();
                         
-                        // Migrate older state models to new multi-select array format
                         if (!state.reportFilterPostIds) {
                             state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                         }
@@ -242,13 +248,76 @@
                         renderCurrentPage();
                         updateBadges();
                     }
-                }, (error) => {
-                    console.error("Firebase Database error:", error);
                 });
             }
         });
 
         initAuth();
+
+        // --- Global Search Logic ---
+        function handleSearch(query) {
+            const resultsContainer = document.getElementById('searchResults');
+            if (!query || query.trim() === '' || !state) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const matchedItems = state.items.filter(item => 
+                (item.name && item.name.toLowerCase().includes(lowerQuery)) ||
+                (item.brand && item.brand.toLowerCase().includes(lowerQuery)) ||
+                (item.itemNumber && item.itemNumber.toLowerCase().includes(lowerQuery))
+            ).slice(0, 10); // Limit to top 10 matches
+
+            if (matchedItems.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No items found matching "${query}"</div>`;
+            } else {
+                resultsContainer.innerHTML = matchedItems.map(item => {
+                    const post = state.posts.find(p => p.id === item.postId);
+                    const postName = post ? post.name : 'Unknown Post';
+                    const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                    
+                    return `
+                        <div class="p-3 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex justify-between items-center group">
+                            <div class="overflow-hidden pr-2">
+                                <p class="text-sm font-bold truncate">
+                                    ${item.itemNumber ? `<span class="text-xs text-indigo-500 dark:text-indigo-400 mr-1 font-mono">${item.itemNumber}</span>` : ''}
+                                    ${item.name}
+                                </p>
+                                <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                    <i class="ph ph-article"></i> ${postName} 
+                                    ${item.status === 'sold' ? `| <i class="ph ph-user"></i> ${buyer ? buyer.name : 'Sold'}` : `| <i class="ph ph-tag"></i> Open`}
+                                </p>
+                            </div>
+                            <button type="button" onclick="window.closeSearch(); window.openModal('editItem', {itemId: ${item.id}})" class="shrink-0 p-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors shadow-sm" title="Edit Item">
+                                <i class="ph ph-pencil-simple text-lg"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.style.display = 'flex'; // Enforce flex to overwrite hidden
+        }
+
+        function closeSearch() {
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.classList.add('hidden');
+            resultsContainer.style.display = '';
+            document.getElementById('globalSearchInput').value = '';
+        }
+
+        // Close search when clicking outside
+        document.addEventListener('click', function(event) {
+            const searchContainer = document.getElementById('global-search-container');
+            if (searchContainer && !searchContainer.contains(event.target)) {
+                const resultsContainer = document.getElementById('searchResults');
+                if(resultsContainer) {
+                    resultsContainer.classList.add('hidden');
+                    resultsContainer.style.display = '';
+                }
+            }
+        });
 
         // --- Core Functions ---
         function generateId() { return Math.floor(Math.random() * 1000000); }
@@ -279,40 +348,6 @@
             updateBadges();
         }
 
-        function updateBadges() {
-            if(!state) return;
-            const unshippedCount = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
-            const badge = document.getElementById('openbox-badge');
-            if (unshippedCount > 0) {
-                badge.textContent = unshippedCount;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
-        }
-
-        // --- Rendering Logic ---
-        function renderCurrentPage() {
-            if(!state) return;
-            const content = document.getElementById('content-area');
-            content.innerHTML = ''; 
-
-            switch (state.currentPage) {
-                case 'dashboard': content.innerHTML = getDashboardHTML(); break;
-                case 'posts': content.innerHTML = state.activePostId ? getPostDetailsHTML(state.activePostId) : getPostsHTML(); break;
-                case 'bidders': content.innerHTML = getBiddersHTML(); break;
-                case 'openbox': content.innerHTML = getOpenBoxHTML(); break;
-                case 'reports': content.innerHTML = getReportsHTML(); break;
-                case 'settings': content.innerHTML = getSettingsHTML(); break;
-                case 'shipping': content.innerHTML = getShippingHTML(); break;
-            }
-        }
-
-        // 1. Dashboard
         function getDashboardHTML() {
             const activePosts = state.posts.filter(p => p.status === 'active').length;
             const openItems = state.items.filter(i => i.status === 'open').length;
@@ -383,7 +418,6 @@
             `;
         }
 
-        // 2. Posts List
         function getPostsHTML() {
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -446,7 +480,6 @@
             renderCurrentPage();
         }
 
-        // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
             const postItems = state.items.filter(i => i.postId === postId);
@@ -484,7 +517,6 @@
                             postItems.map(item => {
                                 const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
                                 
-                                // Determine split badge for UI
                                 let splitBadge = '';
                                 let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
                                 if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
@@ -536,7 +568,6 @@
             `;
         }
 
-        // 3. Bidders
         function getBiddersHTML() {
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -578,12 +609,9 @@
             `;
         }
 
-        // 4. Open Box (Grouped by Purchaser)
         function getOpenBoxHTML() {
-            // Find items sold but not shipped
             const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
             
-            // Group by purchaser
             const grouped = {};
             unshippedItems.forEach(item => {
                 if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
@@ -651,11 +679,9 @@
             `;
         }
 
-        // 5. Reports
         function getReportsHTML() {
             const filterPostIds = state.reportFilterPostIds || ['all'];
             
-            // Filter sold items based on dropdown selection
             let soldItems = state.items.filter(i => i.status === 'sold');
             if (!filterPostIds.includes('all')) {
                 soldItems = soldItems.filter(i => filterPostIds.includes(String(i.postId)));
@@ -665,7 +691,6 @@
             let myRevenue = 0;
             let consignmentRevenue = 0;
 
-            // Calculate splits for each item
             soldItems.forEach(item => {
                 const price = item.currentBid || item.startPrice;
                 grossRevenue += price;
@@ -673,15 +698,15 @@
                 const post = state.posts.find(p => p.id === item.postId);
                 let rule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post && post.splitRule ? post.splitRule : 'none');
 
-                let myCut = price; // Default to 100%
+                let myCut = price; 
 
                 if (rule === '50_50') {
                     myCut = price * 0.5;
                 } else if (rule === '50_50_under_3') {
                     if (price >= 3) {
-                        myCut = price * 0.5; // Split 50/50 if $3 or more
+                        myCut = price * 0.5; 
                     } else {
-                        myCut = 0; // 100% goes to other if less than $3
+                        myCut = 0; 
                     }
                 }
 
@@ -689,7 +714,6 @@
                 consignmentRevenue += (price - myCut);
             });
             
-            // Top Buyers
             const buyerTotals = {};
             soldItems.forEach(item => {
                 if(!buyerTotals[item.purchaserId]) buyerTotals[item.purchaserId] = 0;
@@ -776,7 +800,6 @@
             `;
         }
 
-        // 6. Settings
         function getSettingsHTML() {
             return `
                 <div class="max-w-2xl">
@@ -836,7 +859,6 @@
             if (selectedValues.length === 0) {
                  state.reportFilterPostIds = ['all'];
             } else if (selectedValues.includes('all') && selectedValues.length > 1) {
-                 // Prioritize specific posts over the "all" default when both are highlighted
                  state.reportFilterPostIds = selectedValues.filter(val => val !== 'all');
             } else {
                  state.reportFilterPostIds = selectedValues;
@@ -846,7 +868,6 @@
             renderCurrentPage();
         }
 
-        // Support for older single-click function if needed
         function updateReportFilter(postId) {
             state.reportFilterPostIds = [postId];
             saveState();
@@ -884,7 +905,6 @@
                 return a.buyerName.localeCompare(b.buyerName);
             });
 
-            // Generate CSV Structure
             const headers = ['Post Name', 'Buyer Name', 'Item #', 'Brand', 'Item Description', 'Final Price'];
             const csvRows = [headers.join(',')];
 
@@ -925,10 +945,8 @@
             const itemCount = items.length;
             const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
             
-            // Format the message
             const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
 
-            // Create temporary textarea to execute the copy command
             const textArea = document.createElement("textarea");
             textArea.value = message;
             document.body.appendChild(textArea);
@@ -936,8 +954,6 @@
             
             try {
                 document.execCommand('copy');
-                
-                // Temporarily change button to "Copied!" for visual feedback
                 const originalText = btnElement.innerHTML;
                 btnElement.innerHTML = `<i class="ph ph-check"></i> Copied!`;
                 btnElement.classList.add('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
@@ -999,7 +1015,6 @@
             switchPage('dashboard');
         }
 
-        // --- Shipping & Packing Slip ---
         function getShippingHTML() {
             if (!state.activeShippingPurchaserId) return `<p>Error: No active shipment.</p>`;
             const purchaserId = state.activeShippingPurchaserId;
@@ -1027,7 +1042,6 @@
                     <p class="text-sm text-slate-500">A 4x6 label format is rendered below. Configure your printer to 4" x 6" label size.</p>
                 </div>
 
-                <!-- 4x6 Printable Area -->
                 <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
                     <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
                         <div class="flex items-center justify-center gap-2 mb-1">
@@ -1095,7 +1109,6 @@
         function processShipment(purchaserId) {
             window.print();
             
-            // Allow brief time for print dialog before completing action
             setTimeout(() => {
                 const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
                 items.forEach(i => i.shipped = true);
@@ -1131,7 +1144,6 @@
              }
         }
 
-        // --- Modals ---
         function openModal(type, data = {}) {
             const container = document.getElementById('modal-container');
             let content = '';
@@ -1392,7 +1404,6 @@
         function executeDelete(type, id) {
             if (type === 'post') {
                 state.posts = state.posts.filter(p => p.id !== id);
-                // Also delete all items associated with this post
                 state.items = state.items.filter(i => i.postId !== id);
                 if (state.activePostId === id) state.activePostId = null;
             } else if (type === 'item') {
