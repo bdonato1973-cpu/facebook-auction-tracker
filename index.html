@@ -55,6 +55,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 font-sans h-screen flex overflow-hidden transition-colors duration-200">
 
+    <!-- Sidebar Navigation -->
     <aside class="w-20 lg:w-64 bg-white dark:bg-slate-850 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-colors duration-200 shrink-0">
         <div>
             <div class="h-16 flex items-center justify-center lg:justify-start lg:px-6 border-b border-slate-200 dark:border-slate-800">
@@ -93,6 +94,7 @@
         </div>
     </aside>
 
+    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate mr-4">Connecting...</h1>
@@ -132,6 +134,7 @@
         // --- Firebase Configuration ---
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
+            // Used for the Canvas preview environment
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
             // PORTING TO YOUR OWN SERVER: Paste your Firebase config object here!
@@ -168,8 +171,9 @@
             items: []
         };
 
-        let state = null; 
+        let state = null; // Will be populated from Firebase
 
+        // Expose all necessary functions to the global scope
         window.switchPage = switchPage;
         window.setTheme = setTheme;
         window.togglePaid = togglePaid;
@@ -213,6 +217,7 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
+                console.error("Authentication failed", error);
                 document.getElementById('content-area').innerHTML = `<div class="text-rose-500 p-8">Auth Error: ${error.message}</div>`;
             }
         };
@@ -248,6 +253,8 @@
                         renderCurrentPage();
                         updateBadges();
                     }
+                }, (error) => {
+                    console.error("Firebase Database error:", error);
                 });
             }
         });
@@ -348,6 +355,40 @@
             updateBadges();
         }
 
+        function updateBadges() {
+            if(!state) return;
+            const unshippedCount = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
+            const badge = document.getElementById('openbox-badge');
+            if (unshippedCount > 0) {
+                badge.textContent = unshippedCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+        }
+
+        // --- Rendering Logic ---
+        function renderCurrentPage() {
+            if(!state) return;
+            const content = document.getElementById('content-area');
+            content.innerHTML = ''; 
+
+            switch (state.currentPage) {
+                case 'dashboard': content.innerHTML = getDashboardHTML(); break;
+                case 'posts': content.innerHTML = state.activePostId ? getPostDetailsHTML(state.activePostId) : getPostsHTML(); break;
+                case 'bidders': content.innerHTML = getBiddersHTML(); break;
+                case 'openbox': content.innerHTML = getOpenBoxHTML(); break;
+                case 'reports': content.innerHTML = getReportsHTML(); break;
+                case 'settings': content.innerHTML = getSettingsHTML(); break;
+                case 'shipping': content.innerHTML = getShippingHTML(); break;
+            }
+        }
+
+        // 1. Dashboard
         function getDashboardHTML() {
             const activePosts = state.posts.filter(p => p.status === 'active').length;
             const openItems = state.items.filter(i => i.status === 'open').length;
@@ -418,6 +459,7 @@
             `;
         }
 
+        // 2. Posts List
         function getPostsHTML() {
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -480,6 +522,7 @@
             renderCurrentPage();
         }
 
+        // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
             const postItems = state.items.filter(i => i.postId === postId);
@@ -517,6 +560,7 @@
                             postItems.map(item => {
                                 const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
                                 
+                                // Determine split badge for UI
                                 let splitBadge = '';
                                 let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
                                 if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
@@ -568,6 +612,7 @@
             `;
         }
 
+        // 3. Bidders
         function getBiddersHTML() {
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -609,9 +654,12 @@
             `;
         }
 
+        // 4. Open Box (Grouped by Purchaser)
         function getOpenBoxHTML() {
+            // Find items sold but not shipped
             const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
             
+            // Group by purchaser
             const grouped = {};
             unshippedItems.forEach(item => {
                 if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
@@ -679,9 +727,11 @@
             `;
         }
 
+        // 5. Reports
         function getReportsHTML() {
             const filterPostIds = state.reportFilterPostIds || ['all'];
             
+            // Filter sold items based on dropdown selection
             let soldItems = state.items.filter(i => i.status === 'sold');
             if (!filterPostIds.includes('all')) {
                 soldItems = soldItems.filter(i => filterPostIds.includes(String(i.postId)));
@@ -691,6 +741,7 @@
             let myRevenue = 0;
             let consignmentRevenue = 0;
 
+            // Calculate splits for each item
             soldItems.forEach(item => {
                 const price = item.currentBid || item.startPrice;
                 grossRevenue += price;
@@ -698,15 +749,15 @@
                 const post = state.posts.find(p => p.id === item.postId);
                 let rule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post && post.splitRule ? post.splitRule : 'none');
 
-                let myCut = price; 
+                let myCut = price; // Default to 100%
 
                 if (rule === '50_50') {
                     myCut = price * 0.5;
                 } else if (rule === '50_50_under_3') {
                     if (price >= 3) {
-                        myCut = price * 0.5; 
+                        myCut = price * 0.5; // Split 50/50 if $3 or more
                     } else {
-                        myCut = 0; 
+                        myCut = 0; // 100% goes to other if less than $3
                     }
                 }
 
@@ -714,6 +765,7 @@
                 consignmentRevenue += (price - myCut);
             });
             
+            // Top Buyers
             const buyerTotals = {};
             soldItems.forEach(item => {
                 if(!buyerTotals[item.purchaserId]) buyerTotals[item.purchaserId] = 0;
@@ -800,6 +852,7 @@
             `;
         }
 
+        // 6. Settings
         function getSettingsHTML() {
             return `
                 <div class="max-w-2xl">
@@ -859,17 +912,12 @@
             if (selectedValues.length === 0) {
                  state.reportFilterPostIds = ['all'];
             } else if (selectedValues.includes('all') && selectedValues.length > 1) {
+                 // Prioritize specific posts over the "all" default when both are highlighted
                  state.reportFilterPostIds = selectedValues.filter(val => val !== 'all');
             } else {
                  state.reportFilterPostIds = selectedValues;
             }
             
-            saveState();
-            renderCurrentPage();
-        }
-
-        function updateReportFilter(postId) {
-            state.reportFilterPostIds = [postId];
             saveState();
             renderCurrentPage();
         }
@@ -905,6 +953,7 @@
                 return a.buyerName.localeCompare(b.buyerName);
             });
 
+            // Generate CSV Structure
             const headers = ['Post Name', 'Buyer Name', 'Item #', 'Brand', 'Item Description', 'Final Price'];
             const csvRows = [headers.join(',')];
 
@@ -945,8 +994,10 @@
             const itemCount = items.length;
             const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
             
+            // Format the message
             const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
 
+            // Create temporary textarea to execute the copy command
             const textArea = document.createElement("textarea");
             textArea.value = message;
             document.body.appendChild(textArea);
@@ -954,6 +1005,8 @@
             
             try {
                 document.execCommand('copy');
+                
+                // Temporarily change button to "Copied!" for visual feedback
                 const originalText = btnElement.innerHTML;
                 btnElement.innerHTML = `<i class="ph ph-check"></i> Copied!`;
                 btnElement.classList.add('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
@@ -1015,6 +1068,7 @@
             switchPage('dashboard');
         }
 
+        // --- Shipping & Packing Slip ---
         function getShippingHTML() {
             if (!state.activeShippingPurchaserId) return `<p>Error: No active shipment.</p>`;
             const purchaserId = state.activeShippingPurchaserId;
@@ -1042,13 +1096,11 @@
                     <p class="text-sm text-slate-500">A 4x6 label format is rendered below. Configure your printer to 4" x 6" label size.</p>
                 </div>
 
+                <!-- 4x6 Printable Area -->
                 <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
                     <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
-                        <div class="flex items-center justify-center gap-2 mb-1">
-                            <i class="ph-fill ph-car-profile text-2xl"></i>
-                            <h1 class="text-2xl font-black tracking-tighter uppercase">${state.storeName || "Donato's Diecast"}</h1>
-                        </div>
-                        <p class="text-xs text-gray-600 font-bold tracking-widest">PACKING SLIP</p>
+                        <h1 class="text-2xl font-black tracking-tighter uppercase">Packing Slip</h1>
+                        <p class="text-xs text-gray-600 font-bold mt-1">DIECAST TRACKER</p>
                     </div>
                     
                     <div class="mb-4 shrink-0">
@@ -1094,7 +1146,7 @@
                     </div>
                     
                     <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
-                        Thank you for shopping with ${state.storeName || "Donato's Diecast"}!
+                        Thank you for your purchase!
                     </div>
                 </div>
             `;
@@ -1109,6 +1161,7 @@
         function processShipment(purchaserId) {
             window.print();
             
+            // Allow brief time for print dialog before completing action
             setTimeout(() => {
                 const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
                 items.forEach(i => i.shipped = true);
@@ -1144,6 +1197,7 @@
              }
         }
 
+        // --- Modals ---
         function openModal(type, data = {}) {
             const container = document.getElementById('modal-container');
             let content = '';
@@ -1404,6 +1458,7 @@
         function executeDelete(type, id) {
             if (type === 'post') {
                 state.posts = state.posts.filter(p => p.id !== id);
+                // Also delete all items associated with this post
                 state.items = state.items.filter(i => i.postId !== id);
                 if (state.activePostId === id) state.activePostId = null;
             } else if (type === 'item') {
