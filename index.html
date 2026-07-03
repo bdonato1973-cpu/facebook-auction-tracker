@@ -164,7 +164,8 @@
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
-            reportFilterPostIds: ['all'], 
+            reportFilterPostIds: ['all'],
+            selectedBidderId: null, 
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
             posts: [],
             bidders: [],
@@ -198,6 +199,7 @@
         window.executeDelete = executeDelete;
         window.handleSearch = handleSearch;
         window.closeSearch = closeSearch;
+        window.selectBidder = selectBidder;
         
         async function saveState() {
             if (!docRef) return;
@@ -234,7 +236,10 @@
                 
                 onSnapshot(docRef, (snapshot) => {
                     if (snapshot.exists()) {
+                        // Persist UI selection across updates
+                        const prevBidderId = state ? state.selectedBidderId : null;
                         state = snapshot.data();
+                        state.selectedBidderId = prevBidderId;
                         
                         if (!state.reportFilterPostIds) {
                             state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
@@ -369,6 +374,12 @@
 
         function formatCurrency(amount) {
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+        }
+
+        function selectBidder(id) {
+            state.selectedBidderId = id;
+            // Deliberately skipping saveState() so selection remains local UI-only and doesn't trigger database writes
+            renderCurrentPage();
         }
 
         // --- Rendering Logic ---
@@ -612,44 +623,118 @@
             `;
         }
 
-        // 3. Bidders
+        // 3. Bidders Directory with Winnings Breakdown
         function getBiddersHTML() {
+            const selectedBidder = state.bidders.find(b => b.id === state.selectedBidderId);
+            let groupedWinnings = {};
+            
+            if (selectedBidder) {
+                const bidderWinnings = state.items.filter(item => item.purchaserId === selectedBidder.id && item.status === 'sold');
+                groupedWinnings = bidderWinnings.reduce((groups, item) => {
+                    const postId = item.postId || 'Unknown';
+                    if (!groups[postId]) groups[postId] = [];
+                    groups[postId].push(item);
+                    return groups;
+                }, {});
+            }
+
             return `
                 <div class="flex justify-between items-center mb-6">
-                    <p class="text-slate-500 dark:text-slate-400">Manage your buyers and their contact info.</p>
+                    <p class="text-slate-500 dark:text-slate-400">Manage your buyers and view their invoice profiles.</p>
                     <button onclick="window.openModal('addBidder')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
                         <i class="ph ph-user-plus text-xl"></i> Add Bidder
                     </button>
                 </div>
 
-                <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
-                                <th class="p-4 font-medium">Name</th>
-                                <th class="p-4 font-medium">Items Won/Bought</th>
-                                <th class="p-4 font-medium">Total Spent</th>
-                                <th class="p-4 font-medium">Profile</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                            ${state.bidders.length === 0 ? `<tr><td colspan="4" class="p-8 text-center text-slate-500">No bidders added yet.</td></tr>` : ''}
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Panel: Directory List -->
+                    <div class="lg:col-span-1 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm h-[calc(100vh-12rem)] overflow-y-auto">
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-2">Directory</h2>
+                        <div class="space-y-1">
+                            ${state.bidders.length === 0 ? `<div class="p-4 text-center text-slate-500 text-sm">No bidders added yet.</div>` : ''}
                             ${state.bidders.map(bidder => {
                                 const purchases = state.items.filter(i => i.purchaserId === bidder.id && i.status === 'sold');
                                 const totalSpent = purchases.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+                                const isSelected = state.selectedBidderId === bidder.id;
+                                
                                 return `
-                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td class="p-4 font-bold">${bidder.name}</td>
-                                    <td class="p-4">${purchases.length}</td>
-                                    <td class="p-4 font-medium text-emerald-600 dark:text-emerald-400">${formatCurrency(totalSpent)}</td>
-                                    <td class="p-4">
-                                        ${bidder.profile ? `<a href="${bidder.profile.startsWith('http') ? bidder.profile : 'https://'+bidder.profile}" target="_blank" class="text-blue-500 hover:underline"><i class="ph ph-link"></i> Link</a>` : '-'}
-                                    </td>
-                                </tr>
+                                    <div onclick="window.selectBidder(${bidder.id})" class="p-3 rounded-xl cursor-pointer transition-colors border ${isSelected ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-500/30' : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'}">
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <div class="font-bold text-sm ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-slate-100'}">${bidder.name}</div>
+                                                <div class="text-[10px] text-slate-500 mt-1">${purchases.length} Items Won</div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-sm font-bold text-emerald-600 dark:text-emerald-400">${formatCurrency(totalSpent)}</div>
+                                                ${bidder.profile ? `<a href="${bidder.profile.startsWith('http') ? bidder.profile : 'https://'+bidder.profile}" target="_blank" onclick="event.stopPropagation()" class="text-[10px] text-blue-500 hover:underline"><i class="ph ph-link"></i> Link</a>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
                                 `;
                             }).join('')}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Winnings Breakdown -->
+                    <div class="lg:col-span-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm h-[calc(100vh-12rem)] overflow-y-auto">
+                        ${selectedBidder ? `
+                            <div class="border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">
+                                <h3 class="text-xl font-bold text-slate-900 dark:text-white">${selectedBidder.name}</h3>
+                                <p class="text-sm text-slate-500 mt-1">Winnings breakdown grouped by sales event.</p>
+                            </div>
+                            
+                            <div class="space-y-6">
+                                ${Object.keys(groupedWinnings).length === 0 ? `
+                                    <div class="text-center py-12 text-slate-500 text-sm">No items won yet.</div>
+                                ` : Object.entries(groupedWinnings).map(([postId, itemsList]) => {
+                                    const postObj = state.posts.find(p => String(p.id) === String(postId));
+                                    const postName = postObj ? postObj.name : 'Unknown Post';
+                                    const postDate = postObj ? postObj.date : '';
+                                    const groupTotal = itemsList.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+
+                                    return `
+                                        <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                                            <div class="bg-slate-100 dark:bg-slate-800 px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                                                <div>
+                                                    <span class="text-sm font-bold text-slate-800 dark:text-slate-200 block">${postName}</span>
+                                                    ${postDate ? `<span class="text-[10px] text-slate-500 block">${postDate}</span>` : ''}
+                                                </div>
+                                                <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">
+                                                    Total: ${formatCurrency(groupTotal)}
+                                                </span>
+                                            </div>
+                                            <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                                                <thead class="bg-slate-50/50 dark:bg-slate-900/50 text-xs text-slate-500 border-b border-slate-200 dark:border-slate-800">
+                                                    <tr>
+                                                        <th class="px-4 py-2">Item #</th>
+                                                        <th class="px-4 py-2">Details</th>
+                                                        <th class="px-4 py-2 text-right">Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                                    ${itemsList.map(item => `
+                                                        <tr class="hover:bg-white dark:hover:bg-slate-800/50 transition-colors">
+                                                            <td class="px-4 py-3 font-mono text-xs text-slate-500">${item.itemNumber || '-'}</td>
+                                                            <td class="px-4 py-3 font-medium">
+                                                                ${item.brand ? `<span class="text-[10px] text-indigo-500 block uppercase tracking-wider">${item.brand}</span>` : ''}
+                                                                ${item.name}
+                                                            </td>
+                                                            <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <div class="flex flex-col items-center justify-center h-full text-slate-500 space-y-4">
+                                <i class="ph ph-hand-pointing text-4xl text-slate-300 dark:text-slate-700"></i>
+                                <p class="text-sm">Select a bidder from the directory to view their winnings breakdown.</p>
+                            </div>
+                        `}
+                    </div>
                 </div>
             `;
         }
