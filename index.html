@@ -134,10 +134,9 @@
         // --- Firebase Configuration ---
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
-            // Used for the Canvas preview environment
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // PORTING TO YOUR OWN SERVER: Paste your Firebase config object here!
+            // YOUR PERSONAL SERVER FALLBACK
             firebaseConfig = {
                 apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
                 authDomain: "facebook-auction-tracker.firebaseapp.com",
@@ -172,7 +171,7 @@
             items: []
         };
 
-        let state = null; // Will be populated from Firebase
+        let state = null; 
 
         // Expose all necessary functions to the global scope
         window.switchPage = switchPage;
@@ -241,31 +240,46 @@
                 }
                 
                 onSnapshot(docRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        // Persist UI selection across updates
-                        const prevBidderId = state ? state.selectedBidderId : null;
-                        state = snapshot.data();
-                        state.selectedBidderId = prevBidderId;
-                        
-                        if (!state.reportFilterPostIds) {
-                            state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
+                    try {
+                        if (snapshot.exists()) {
+                            // Defensive mapping: ensures missing data arrays don't cause frozen white screens
+                            const data = snapshot.data();
+                            const prevBidderId = state ? state.selectedBidderId : null;
+                            
+                            state = {
+                                ...defaultState,
+                                ...data,
+                                posts: data.posts || [],
+                                bidders: data.bidders || [],
+                                items: data.items || [],
+                                brands: data.brands || defaultState.brands,
+                                selectedBidderId: prevBidderId
+                            };
+                            
+                            if (!state.reportFilterPostIds) {
+                                state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
+                            }
+                        } else {
+                            state = defaultState;
+                            saveState();
                         }
-                    } else {
-                        state = defaultState;
-                        saveState();
-                    }
-                    
-                    if (!isInitialized) {
-                        isInitialized = true;
-                        if (state.theme === 'dark') document.documentElement.classList.add('dark');
-                        else document.documentElement.classList.remove('dark');
-                        switchPage(state.currentPage || 'dashboard');
-                    } else {
-                        renderCurrentPage();
-                        updateBadges();
+                        
+                        if (!isInitialized) {
+                            isInitialized = true;
+                            if (state.theme === 'dark') document.documentElement.classList.add('dark');
+                            else document.documentElement.classList.remove('dark');
+                            switchPage(state.currentPage || 'dashboard');
+                        } else {
+                            renderCurrentPage();
+                            updateBadges();
+                        }
+                    } catch (err) {
+                        console.error("State rendering error:", err);
+                        document.getElementById('content-area').innerHTML = `<div class="text-rose-500 bg-rose-50 dark:bg-rose-950 p-6 rounded-xl border border-rose-200 m-8"><h3 class="font-bold mb-2">Critical Rendering Error</h3><p class="text-sm font-mono">${err.message}</p></div>`;
                     }
                 }, (error) => {
                     console.error("Firebase Database error:", error);
+                    document.getElementById('content-area').innerHTML = `<div class="text-rose-500 p-8">Database Connection Error: ${error.message}</div>`;
                 });
             }
         });
@@ -294,7 +308,7 @@
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.6)); // Compress to 60% JPEG
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); // Compress to 60% JPEG to fit fast on DB
                     };
                     img.src = e.target.result;
                 };
@@ -314,7 +328,7 @@
                 window.batchDrafts.push({ image: base64, name: '' });
             }
             renderBatchDrafts();
-            input.value = ''; 
+            input.value = ''; // Reset input so same file can be selected again if needed
         }
 
         function removeBatchDraft(index) {
@@ -347,9 +361,11 @@
             if (!post || !post.numberPrefix) return; // Exit if auto-numbering is not active
 
             const postItems = state.items.filter(i => i.postId === postId);
+            
+            // Ensure backwards compatibility with older items missing a timestamp
             postItems.forEach(i => { if(!i.createdAt) i.createdAt = Date.now(); });
             
-            // Sort by creation time to maintain sequence
+            // Sort by creation time to maintain the exact sequence they were added
             postItems.sort((a, b) => a.createdAt - b.createdAt);
 
             let currentNum = parseInt(post.numberStart) || 1;
@@ -1103,6 +1119,299 @@
             `;
         }
 
+        // --- Actions & State Updates ---
+
+        function applyReportFilter() {
+            const select = document.getElementById('multi-post-filter');
+            const selectedValues = Array.from(select.selectedOptions).map(opt => opt.value);
+            
+            if (selectedValues.length === 0) {
+                 state.reportFilterPostIds = ['all'];
+            } else if (selectedValues.includes('all') && selectedValues.length > 1) {
+                 // Prioritize specific posts over the "all" default when both are highlighted
+                 state.reportFilterPostIds = selectedValues.filter(val => val !== 'all');
+            } else {
+                 state.reportFilterPostIds = selectedValues;
+            }
+            
+            saveState();
+            renderCurrentPage();
+        }
+
+        function downloadPickListCSV() {
+            const filterPostIds = state.reportFilterPostIds || ['all'];
+            
+            let soldItems = state.items.filter(i => i.status === 'sold');
+            if (!filterPostIds.includes('all')) {
+                soldItems = soldItems.filter(i => filterPostIds.includes(String(i.postId)));
+            }
+
+            if (soldItems.length === 0) {
+                window.openModal('error', { message: "No sold items to export for this selection."});
+                return;
+            }
+
+            // Map and sort by Post Name, then Buyer Name
+            const pickList = soldItems.map(item => {
+                const bidder = state.bidders.find(b => b.id === item.purchaserId);
+                const post = state.posts.find(p => p.id === item.postId);
+                return {
+                    postName: post ? post.name : 'Unknown Post',
+                    buyerName: bidder ? bidder.name : 'Unknown Buyer',
+                    itemNumber: item.itemNumber || '-',
+                    brand: item.brand || '-',
+                    name: item.name || 'Unnamed Item',
+                    price: item.currentBid || item.startPrice
+                };
+            }).sort((a, b) => {
+                const postCompare = a.postName.localeCompare(b.postName);
+                if (postCompare !== 0) return postCompare;
+                return a.buyerName.localeCompare(b.buyerName);
+            });
+
+            // Generate CSV Structure
+            const headers = ['Post Name', 'Buyer Name', 'Item #', 'Brand', 'Item Description', 'Final Price'];
+            const csvRows = [headers.join(',')];
+
+            pickList.forEach(row => {
+                const values = [
+                    `"${row.postName.replace(/"/g, '""')}"`,
+                    `"${row.buyerName.replace(/"/g, '""')}"`,
+                    `"${row.itemNumber.replace(/"/g, '""')}"`,
+                    `"${row.brand.replace(/"/g, '""')}"`,
+                    `"${row.name.replace(/"/g, '""')}"`,
+                    row.price
+                ];
+                csvRows.push(values.join(','));
+            });
+
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Diecast_PickList_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function updatePaymentLink(link) {
+            state.paymentLink = link;
+            saveState();
+        }
+
+        function copyInvoice(purchaserId, btnElement) {
+            const bidder = state.bidders.find(b => b.id == purchaserId);
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+            const itemCount = items.length;
+            const paymentLink = state.paymentLink ? state.paymentLink : '[Your Payment Link - Add in Settings]';
+            
+            // Format the message
+            const message = `Hey ${bidder.name}! Thanks for grabbing cars in this drop. Your total for ${itemCount} item${itemCount !== 1 ? 's' : ''} is $${totalValue.toFixed(2)} + shipping.\n\nPlease send payment via: ${paymentLink}\n\nThanks!`;
+
+            // Create temporary textarea to execute the copy command
+            const textArea = document.createElement("textarea");
+            textArea.value = message;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                
+                // Temporarily change button to "Copied!" for visual feedback
+                const originalText = btnElement.innerHTML;
+                btnElement.innerHTML = `<i class="ph ph-check"></i> Copied!`;
+                btnElement.classList.add('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
+                btnElement.classList.remove('bg-sky-50', 'text-sky-600', 'dark:bg-sky-900/30', 'dark:text-sky-400');
+                
+                setTimeout(() => {
+                    btnElement.innerHTML = originalText;
+                    btnElement.classList.remove('bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/50', 'dark:text-emerald-400');
+                    btnElement.classList.add('bg-sky-50', 'text-sky-600', 'dark:bg-sky-900/30', 'dark:text-sky-400');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function updateStoreName(name) {
+            state.storeName = name;
+            saveState();
+        }
+
+        function setTheme(theme) {
+            state.theme = theme;
+            saveState();
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            if(state.currentPage === 'settings') renderCurrentPage();
+        }
+
+        function togglePaid(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item) {
+                item.paid = !item.paid;
+                saveState();
+                renderCurrentPage();
+            }
+        }
+
+        function markBoxPaid(purchaserId) {
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            items.forEach(i => i.paid = true);
+            saveState();
+            renderCurrentPage();
+        }
+
+        function shipBox(purchaserId) {
+            state.activeShippingPurchaserId = purchaserId;
+            saveState();
+            switchPage('shipping');
+        }
+
+        function resetData() {
+            state = defaultState;
+            saveState();
+            closeModal();
+            switchPage('dashboard');
+        }
+
+        // --- Shipping & Packing Slip ---
+        function getShippingHTML() {
+            if (!state.activeShippingPurchaserId) return `<p>Error: No active shipment.</p>`;
+            const purchaserId = state.activeShippingPurchaserId;
+            const bidder = state.bidders.find(b => b.id == purchaserId);
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const subtotal = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
+            
+            return `
+                <div class="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+                    <button onclick="window.switchPage('openbox')" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="ph ph-arrow-left text-xl"></i> Back to Open Box
+                    </button>
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <div class="flex items-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
+                            <span class="text-slate-500">$</span>
+                            <input type="number" id="shipping-fee-input" placeholder="Shipping Fee" min="0" step="0.5" class="bg-transparent border-none w-28 px-2 py-1 focus:outline-none dark:text-white" oninput="window.updateShippingFee(this.value, ${subtotal})">
+                        </div>
+                        <button onclick="window.processShipment(${purchaserId})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
+                            <i class="ph ph-printer"></i> Print & Ship
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-center w-full no-print mb-8">
+                    <p class="text-sm text-slate-500">A 4x6 label format is rendered below. Configure your printer to 4" x 6" label size.</p>
+                </div>
+
+                <!-- 4x6 Printable Area -->
+                <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
+                    <div class="text-center mb-4 border-b-2 border-black pb-4 shrink-0">
+                        <h1 class="text-2xl font-black tracking-tighter uppercase">Packing Slip</h1>
+                        <p class="text-xs text-gray-600 font-bold mt-1">DIECAST TRACKER</p>
+                    </div>
+                    
+                    <div class="mb-4 shrink-0">
+                        <p class="text-[10px] text-gray-500 uppercase font-bold mb-1">Ship To:</p>
+                        <h2 class="text-lg font-bold leading-tight">${bidder.name}</h2>
+                        ${bidder.profile ? `<p class="text-xs text-gray-600 mt-1 truncate">${bidder.profile}</p>` : ''}
+                    </div>
+
+                    <div class="flex-1 overflow-hidden">
+                        <table class="w-full text-xs mb-4 border-collapse">
+                            <thead>
+                                <tr class="border-b border-black text-left">
+                                    <th class="pb-1 w-16">Item #</th>
+                                    <th class="pb-1">Item Description</th>
+                                    <th class="pb-1 text-right">Price</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                ${items.map(item => `
+                                    <tr>
+                                        <td class="py-1.5 pr-2 font-mono text-[10px] text-gray-500">${item.itemNumber || '-'}</td>
+                                        <td class="py-1.5 pr-2 truncate max-w-[2in]">${item.name}</td>
+                                        <td class="py-1.5 text-right whitespace-nowrap">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="border-t-2 border-black pt-3 shrink-0">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>Subtotal:</span>
+                            <span>${formatCurrency(subtotal)}</span>
+                        </div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>Shipping:</span>
+                            <span id="display-shipping-fee">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-black mt-2">
+                            <span>Total:</span>
+                            <span id="display-total">${formatCurrency(subtotal)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center text-[10px] text-gray-500 border-t border-gray-300 pt-2 mt-4 shrink-0">
+                        Thank you for your purchase!
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateShippingFee(fee, subtotal) {
+            const feeVal = parseFloat(fee) || 0;
+            document.getElementById('display-shipping-fee').textContent = formatCurrency(feeVal);
+            document.getElementById('display-total').textContent = formatCurrency(subtotal + feeVal);
+        }
+
+        function processShipment(purchaserId) {
+            window.print();
+            
+            setTimeout(() => {
+                const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+                items.forEach(i => i.shipped = true);
+                saveState();
+                updateBadges();
+                switchPage('openbox');
+            }, 500);
+        }
+
+        function markSold(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item && item.type === 'auction') {
+                if (!item.purchaserId) {
+                    window.openModal('error', { message: "Cannot end auction without any bids. Delete or edit item instead."});
+                    return;
+                }
+                item.status = 'sold';
+                item.paid = false;
+                item.shipped = false;
+                saveState();
+                updateBadges();
+                renderCurrentPage();
+            }
+        }
+
+        function reopenItem(itemId) {
+             const item = state.items.find(i => i.id === itemId);
+             if(item) {
+                 item.status = 'open';
+                 saveState();
+                 updateBadges();
+                 renderCurrentPage();
+             }
+        }
+
         // --- Modals ---
         function openModal(type, data = {}) {
             const container = document.getElementById('modal-container');
@@ -1542,7 +1851,7 @@
                     state.items.push({
                         id: generateId(),
                         postId: postId,
-                        itemNumber: '', 
+                        itemNumber: '', // Filled by auto-number
                         brand: brand,
                         name: draft.name,
                         type: values.type,
@@ -1559,7 +1868,7 @@
                 });
 
                 resequencePostItems(postId);
-                window.batchDrafts = [];
+                window.batchDrafts = []; // Clear drafts
 
             } else if (type === 'editItem') {
                 const item = state.items.find(i => i.id === id);
@@ -1586,7 +1895,7 @@
                         resequencePostItems(oldPostId);
                         resequencePostItems(item.postId);
                     } else {
-                        resequencePostItems(item.postId); 
+                        resequencePostItems(item.postId); // Trigger in case order or itemNumber was touched
                     }
                 }
             } else if (type === 'addBidder') {
