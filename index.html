@@ -128,7 +128,7 @@
     <!-- Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Configuration ---
@@ -154,8 +154,11 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         let userId = null;
+        let userEmail = null;
+        let isAnonymous = true;
         let docRef = null;
         let isInitialized = false;
+        let unsubscribeSnapshot = null;
 
         // --- State Management ---
         const defaultState = {
@@ -199,12 +202,10 @@
         window.handleSearch = handleSearch;
         window.closeSearch = closeSearch;
         window.selectBidder = selectBidder;
-        window.batchDrafts = [];
-        window.compressImage = compressImage;
-        window.handleBatchFiles = handleBatchFiles;
-        window.removeBatchDraft = removeBatchDraft;
-        window.renderBatchDrafts = renderBatchDrafts;
-        window.resequencePostItems = resequencePostItems;
+        window.signUpAndMigrate = signUpAndMigrate;
+        window.loginAccount = loginAccount;
+        window.logoutAccount = logoutAccount;
+        window.signInWithGoogle = signInWithGoogle;
         
         async function saveState() {
             if (!docRef) return;
@@ -230,8 +231,16 @@
         };
 
         onAuthStateChanged(auth, (user) => {
+            // Clean up the old listener if the account switches
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+
             if (user) {
                 userId = user.uid;
+                userEmail = user.email;
+                isAnonymous = user.isAnonymous;
                 
                 if (typeof __firebase_config !== 'undefined') {
                     docRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'appState');
@@ -239,141 +248,124 @@
                     docRef = doc(db, 'users', userId); 
                 }
                 
-                onSnapshot(docRef, (snapshot) => {
-                    try {
-                        if (snapshot.exists()) {
-                            // Defensive mapping: ensures missing data arrays don't cause frozen white screens
-                            const data = snapshot.data();
-                            const prevBidderId = state ? state.selectedBidderId : null;
-                            
-                            state = {
-                                ...defaultState,
-                                ...data,
-                                posts: data.posts || [],
-                                bidders: data.bidders || [],
-                                items: data.items || [],
-                                brands: data.brands || defaultState.brands,
-                                selectedBidderId: prevBidderId
-                            };
-                            
-                            if (!state.reportFilterPostIds) {
-                                state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
-                            }
-                        } else {
-                            state = defaultState;
-                            saveState();
-                        }
+                unsubscribeSnapshot = onSnapshot(docRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        // Persist UI selection across updates
+                        const prevBidderId = state ? state.selectedBidderId : null;
+                        state = snapshot.data();
+                        state.selectedBidderId = prevBidderId;
                         
-                        if (!isInitialized) {
-                            isInitialized = true;
-                            if (state.theme === 'dark') document.documentElement.classList.add('dark');
-                            else document.documentElement.classList.remove('dark');
-                            switchPage(state.currentPage || 'dashboard');
-                        } else {
-                            renderCurrentPage();
-                            updateBadges();
+                        if (!state.reportFilterPostIds) {
+                            state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                         }
-                    } catch (err) {
-                        console.error("State rendering error:", err);
-                        document.getElementById('content-area').innerHTML = `<div class="text-rose-500 bg-rose-50 dark:bg-rose-950 p-6 rounded-xl border border-rose-200 m-8"><h3 class="font-bold mb-2">Critical Rendering Error</h3><p class="text-sm font-mono">${err.message}</p></div>`;
+                    } else {
+                        state = defaultState;
+                        saveState();
+                    }
+                    
+                    if (!isInitialized) {
+                        isInitialized = true;
+                        if (state.theme === 'dark') document.documentElement.classList.add('dark');
+                        else document.documentElement.classList.remove('dark');
+                        switchPage(state.currentPage || 'dashboard');
+                    } else {
+                        renderCurrentPage();
+                        updateBadges();
                     }
                 }, (error) => {
                     console.error("Firebase Database error:", error);
-                    document.getElementById('content-area').innerHTML = `<div class="text-rose-500 p-8">Database Connection Error: ${error.message}</div>`;
                 });
+            } else {
+                // If signed out, automatically restart as a blank guest session
+                state = defaultState;
+                isInitialized = false;
+                signInAnonymously(auth);
             }
         });
 
         initAuth();
 
-        // --- Image Compression & Batch Logic ---
-        function compressImage(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 600;
-                        const MAX_HEIGHT = 600;
-                        let width = img.width;
-                        let height = img.height;
-
-                        if (width > height) {
-                            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
-                        } else {
-                            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.6)); // Compress to 60% JPEG to fit fast on DB
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function handleBatchFiles(input) {
-            const files = Array.from(input.files);
-            if (files.length === 0) return;
+        // --- Account Management Logic ---
+        async function signUpAndMigrate(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-password').value;
             
-            const container = document.getElementById('batch-drafts-container');
-            container.innerHTML = '<div class="text-center text-slate-500 py-8 flex flex-col items-center justify-center"><i class="ph ph-spinner-gap animate-spin text-3xl mb-2 text-indigo-500"></i><p>Compressing & loading images...</p></div>';
-
-            for(let file of files) {
-                const base64 = await compressImage(file);
-                window.batchDrafts.push({ image: base64, name: '' });
+            // Backup current guest data before the User ID changes
+            const backupState = JSON.parse(JSON.stringify(state)); 
+            
+            try {
+                // Create permanent account (logs user into new UID instantly)
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                const newUid = userCredential.user.uid;
+                
+                // Write the backed-up data to the new permanent profile path
+                let newDocRef;
+                if (typeof __firebase_config !== 'undefined') {
+                    newDocRef = doc(db, 'artifacts', appId, 'users', newUid, 'data', 'appState');
+                } else {
+                    newDocRef = doc(db, 'users', newUid); 
+                }
+                await setDoc(newDocRef, backupState);
+                
+                window.openModal('error', { message: "Account created successfully! Your data has been securely copied over."});
+                renderCurrentPage();
+            } catch (error) {
+                window.openModal('error', { message: "Sign up failed: " + error.message });
             }
-            renderBatchDrafts();
-            input.value = ''; // Reset input so same file can be selected again if needed
         }
 
-        function removeBatchDraft(index) {
-            window.batchDrafts.splice(index, 1);
-            renderBatchDrafts();
-        }
-
-        function renderBatchDrafts() {
-            const container = document.getElementById('batch-drafts-container');
-            if (window.batchDrafts.length === 0) {
-                container.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">No photos uploaded yet.</div>';
-                return;
+        async function loginAccount(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                window.openModal('error', { message: "Logged in successfully! Pulling your cloud data now."});
+                renderCurrentPage();
+            } catch (error) {
+                window.openModal('error', { message: "Login failed: " + error.message });
             }
-            
-            container.innerHTML = window.batchDrafts.map((draft, index) => `
-                <div class="flex gap-4 items-center bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <img src="${draft.image}" class="w-16 h-16 object-cover rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 shrink-0" />
-                    <input type="text" placeholder="Type Item Name/Description here..." required
-                        value="${draft.name.replace(/"/g, '&quot;')}"
-                        onchange="window.batchDrafts[${index}].name = this.value"
-                        class="flex-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white min-w-[150px]">
-                    <button type="button" onclick="window.removeBatchDraft(${index})" class="text-rose-500 p-2 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-lg transition-colors shrink-0"><i class="ph ph-trash text-lg"></i></button>
-                </div>
-            `).join('');
         }
 
-        // --- Sequence Auto-Numbering Logic ---
-        function resequencePostItems(postId) {
-            const post = state.posts.find(p => p.id === postId);
-            if (!post || !post.numberPrefix) return; // Exit if auto-numbering is not active
+        async function logoutAccount() {
+            try {
+                await signOut(auth);
+                switchPage('dashboard');
+                window.openModal('error', { message: "Signed out. You are now in a clean Guest Session."});
+            } catch (error) {
+                console.error("Sign out failed", error);
+            }
+        }
 
-            const postItems = state.items.filter(i => i.postId === postId);
+        async function signInWithGoogle() {
+            const provider = new GoogleAuthProvider();
+            // Backup current guest data before the User ID changes
+            const backupState = JSON.parse(JSON.stringify(state)); 
             
-            // Ensure backwards compatibility with older items missing a timestamp
-            postItems.forEach(i => { if(!i.createdAt) i.createdAt = Date.now(); });
-            
-            // Sort by creation time to maintain the exact sequence they were added
-            postItems.sort((a, b) => a.createdAt - b.createdAt);
-
-            let currentNum = parseInt(post.numberStart) || 1;
-            postItems.forEach(item => {
-                const numString = currentNum < 10 ? `0${currentNum}` : `${currentNum}`;
-                item.itemNumber = `${post.numberPrefix}${numString}`;
-                currentNum++;
-            });
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const isNewUser = getAdditionalUserInfo(result).isNewUser;
+                const newUid = result.user.uid;
+                
+                if (isNewUser) {
+                    // It's their first time logging in, push their guest data to their new cloud profile
+                    let newDocRef;
+                    if (typeof __firebase_config !== 'undefined') {
+                        newDocRef = doc(db, 'artifacts', appId, 'users', newUid, 'data', 'appState');
+                    } else {
+                        newDocRef = doc(db, 'users', newUid); 
+                    }
+                    await setDoc(newDocRef, backupState);
+                    window.openModal('error', { message: "Google Account linked successfully! Your guest data has been securely copied over."});
+                } else {
+                    // Existing user, just pull their data
+                    window.openModal('error', { message: "Logged in with Google! Pulling your cloud data now."});
+                }
+                renderCurrentPage();
+            } catch (error) {
+                window.openModal('error', { message: "Google Sign-In failed: " + error.message });
+            }
         }
 
         // --- Global Search Logic ---
@@ -1072,6 +1064,38 @@
         function getSettingsHTML() {
             return `
                 <div class="max-w-2xl">
+                    <!-- Account & Sync Section -->
+                    <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Account & Cloud Sync</h3>
+                        
+                        ${isAnonymous ? `
+                            <p class="text-indigo-600 dark:text-indigo-400 text-sm mb-4">You are currently using a temporary <strong>Guest Account</strong>. To sync your tracking data to your phone or another computer, sign in with Google below. Your existing guest data will be safely copied over.</p>
+                            
+                            <div class="bg-white dark:bg-slate-850 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800/30 flex flex-col items-center justify-center space-y-4">
+                                <i class="ph ph-google-logo text-5xl text-indigo-500"></i>
+                                <p class="text-sm font-medium text-slate-600 dark:text-slate-400 text-center">Use your Google Account to securely sync your inventory anywhere.</p>
+                                <button onclick="window.signInWithGoogle()" class="flex items-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 py-3 px-6 rounded-xl text-sm font-bold transition-all shadow-sm w-full max-w-sm justify-center">
+                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                                    </svg>
+                                    Sign in with Google
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="flex items-center justify-between bg-white dark:bg-slate-850 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Logged In As</p>
+                                    <p class="font-bold text-slate-900 dark:text-white">${userEmail || 'Google Account'}</p>
+                                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1"><i class="ph ph-check-circle"></i> Securely syncing to cloud</p>
+                                </div>
+                                <button onclick="window.logoutAccount()" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Sign Out</button>
+                            </div>
+                        `}
+                    </div>
+
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
                         <div class="flex flex-col py-2 mb-4">
@@ -1107,8 +1131,8 @@
                     </div>
                     
                     <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 overflow-hidden p-6">
-                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Cloud Connected</h3>
-                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Your data is currently syncing in real-time to your Firebase Firestore database.</p>
+                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-database"></i> Database Utility</h3>
+                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Resetting data will overwrite your current Firebase database with default sample data.</p>
                         <div class="flex gap-3">
                             <button onclick="window.openModal('resetData')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
                                 Reset All Data
