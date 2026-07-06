@@ -161,8 +161,7 @@
             items: []
         };
 
-        let state = null;
-        window.batchDrafts = []; // Global holder for incoming batch photos
+        let state = null; // Will be populated from Firebase
 
         // Expose functions globally
         window.switchPage = switchPage;
@@ -205,6 +204,7 @@
             }
         }
 
+        // --- Auth & Initial Load ---
         const initAuth = async () => {
             try {
                 if (!auth.currentUser) {
@@ -244,6 +244,7 @@
                             state = snapshot.data();
                             if (state && prevBidderId) state.selectedBidderId = prevBidderId;
                             
+                            // Safe fallbacks to prevent crash
                             if (state && !state.reportFilterPostIds) {
                                 state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                             }
@@ -313,6 +314,7 @@
 
         initAuth();
 
+        // --- Client-Side Image Resizer & Compressor ---
         function compressImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -393,7 +395,7 @@
                     <img src="${draft.image}" class="w-12 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
                     <div class="flex-1 min-w-0">
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Item Title / Description</label>
-                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-880 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
                     </div>
                     <button type="button" onclick="window.removeBatchDraft(${idx})" class="text-rose-500 hover:text-rose-700 p-2 shrink-0">
                         <i class="ph ph-trash text-lg"></i>
@@ -416,6 +418,7 @@
             }
         }
 
+        // --- Auto-Numbering Gap-Free Re-sequencing Rule ---
         function resequencePostItems(postId) {
             const post = state.posts.find(p => p.id === postId);
             if (!post) return;
@@ -662,7 +665,7 @@
                                 </div>
                                 <div class="flex flex-col items-end gap-2">
                                     <span class="px-2 py-1 text-xs rounded-md ${post.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}">${post.status.toUpperCase()}</span>
-                                    <button onclick="window.openModal('editPost', {postId: ${post.id}})" class="text-sky-500 hover:text-sky-700 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Edit Config</button>
+                                    <button onclick="window.openModal('editPost', {postId: ${post.id}})" class="text-indigo-500 hover:text-indigo-750 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Edit Config</button>
                                 </div>
                             </div>
                             <div class="flex-1 mt-2 mb-6">
@@ -863,13 +866,6 @@
                                                 </span>
                                             </div>
                                             <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-                                                <thead class="bg-slate-50/50 dark:bg-slate-900/50 text-xs text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                                                    <tr>
-                                                        <th class="px-4 py-2">Item #</th>
-                                                        <th class="px-4 py-2">Details</th>
-                                                        <th class="px-4 py-2 text-right">Price</th>
-                                                    </tr>
-                                                </thead>
                                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
                                                     ${itemsList.map(item => `
                                                         <tr class="hover:bg-white dark:hover:bg-slate-800/50 transition-colors">
