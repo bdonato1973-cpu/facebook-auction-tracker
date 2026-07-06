@@ -1468,100 +1468,100 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
-                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                            <option value="auction" ${item.type === 'auction' ? 'selected' : ''}>Auction</option>
-                                            <option value="bin" ${item.type === 'bin' ? 'selected' : ''}>Buy It Now</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
-                                        <input type="number" name="price" value="${item.startPrice}" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Override Revenue Rule</label>
-                                    <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="post_default" ${item.splitRule === 'post_default' ? 'selected' : ''}>Use Post Default</option>
-                                        <option value="none" ${item.splitRule === 'none' ? 'selected' : ''}>100% to Me</option>
-                                        <option value="50_50" ${item.splitRule === '50_50' ? 'selected' : ''}>50/50 Split</option>
-                                        <option value="50_50_under_3" ${item.splitRule === '50_50_under_3' ? 'selected' : ''}>50/50 Split (100% to Other if &lt; $3)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">Save Changes</button>
-                            </div>
-                        </form>
-                    </div>`;
-            } else if (type === 'addBidder') {
-                content = `
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
-                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
-                            <div class="space-y-4 mb-6">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
-                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
-                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">Save Bidder</button>
-                            </div>
-                        </form>
-                    </div>`;
-            } else if (type === 'addBid' || type === 'sellBin') {
-                const item = state.items.find(i => i.id === data.itemId);
-                const isBin = type === 'sellBin';
-                const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
-                
-                content = `
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
-                        <div class="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                            ${item.image ? `<img src="${item.image}" class="w-12 h-12 object-cover rounded shadow-sm shrink-0 border border-slate-200 dark:border-slate-600">` : ''}
-                            <div>
-                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">${item.name}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
-                            </div>
-                        </div>
-                        <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
-                            <div class="space-y-4 mb-6">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
-                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        <option value="" disabled selected>-- Choose --</option>
-                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
-                                    </select>
-                                </div>
-                                ${!isBin ? `
-                                <div>
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bid Amount ($)</label>
-                                    <input type="number" name="amount" required min="${minBid}" step="1" value="${minBid}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none">
-                                </div>` : ''}
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancel</button>
-                                <button type="submit" class="px-4 py-2 ${isBin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl font-medium">${isBin ? 'Confirm Sale' : 'Submit Bid'}</button>
-                            </div>
-                        </form>
-                    </div>`;
-            }
-
-            container.innerHTML = content;
-            container.classList.remove('hidden');
+        function updateStoreName(name) {
+            state.storeName = name;
+            saveState();
         }
 
-        function closeModal() {
-            const container = document.getElementById('modal-container');
-            container.classList.add('hidden');
-            container.innerHTML = '';
+        function setTheme(theme) {
+            state.theme = theme;
+            saveState();
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            if(state.currentPage === 'settings') renderCurrentPage();
+        }
+
+        function togglePaid(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item) {
+                item.paid = !item.paid;
+                saveState();
+                renderCurrentPage();
+            }
+        }
+
+        function markBoxPaid(purchaserId) {
+            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            items.forEach(i => i.paid = true);
+            saveState();
+            renderCurrentPage();
+        }
+
+        function shipBox(purchaserId) {
+            state.activeShippingPurchaserId = purchaserId;
+            saveState();
+            switchPage('shipping');
+        }
+
+        function resetData() {
+            state = JSON.parse(JSON.stringify(defaultState));
+            saveState();
+            closeModal();
+            switchPage('dashboard');
+        }
+
+        function updateShippingFee(purchaserId, fee) {
+            const bidder = state.bidders.find(b => b.id == purchaserId);
+            if(bidder) {
+                bidder.shippingFee = parseFloat(fee) || 0;
+                saveState();
+                renderCurrentPage();
+            }
+        }
+
+        function processShipment(purchaserId) {
+            window.print();
+            setTimeout(() => {
+                const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+                items.forEach(i => i.shipped = true);
+                
+                // Clear the box data configuration schema safely
+                const bidder = state.bidders.find(b => b.id == purchaserId);
+                if (bidder) bidder.shippingFee = 0;
+
+                saveState();
+                updateBadges();
+                switchPage('openbox');
+            }, 500);
+        }
+
+        function markSold(itemId) {
+            const item = state.items.find(i => i.id === itemId);
+            if (item && item.type === 'auction') {
+                if (!item.purchaserId) {
+                    window.openModal('error', { message: "Cannot end auction without any bids. Delete or edit item instead."});
+                    return;
+                }
+                item.status = 'sold';
+                item.paid = false;
+                item.shipped = false;
+                saveState();
+                updateBadges();
+                renderCurrentPage();
+            }
+        }
+
+        function reopenItem(itemId) {
+             const item = state.items.find(i => i.id === itemId);
+             if(item) {
+                 item.status = 'open';
+                 saveState();
+                 updateBadges();
+                 renderCurrentPage();
+             }
         }
 
         function confirmDelete(type, id) { window.openModal('deleteConfirm', { type, id }); }
