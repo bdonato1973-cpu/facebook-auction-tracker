@@ -128,15 +128,16 @@
     <!-- Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase Configuration ---
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
+            // Used for the Canvas preview environment
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // YOUR PERSONAL SERVER FALLBACK
+            // PORTING TO YOUR OWN SERVER: Paste your Firebase config object here!
             firebaseConfig = {
                 apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
                 authDomain: "facebook-auction-tracker.firebaseapp.com",
@@ -153,13 +154,9 @@
         const db = getFirestore(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        let currentUser = null;
         let userId = null;
-        let userEmail = null;
-        let isAnonymous = true;
         let docRef = null;
         let isInitialized = false;
-        let unsubscribeSnapshot = null;
 
         // --- State Management ---
         const defaultState = {
@@ -175,7 +172,7 @@
             items: []
         };
 
-        let state = null; 
+        let state = null; // Will be populated from Firebase
 
         // Expose all necessary functions to the global scope
         window.switchPage = switchPage;
@@ -203,30 +200,16 @@
         window.handleSearch = handleSearch;
         window.closeSearch = closeSearch;
         window.selectBidder = selectBidder;
-        window.signUpAndMigrate = signUpAndMigrate;
-        window.loginAccount = loginAccount;
-        window.logoutAccount = logoutAccount;
-        window.signInWithGoogle = signInWithGoogle;
         
         async function saveState() {
-    const user = auth.currentUser;
+            if (!docRef) return;
+            try {
+                await setDoc(docRef, state);
+            } catch(e) {
+                console.error("Error saving to Firebase:", e);
+            }
+        }
 
-    if (!user) {
-        console.log("saveState: no authenticated user");
-        return;
-    }
-
-    try {
-        console.log("Saving", state.posts.length, "posts for", user.uid);
-
-        const docRef = doc(db, "users", user.uid);
-        await setDoc(docRef, state);
-
-        console.log("Save successful");
-    } catch (e) {
-        console.error("Save failed:", e);
-    }
-}
         // --- Auth & Initial Load ---
         const initAuth = async () => {
             try {
@@ -242,16 +225,8 @@
         };
 
         onAuthStateChanged(auth, (user) => {
-            // Clean up the old listener if the account switches
-            if (unsubscribeSnapshot) {
-                unsubscribeSnapshot();
-                unsubscribeSnapshot = null;
-            }
-
             if (user) {
                 userId = user.uid;
-                userEmail = user.email;
-                isAnonymous = user.isAnonymous;
                 
                 if (typeof __firebase_config !== 'undefined') {
                     docRef = doc(db, 'artifacts', appId, 'users', userId, 'data', 'appState');
@@ -259,7 +234,7 @@
                     docRef = doc(db, 'users', userId); 
                 }
                 
-                unsubscribeSnapshot = onSnapshot(docRef, (snapshot) => {
+                onSnapshot(docRef, (snapshot) => {
                     if (snapshot.exists()) {
                         // Persist UI selection across updates
                         const prevBidderId = state ? state.selectedBidderId : null;
@@ -286,98 +261,10 @@
                 }, (error) => {
                     console.error("Firebase Database error:", error);
                 });
-            } else {
-                // If signed out, automatically restart as a blank guest session
-                state = defaultState;
-                isInitialized = false;
-                signInAnonymously(auth);
             }
         });
 
         initAuth();
-
-        // --- Account Management Logic ---
-        async function signUpAndMigrate(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-password').value;
-            
-            // Backup current guest data before the User ID changes
-            const backupState = JSON.parse(JSON.stringify(state)); 
-            
-            try {
-                // Create permanent account (logs user into new UID instantly)
-                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-                const newUid = userCredential.user.uid;
-                
-                // Write the backed-up data to the new permanent profile path
-                let newDocRef;
-                if (typeof __firebase_config !== 'undefined') {
-                    newDocRef = doc(db, 'artifacts', appId, 'users', newUid, 'data', 'appState');
-                } else {
-                    newDocRef = doc(db, 'users', newUid); 
-                }
-                await setDoc(newDocRef, backupState);
-                
-                window.openModal('error', { message: "Account created successfully! Your data has been securely copied over."});
-                renderCurrentPage();
-            } catch (error) {
-                window.openModal('error', { message: "Sign up failed: " + error.message });
-            }
-        }
-
-        async function loginAccount(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const pass = document.getElementById('auth-password').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, pass);
-                window.openModal('error', { message: "Logged in successfully! Pulling your cloud data now."});
-                renderCurrentPage();
-            } catch (error) {
-                window.openModal('error', { message: "Login failed: " + error.message });
-            }
-        }
-
-        async function logoutAccount() {
-            try {
-                await signOut(auth);
-                switchPage('dashboard');
-                window.openModal('error', { message: "Signed out. You are now in a clean Guest Session."});
-            } catch (error) {
-                console.error("Sign out failed", error);
-            }
-        }
-
-        async function signInWithGoogle() {
-            const provider = new GoogleAuthProvider();
-            // Backup current guest data before the User ID changes
-            const backupState = JSON.parse(JSON.stringify(state)); 
-            
-            try {
-                const result = await signInWithPopup(auth, provider);
-                const isNewUser = getAdditionalUserInfo(result).isNewUser;
-                const newUid = result.user.uid;
-                
-                if (isNewUser) {
-                    // It's their first time logging in, push their guest data to their new cloud profile
-                    let newDocRef;
-                    if (typeof __firebase_config !== 'undefined') {
-                        newDocRef = doc(db, 'artifacts', appId, 'users', newUid, 'data', 'appState');
-                    } else {
-                        newDocRef = doc(db, 'users', newUid); 
-                    }
-                    await setDoc(newDocRef, backupState);
-                    window.openModal('error', { message: "Google Account linked successfully! Your guest data has been securely copied over."});
-                } else {
-                    // Existing user, just pull their data
-                    window.openModal('error', { message: "Logged in with Google! Pulling your cloud data now."});
-                }
-                renderCurrentPage();
-            } catch (error) {
-                window.openModal('error', { message: "Google Sign-In failed: " + error.message });
-            }
-        }
 
         // --- Global Search Logic ---
         function handleSearch(query) {
@@ -392,7 +279,7 @@
                 (item.name && item.name.toLowerCase().includes(lowerQuery)) ||
                 (item.brand && item.brand.toLowerCase().includes(lowerQuery)) ||
                 (item.itemNumber && item.itemNumber.toLowerCase().includes(lowerQuery))
-            ).slice(0, 10); 
+            ).slice(0, 10); // Limit to top 10 matches
 
             if (matchedItems.length === 0) {
                 resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No items found matching "${query}"</div>`;
@@ -404,18 +291,15 @@
                     
                     return `
                         <div class="p-3 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex justify-between items-center group">
-                            <div class="overflow-hidden pr-2 flex items-center gap-3">
-                                ${item.image ? `<img src="${item.image}" class="w-8 h-8 rounded object-cover shrink-0">` : ''}
-                                <div>
-                                    <p class="text-sm font-bold truncate">
-                                        ${item.itemNumber ? `<span class="text-xs text-indigo-500 dark:text-indigo-400 mr-1 font-mono">${item.itemNumber}</span>` : ''}
-                                        ${item.name}
-                                    </p>
-                                    <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                                        <i class="ph ph-article"></i> ${postName} 
-                                        ${item.status === 'sold' ? `| <i class="ph ph-user"></i> ${buyer ? buyer.name : 'Sold'}` : `| <i class="ph ph-tag"></i> Open`}
-                                    </p>
-                                </div>
+                            <div class="overflow-hidden pr-2">
+                                <p class="text-sm font-bold truncate">
+                                    ${item.itemNumber ? `<span class="text-xs text-indigo-500 dark:text-indigo-400 mr-1 font-mono">${item.itemNumber}</span>` : ''}
+                                    ${item.name}
+                                </p>
+                                <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                    <i class="ph ph-article"></i> ${postName} 
+                                    ${item.status === 'sold' ? `| <i class="ph ph-user"></i> ${buyer ? buyer.name : 'Sold'}` : `| <i class="ph ph-tag"></i> Open`}
+                                </p>
                             </div>
                             <button type="button" onclick="window.closeSearch(); window.openModal('editItem', {itemId: ${item.id}})" class="shrink-0 p-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors shadow-sm" title="Edit Item">
                                 <i class="ph ph-pencil-simple text-lg"></i>
@@ -425,7 +309,7 @@
                 }).join('');
             }
             resultsContainer.classList.remove('hidden');
-            resultsContainer.style.display = 'flex'; 
+            resultsContainer.style.display = 'flex'; // Enforce flex to overwrite hidden
         }
 
         function closeSearch() {
@@ -435,6 +319,7 @@
             document.getElementById('globalSearchInput').value = '';
         }
 
+        // Close search when clicking outside
         document.addEventListener('click', function(event) {
             const searchContainer = document.getElementById('global-search-container');
             if (searchContainer && !searchContainer.contains(event.target)) {
@@ -493,6 +378,7 @@
 
         function selectBidder(id) {
             state.selectedBidderId = id;
+            // Deliberately skipping saveState() so selection remains local UI-only and doesn't trigger database writes
             renderCurrentPage();
         }
 
@@ -557,7 +443,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
-                                <th class="p-4 font-medium">Item Details</th>
+                                <th class="p-4 font-medium">Item Name</th>
                                 <th class="p-4 font-medium">Type</th>
                                 <th class="p-4 font-medium">Price/Bid</th>
                                 <th class="p-4 font-medium">Status</th>
@@ -566,10 +452,7 @@
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
                             ${state.items.slice(-5).reverse().map(item => `
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td class="p-4 font-medium flex items-center gap-3">
-                                        ${item.image ? `<img src="${item.image}" class="w-8 h-8 object-cover rounded">` : `<div class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400"><i class="ph ph-image"></i></div>`}
-                                        ${item.name}
-                                    </td>
+                                    <td class="p-4 font-medium">${item.name}</td>
                                     <td class="p-4"><span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span></td>
                                     <td class="p-4">${formatCurrency(item.currentBid || item.startPrice)}</td>
                                     <td class="p-4">
@@ -608,19 +491,15 @@
                         else if(post.splitRule === '50_50_under_3') splitLabel = '<span class="text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded ml-2">50/50 (<$3 Other)</span>';
 
                         return `
-                        <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col group">
+                        <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
                                     <h3 class="text-lg font-bold truncate pr-2 flex items-center">${post.name} ${splitLabel}</h3>
                                     <p class="text-sm text-slate-500 dark:text-slate-400">${post.date}</p>
                                 </div>
-                                <div class="flex flex-col items-end gap-2">
-                                    <span class="px-2 py-1 text-xs rounded-md ${post.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}">${post.status.toUpperCase()}</span>
-                                    <button onclick="window.openModal('editPost', {postId: ${post.id}})" class="text-sky-500 hover:text-sky-700 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">Edit Config</button>
-                                </div>
+                                <span class="px-2 py-1 text-xs rounded-md ${post.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}">${post.status.toUpperCase()}</span>
                             </div>
                             <div class="flex-1 mt-2 mb-6">
-                                ${post.numberPrefix ? `<p class="text-[10px] text-slate-400 mb-2 italic">Auto-Numbering: ${post.numberPrefix}</p>` : ''}
                                 <div class="flex justify-between text-sm mb-2">
                                     <span class="text-slate-500">Items:</span>
                                     <span class="font-medium">${postItems.length}</span>
@@ -657,7 +536,7 @@
         // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
-            const postItems = state.items.filter(i => i.postId === postId).sort((a,b) => a.createdAt - b.createdAt);
+            const postItems = state.items.filter(i => i.postId === postId);
 
             return `
                 <div class="mb-6 flex items-center justify-between">
@@ -670,14 +549,9 @@
                             <p class="text-sm text-slate-500 dark:text-slate-400">${post.date}</p>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="window.openModal('addItem', {postId: ${postId}})" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
-                            <i class="ph ph-plus"></i> Single
-                        </button>
-                        <button onclick="window.openModal('batchAddItems', {postId: ${postId}})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors whitespace-nowrap">
-                            <i class="ph ph-images"></i> Batch Upload
-                        </button>
-                    </div>
+                    <button onclick="window.openModal('addItem', {postId: ${postId}})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors">
+                        <i class="ph ph-plus-circle text-xl"></i> Add Item
+                    </button>
                 </div>
 
                 <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
@@ -697,6 +571,7 @@
                             postItems.map(item => {
                                 const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
                                 
+                                // Determine split badge for UI
                                 let splitBadge = '';
                                 let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
                                 if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
@@ -708,15 +583,10 @@
                                         ${item.itemNumber || '-'}
                                     </td>
                                     <td class="p-4 font-medium">
-                                        <div class="flex items-center gap-3">
-                                            ${item.image ? `<img src="${item.image}" class="w-10 h-10 object-cover rounded shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">` : `<div class="w-10 h-10 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0"><i class="ph ph-image text-lg"></i></div>`}
-                                            <div>
-                                                ${item.brand ? `<span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block uppercase tracking-wider mb-0.5">${item.brand}</span>` : ''}
-                                                ${item.name}
-                                                ${item.status === 'sold' ? '<span class="ml-2 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded align-middle">Sold</span>' : ''}
-                                                ${splitBadge}
-                                            </div>
-                                        </div>
+                                        ${item.brand ? `<span class="text-xs text-indigo-600 dark:text-indigo-400 font-bold block uppercase tracking-wider mb-0.5">${item.brand}</span>` : ''}
+                                        ${item.name}
+                                        ${item.status === 'sold' ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded align-middle">Sold</span>' : ''}
+                                        ${splitBadge}
                                     </td>
                                     <td class="p-4">
                                         <span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span>
@@ -730,10 +600,10 @@
                                     <td class="p-4 text-sm text-slate-600 dark:text-slate-300">
                                         ${buyer ? buyer.name : '-'}
                                     </td>
-                                    <td class="p-4 text-right whitespace-nowrap">
+                                    <td class="p-4 text-right">
                                         ${item.status === 'open' ? `
                                             ${item.type === 'auction' ? `
-                                                <button onclick="window.openModal('addBid', {itemId: ${item.id}})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-medium mr-1 transition-colors">Bid</button>
+                                                <button onclick="window.openModal('addBid', {itemId: ${item.id}})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-medium mr-2 transition-colors">Add Bid</button>
                                                 <button onclick="window.markSold(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">End</button>
                                             ` : `
                                                 <button onclick="window.openModal('sellBin', {itemId: ${item.id}})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-lg text-sm font-medium transition-colors">Mark Sold</button>
@@ -742,7 +612,7 @@
                                             <button onclick="window.reopenItem(${item.id})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 rounded-lg text-sm font-medium transition-colors" title="Reopen Item"><i class="ph ph-arrow-u-up-left"></i> Reopen</button>
                                         `}
                                         <button onclick="window.openModal('editItem', {itemId: ${item.id}})" class="ml-2 px-2 py-1.5 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors inline-flex align-middle" title="Edit Item"><i class="ph ph-pencil-simple text-lg"></i></button>
-                                        <button onclick="window.confirmDelete('item', ${item.id})" class="ml-1 px-2 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors inline-flex align-middle" title="Delete Item"><i class="ph ph-trash text-lg"></i></button>
+                                        <button onclick="window.confirmDelete('item', ${item.id})" class="ml-2 px-2 py-1.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg transition-colors inline-flex align-middle" title="Delete Item"><i class="ph ph-trash text-lg"></i></button>
                                     </td>
                                 </tr>
                                 `
@@ -845,12 +715,9 @@
                                                     ${itemsList.map(item => `
                                                         <tr class="hover:bg-white dark:hover:bg-slate-800/50 transition-colors">
                                                             <td class="px-4 py-3 font-mono text-xs text-slate-500">${item.itemNumber || '-'}</td>
-                                                            <td class="px-4 py-3 font-medium flex items-center gap-2">
-                                                                ${item.image ? `<img src="${item.image}" class="w-6 h-6 object-cover rounded border border-slate-200 dark:border-slate-700">` : ''}
-                                                                <div>
-                                                                    ${item.brand ? `<span class="text-[10px] text-indigo-500 block uppercase tracking-wider">${item.brand}</span>` : ''}
-                                                                    ${item.name}
-                                                                </div>
+                                                            <td class="px-4 py-3 font-medium">
+                                                                ${item.brand ? `<span class="text-[10px] text-indigo-500 block uppercase tracking-wider">${item.brand}</span>` : ''}
+                                                                ${item.name}
                                                             </td>
                                                             <td class="px-4 py-3 text-right font-bold text-slate-900 dark:text-white">${formatCurrency(item.currentBid || item.startPrice)}</td>
                                                         </tr>
@@ -874,8 +741,10 @@
 
         // 4. Open Box (Grouped by Purchaser)
         function getOpenBoxHTML() {
+            // Find items sold but not shipped
             const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
             
+            // Group by purchaser
             const grouped = {};
             unshippedItems.forEach(item => {
                 if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
@@ -917,11 +786,8 @@
                                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
                                         ${items.map(item => `
                                             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                                <td class="p-3 pl-4 flex items-center gap-2">
-                                                    ${item.image ? `<img src="${item.image}" class="w-8 h-8 object-cover rounded shadow-sm border border-slate-200 dark:border-slate-700 shrink-0">` : `<div class="w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0"><i class="ph ph-image"></i></div>`}
-                                                    <span>${item.name}</span>
-                                                </td>
-                                                <td class="p-3 font-medium text-right">${formatCurrency(item.currentBid || item.startPrice)}</td>
+                                                <td class="p-3 pl-4">${item.name}</td>
+                                                <td class="p-3 font-medium">${formatCurrency(item.currentBid || item.startPrice)}</td>
                                                 <td class="p-3 text-right">
                                                     <button onclick="window.togglePaid(${item.id})" class="px-2 py-1 rounded text-xs font-medium mr-2 transition-colors ${item.paid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}">
                                                         ${item.paid ? '<i class="ph ph-check"></i> Paid' : 'Unpaid'}
@@ -1075,38 +941,6 @@
         function getSettingsHTML() {
             return `
                 <div class="max-w-2xl">
-                    <!-- Account & Sync Section -->
-                    <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Account & Cloud Sync</h3>
-                        
-                        ${isAnonymous ? `
-                            <p class="text-indigo-600 dark:text-indigo-400 text-sm mb-4">You are currently using a temporary <strong>Guest Account</strong>. To sync your tracking data to your phone or another computer, sign in with Google below. Your existing guest data will be safely copied over.</p>
-                            
-                            <div class="bg-white dark:bg-slate-850 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800/30 flex flex-col items-center justify-center space-y-4">
-                                <i class="ph ph-google-logo text-5xl text-indigo-500"></i>
-                                <p class="text-sm font-medium text-slate-600 dark:text-slate-400 text-center">Use your Google Account to securely sync your inventory anywhere.</p>
-                                <button onclick="window.signInWithGoogle()" class="flex items-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 py-3 px-6 rounded-xl text-sm font-bold transition-all shadow-sm w-full max-w-sm justify-center">
-                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                    </svg>
-                                    Sign in with Google
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="flex items-center justify-between bg-white dark:bg-slate-850 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-                                <div>
-                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Logged In As</p>
-                                    <p class="font-bold text-slate-900 dark:text-white">${userEmail || 'Google Account'}</p>
-                                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1"><i class="ph ph-check-circle"></i> Securely syncing to cloud</p>
-                                </div>
-                                <button onclick="window.logoutAccount()" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Sign Out</button>
-                            </div>
-                        `}
-                    </div>
-
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
                         <div class="flex flex-col py-2 mb-4">
@@ -1142,8 +976,8 @@
                     </div>
                     
                     <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 overflow-hidden p-6">
-                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-database"></i> Database Utility</h3>
-                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Resetting data will overwrite your current Firebase database with default sample data.</p>
+                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Cloud Connected</h3>
+                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Your data is currently syncing in real-time to your Firebase Firestore database.</p>
                         <div class="flex gap-3">
                             <button onclick="window.openModal('resetData')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
                                 Reset All Data
@@ -1412,6 +1246,7 @@
         function processShipment(purchaserId) {
             window.print();
             
+            // Allow brief time for print dialog before completing action
             setTimeout(() => {
                 const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
                 items.forEach(i => i.shipped = true);
@@ -1484,75 +1319,53 @@
                         </div>
                     </div>
                 `;
-            } else if (type === 'addPost' || type === 'editPost') {
-                const isEdit = type === 'editPost';
-                const post = isEdit ? state.posts.find(p => p.id === data.postId) : {};
+            } else if (type === 'addPost') {
                 const today = new Date().toISOString().split('T')[0];
-                
                 content = `
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-4">${isEdit ? 'Edit Post Config' : 'Create New Post'}</h2>
-                        <form id="formAddPost" onsubmit="window.submitForm(event, '${type}', ${isEdit ? post.id : null})">
+                        <h2 class="text-xl font-bold mb-4">Create New Post</h2>
+                        <form id="formAddPost" onsubmit="window.submitForm(event, 'addPost')">
                             <div class="space-y-4 mb-6">
                                 <div>
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Post/Event Name</label>
-                                    <input type="text" name="name" required value="${isEdit ? post.name : ''}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Date</label>
-                                        <input type="date" name="date" required value="${isEdit ? post.date : today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
+                                        <input type="date" name="date" required value="${today}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white dark:[color-scheme:dark]">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Revenue Rule</label>
                                         <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                            <option value="none" ${isEdit && post.splitRule === 'none' ? 'selected' : ''}>100% to Me</option>
-                                            <option value="50_50" ${isEdit && post.splitRule === '50_50' ? 'selected' : ''}>50/50 Split</option>
-                                            <option value="50_50_under_3" ${isEdit && post.splitRule === '50_50_under_3' ? 'selected' : ''}>50/50 Split (100% to Other if &lt; $3)</option>
+                                            <option value="none">100% to Me</option>
+                                            <option value="50_50">50/50 Split</option>
+                                            <option value="50_50_under_3">50/50 Split (100% to Other if &lt; $3)</option>
                                         </select>
                                     </div>
                                 </div>
-                                
-                                <div class="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
-                                    <p class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Auto-Numbering (Optional)</p>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Prefix</label>
-                                            <input type="text" name="numberPrefix" value="${isEdit ? (post.numberPrefix || '') : ''}" placeholder="e.g. JDM-" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Start Num</label>
-                                            <input type="number" name="numberStart" value="${isEdit ? (post.numberStart || 1) : 1}" min="1" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                        </div>
-                                    </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Facebook URL (Optional)</label>
+                                    <input type="url" name="url" placeholder="https://..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
                                 <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">${isEdit ? 'Save Changes' : 'Create'}</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Create</button>
                             </div>
                         </form>
                     </div>
                 `;
             } else if (type === 'addItem') {
-                const post = state.posts.find(p => p.id === data.postId);
-                const hasAutoNumbering = post && post.numberPrefix;
-                
                 content = `
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
-                        <h2 class="text-xl font-bold mb-4">Add Single Item</h2>
+                        <h2 class="text-xl font-bold mb-4">Add Item to Post</h2>
                         <form id="formAddItem" onsubmit="window.submitForm(event, 'addItem', ${data.postId})">
                             <div class="space-y-4 mb-6">
-                                
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item Photo (Optional)</label>
-                                    <input type="file" accept="image/*" id="single-item-photo" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400 transition-colors cursor-pointer">
-                                </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
-                                        <input type="text" name="itemNumber" placeholder="${hasAutoNumbering ? 'Auto-Assigned' : 'e.g. A1'}" ${hasAutoNumbering ? 'readonly disabled' : ''} class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${hasAutoNumbering ? 'opacity-50' : ''}">
+                                        <input type="text" name="itemNumber" placeholder="e.g. A1" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
@@ -1596,65 +1409,6 @@
                         </form>
                     </div>
                 `;
-            } else if (type === 'batchAddItems') {
-                window.batchDrafts = []; // Reset drafts when opening modal
-                content = `
-                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-3xl modal-enter border border-slate-200 dark:border-slate-800 shadow-xl max-h-[90vh] flex flex-col">
-                        <h2 class="text-xl font-bold mb-4 shrink-0 flex items-center gap-2"><i class="ph ph-images"></i> Batch Photo Upload</h2>
-                        <form id="formBatchAdd" onsubmit="window.submitForm(event, 'batchAddItems', ${data.postId})" class="flex flex-col flex-1 overflow-hidden">
-                            
-                            <!-- Bulk Global Settings -->
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 shrink-0 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <div>
-                                    <label class="block text-xs font-medium mb-1 text-slate-500">Brand</label>
-                                    <input type="text" name="brand" list="batchBrandOptions" placeholder="Select..." class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
-                                    <datalist id="batchBrandOptions">${state.brands.map(b => `<option value="${b}"></option>`).join('')}</datalist>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium mb-1 text-slate-500">Type</label>
-                                    <select name="type" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
-                                        <option value="auction">Auction</option>
-                                        <option value="bin">Buy It Now</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium mb-1 text-slate-500">Price ($)</label>
-                                    <input type="number" name="price" required min="1" step="0.5" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium mb-1 text-slate-500">Revenue Rule</label>
-                                    <select name="splitRule" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
-                                        <option value="post_default">Default</option>
-                                        <option value="none">100% Me</option>
-                                        <option value="50_50">50/50 Split</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Dropzone / Input -->
-                            <div class="mb-4 shrink-0">
-                                <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-900 hover:bg-slate-100 dark:border-slate-600 transition-colors">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <i class="ph ph-upload-simple text-2xl text-slate-500 mb-1"></i>
-                                        <p class="text-sm text-slate-500"><span class="font-semibold">Click to select multiple photos</span></p>
-                                    </div>
-                                    <input type="file" class="hidden" multiple accept="image/*" onchange="window.handleBatchFiles(this)" />
-                                </label>
-                            </div>
-
-                            <!-- Drafts Output List -->
-                            <div id="batch-drafts-container" class="flex-1 overflow-y-auto space-y-2 pr-2 min-h-[200px]">
-                                <div class="text-center text-slate-400 text-sm py-8">No photos uploaded yet.</div>
-                            </div>
-
-                            <!-- Submit Button -->
-                            <div class="flex justify-end gap-3 mt-4 shrink-0 pt-4 border-t border-slate-200 dark:border-slate-800">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save All Items</button>
-                            </div>
-                        </form>
-                    </div>
-                `;
             } else if (type === 'editItem') {
                 const item = state.items.find(i => i.id === data.itemId);
                 if (!item) return;
@@ -1670,15 +1424,6 @@
                                         ${state.posts.map(p => `<option value="${p.id}" ${p.id === item.postId ? 'selected' : ''}>${p.name}</option>`).join('')}
                                     </select>
                                 </div>
-                                
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Update Photo (Optional)</label>
-                                    <div class="flex items-center gap-4">
-                                        ${item.image ? `<img src="${item.image}" class="w-12 h-12 rounded object-cover border border-slate-200 dark:border-slate-700 shrink-0">` : ''}
-                                        <input type="file" accept="image/*" id="edit-item-photo" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 dark:file:bg-sky-900/30 dark:file:text-sky-400 cursor-pointer">
-                                    </div>
-                                </div>
-
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Item #</label>
@@ -1756,13 +1501,7 @@
                 content = `
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
                         <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
-                        <div class="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                            ${item.image ? `<img src="${item.image}" class="w-12 h-12 object-cover rounded shadow-sm shrink-0 border border-slate-200 dark:border-slate-600">` : ''}
-                            <div>
-                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">${item.name}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
-                            </div>
-                        </div>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${item.name} - ${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
                         <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
                             <div class="space-y-4 mb-6">
                                 <div>
@@ -1804,15 +1543,11 @@
         function executeDelete(type, id) {
             if (type === 'post') {
                 state.posts = state.posts.filter(p => p.id !== id);
+                // Also delete all items associated with this post
                 state.items = state.items.filter(i => i.postId !== id);
                 if (state.activePostId === id) state.activePostId = null;
             } else if (type === 'item') {
-                const item = state.items.find(i => i.id === id);
-                const postId = item ? item.postId : null;
                 state.items = state.items.filter(i => i.id !== id);
-                
-                // Re-sequence to fill the gap left by deleted item
-                if (postId) resequencePostItems(postId); 
             }
             saveState();
             closeModal();
@@ -1820,7 +1555,7 @@
             renderCurrentPage();
         }
 
-        async function submitForm(e, type, id) {
+        function submitForm(e, type, id) {
             e.preventDefault();
             const formData = new FormData(e.target);
             const values = Object.fromEntries(formData.entries());
@@ -1832,85 +1567,34 @@
                     date: values.date,
                     url: values.url,
                     splitRule: values.splitRule || 'none',
-                    numberPrefix: values.numberPrefix || '',
-                    numberStart: parseInt(values.numberStart) || 1,
                     status: 'active'
                 });
-            } else if (type === 'editPost') {
-                const post = state.posts.find(p => p.id === id);
-                if (post) {
-                    post.name = values.name;
-                    post.date = values.date;
-                    post.splitRule = values.splitRule || 'none';
-                    post.numberPrefix = values.numberPrefix || '';
-                    post.numberStart = parseInt(values.numberStart) || 1;
-                    
-                    resequencePostItems(post.id);
-                }
             } else if (type === 'addItem') {
-                if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
-                
-                // Read and compress image if uploaded
-                const photoInput = document.getElementById('single-item-photo');
-                let base64Image = null;
-                if (photoInput && photoInput.files.length > 0) {
-                    base64Image = await compressImage(photoInput.files[0]);
+                if (values.brand && !state.brands.includes(values.brand)) {
+                    state.brands.push(values.brand);
                 }
 
                 state.items.push({
                     id: generateId(),
                     postId: id,
-                    itemNumber: values.itemNumber || '', // Will be overridden if post has Auto-Number
+                    itemNumber: values.itemNumber || '',
                     brand: values.brand || '',
                     name: values.name,
                     type: values.type,
                     startPrice: parseFloat(values.price),
                     splitRule: values.splitRule || 'post_default',
-                    image: base64Image,
                     currentBid: null,
                     purchaserId: null,
                     status: 'open',
                     paid: false,
-                    shipped: false,
-                    createdAt: Date.now()
+                    shipped: false
                 });
-                
-                resequencePostItems(id);
-
-            } else if (type === 'batchAddItems') {
-                const postId = parseInt(values.postId);
-                const brand = values.brand;
-                if (brand && !state.brands.includes(brand)) state.brands.push(brand);
-
-                window.batchDrafts.forEach((draft, index) => {
-                    state.items.push({
-                        id: generateId(),
-                        postId: postId,
-                        itemNumber: '', // Filled by auto-number
-                        brand: brand,
-                        name: draft.name,
-                        type: values.type,
-                        startPrice: parseFloat(values.price),
-                        splitRule: values.splitRule,
-                        image: draft.image,
-                        currentBid: null,
-                        purchaserId: null,
-                        status: 'open',
-                        paid: false,
-                        shipped: false,
-                        createdAt: Date.now() + index // Ensure chronological sequence 
-                    });
-                });
-
-                resequencePostItems(postId);
-                window.batchDrafts = []; // Clear drafts
-
             } else if (type === 'editItem') {
                 const item = state.items.find(i => i.id === id);
                 if (item) {
-                    if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
-                    
-                    const oldPostId = item.postId;
+                    if (values.brand && !state.brands.includes(values.brand)) {
+                        state.brands.push(values.brand);
+                    }
                     item.postId = parseInt(values.postId);
                     item.itemNumber = values.itemNumber || '';
                     item.brand = values.brand || '';
@@ -1918,20 +1602,6 @@
                     item.type = values.type;
                     item.startPrice = parseFloat(values.price);
                     item.splitRule = values.splitRule || 'post_default';
-                    
-                    // Update photo if new one uploaded
-                    const editPhotoInput = document.getElementById('edit-item-photo');
-                    if (editPhotoInput && editPhotoInput.files.length > 0) {
-                        item.image = await compressImage(editPhotoInput.files[0]);
-                    }
-
-                    // Resequence if moved to a different post
-                    if (oldPostId !== item.postId) {
-                        resequencePostItems(oldPostId);
-                        resequencePostItems(item.postId);
-                    } else {
-                        resequencePostItems(item.postId); // Trigger in case order or itemNumber was touched
-                    }
                 }
             } else if (type === 'addBidder') {
                 state.bidders.push({
