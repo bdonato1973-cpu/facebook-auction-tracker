@@ -296,28 +296,28 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+        // NEW IMPORTS ADDED: collection, getDocs, deleteDoc
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // =========================================================================
-        // 1. FIREBASE CONFIGURATION (Replace with your actual Vercel/Firebase keys)
+        // 1. FIREBASE CONFIGURATION (Replace with your actual keys)
         // =========================================================================
         const firebaseConfig = {
-          apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
-          authDomain: "facebook-auction-tracker.firebaseapp.com",
-          projectId: "facebook-auction-tracker",
-          storageBucket: "facebook-auction-tracker.firebasestorage.app",
-          messagingSenderId: "936018615344",
-          appId: "1:936018615344:web:91a29634684467ba5121f5",
-          measurementId: "G-7J35PYN94P"
+            apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
+            authDomain: "facebook-auction-tracker.firebaseapp.com",
+            projectId: "facebook-auction-tracker",
+            storageBucket: "facebook-auction-tracker.firebasestorage.app",
+            messagingSenderId: "936018615344",
+            appId: "1:936018615344:web:91a29634684467ba5121f5",
+            measurementId: "G-7J35PYN94P"
         };
 
-        // Initialize Firebase services
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
-        // Global Single-Page Application State
         window.appState = {
             settings: { storeName: '', paypal: '', venmo: '', cashapp: '' },
             posts: [],
@@ -328,7 +328,6 @@
         let currentUser = null;
         let currentActivePostId = null;
 
-        // Core DOM Elements for Auth
         const authScreen = document.getElementById('auth-screen');
         const appLayout = document.getElementById('app-layout');
         const btnLogin = document.getElementById('btn-login');
@@ -365,28 +364,36 @@
         });
 
         // =========================================================================
-        // 3. DATABASE SYNC LOGIC
+        // 3. DATABASE SYNC LOGIC (UPDATED FOR SUBCOLLECTIONS)
         // =========================================================================
         async function loadDataFromFirebase() {
             if (!currentUser) return;
             try {
+                // 1. Load Main Document (Settings, Posts, Bidders)
                 const docRef = doc(db, "users", currentUser.uid);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
                     const dbData = docSnap.data();
-                    window.appState = { ...window.appState, ...dbData };
-                    
-                    if (!window.appState.settings) {
-                        window.appState.settings = { storeName: '', paypal: '', venmo: '', cashapp: '' };
-                    }
-
-                    populateSettingsUI();
-                    window.updateDashboardStats();
-                    window.renderPosts();
+                    window.appState.settings = dbData.settings || { storeName: '', paypal: '', venmo: '', cashapp: '' };
+                    window.appState.posts = dbData.posts || [];
+                    window.appState.bidders = dbData.bidders || [];
                 } else {
-                    await setDoc(docRef, window.appState);
+                    await setDoc(docRef, { settings: window.appState.settings, posts: [], bidders: [] });
                 }
+
+                // 2. Load Items Subcollection Individually
+                window.appState.items = [];
+                const itemsRef = collection(db, "users", currentUser.uid, "items");
+                const itemsSnap = await getDocs(itemsRef);
+                itemsSnap.forEach((doc) => {
+                    window.appState.items.push(doc.data());
+                });
+
+                populateSettingsUI();
+                window.updateDashboardStats();
+                window.renderPosts();
+                if (currentActivePostId) window.renderItemsTable();
             } catch (error) {
                 console.error("Error loading data: ", error);
             }
@@ -397,7 +404,6 @@
             try {
                 if (!window.appState.settings) window.appState.settings = {};
 
-                // Safeguard elements if settings tab hasn't been rendered or altered
                 const sn = document.getElementById('setting-store-name');
                 const pp = document.getElementById('setting-paypal');
                 const vm = document.getElementById('setting-venmo');
@@ -408,15 +414,42 @@
                 if (vm) window.appState.settings.venmo = vm.value || '';
                 if (ca) window.appState.settings.cashapp = ca.value || '';
 
-                await setDoc(doc(db, "users", currentUser.uid), window.appState);
+                // We ONLY save settings, posts, and bidders to the main doc now.
+                // Items are handled separately.
+                const mainDocData = {
+                    settings: window.appState.settings,
+                    posts: window.appState.posts,
+                    bidders: window.appState.bidders
+                };
+
+                await setDoc(doc(db, "users", currentUser.uid), mainDocData);
             } catch (error) {
                 console.error("Autosave error: " + error.message);
             }
         }
 
+        // --- NEW INDIVIDUAL ITEM SAVING LOGIC ---
+        async function saveItemToFirestore(item) {
+            if (!currentUser) return;
+            try {
+                await setDoc(doc(db, "users", currentUser.uid, "items", item.id), item);
+            } catch(err) {
+                console.error("Error saving item:", err);
+            }
+        }
+
+        async function deleteItemFromFirestore(itemId) {
+            if (!currentUser) return;
+            try {
+                await deleteDoc(doc(db, "users", currentUser.uid, "items", itemId));
+            } catch(err) {
+                console.error("Error deleting item:", err);
+            }
+        }
+
         function populateSettingsUI() {
             const sn = document.getElementById('setting-store-name');
-            if (!sn) return; // Settings UI elements might not be active yet
+            if (!sn) return; 
             sn.value = window.appState.settings.storeName || '';
             document.getElementById('setting-paypal').value = window.appState.settings.paypal || '';
             document.getElementById('setting-venmo').value = window.appState.settings.venmo || '';
@@ -600,7 +633,8 @@
             return Math.max(...postItems.map(item => item.itemNumber || 0)) + 1;
         }
 
-        function addSingleItemInternal(photoBase64 = null) {
+        // Updated to save the item directly to Firestore
+        async function addSingleItemInternal(photoBase64 = null) {
             const newItem = {
                 id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 postId: currentActivePostId,
@@ -611,28 +645,28 @@
                 createdAt: new Date().toISOString()
             };
             window.appState.items.push(newItem);
+            await saveItemToFirestore(newItem); // Individual DB save
         }
 
         window.addSingleItem = async function() {
-            addSingleItemInternal();
-            await window.saveStateToFirebase();
+            await addSingleItemInternal();
             window.renderItemsTable();
             window.updateDashboardStats();
         }
 
-        window.updateItemField = function(itemId, field, value) {
+        window.updateItemField = async function(itemId, field, value) {
             const item = window.appState.items.find(i => i.id === itemId);
             if (item) {
                 if (field === 'price') value = parseFloat(value) || 0;
                 item[field] = value;
-                window.saveStateToFirebase(); 
+                await saveItemToFirestore(item); // Autosave the single document
             }
         }
 
         window.deleteItem = async function(itemId) {
             if(confirm("Delete this item permanently?")) {
                 window.appState.items = window.appState.items.filter(i => i.id !== itemId);
-                await window.saveStateToFirebase();
+                await deleteItemFromFirestore(itemId); // Individual DB delete
                 window.renderItemsTable();
                 window.updateDashboardStats();
             }
@@ -653,6 +687,7 @@
             const bPrice = document.getElementById('batch-price').value;
 
             let changesMade = false;
+            const savePromises = [];
 
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
@@ -662,11 +697,13 @@
                     if (bDesc) item.description = bDesc;
                     if (bPrice !== '') item.price = parseFloat(bPrice);
                     changesMade = true;
+                    // Batch them into a Promise array to save concurrently
+                    savePromises.push(saveItemToFirestore(item));
                 }
             });
 
             if (changesMade) {
-                await window.saveStateToFirebase();
+                await Promise.all(savePromises);
                 window.renderItemsTable();
                 
                 document.getElementById('batch-brand').value = '';
@@ -687,6 +724,7 @@
             if (files.length === 0) return;
             statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> Processing ${files.length} images... Please wait.`;
             
+            // Raised compression limits since we are saving to individual documents
             const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
 
             for (let i = 0; i < files.length; i++) {
@@ -699,13 +737,12 @@
                         reader.onerror = error => reject(error);
                     });
                     
-                    addSingleItemInternal(base64data);
+                    await addSingleItemInternal(base64data);
                 } catch (error) {
                     console.error("Compression error on file " + i, error);
                 }
             }
             
-            await window.saveStateToFirebase();
             window.renderItemsTable(); 
             window.updateDashboardStats();
             document.getElementById('image-upload').value = '';
@@ -714,12 +751,11 @@
             setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
         }
 
-        window.resetData = function() {
-            if(confirm("Are you sure? This will wipe all Posts, Bidders, and Items.")) {
+        window.resetData = async function() {
+            if(confirm("Are you sure? This will wipe all Posts and Bidders. (Note: Individual items require manual deletion from the database panel).")) {
                 window.appState.posts = [];
-                window.appState.items = [];
                 window.appState.bidders = [];
-                window.saveStateToFirebase();
+                await window.saveStateToFirebase();
                 window.renderPosts();
                 window.updateDashboardStats();
                 alert("Data reset complete.");
@@ -741,7 +777,6 @@
                 event.currentTarget.classList.add('bg-indigo-50', 'dark:bg-indigo-900/30', 'text-primary');
             }
 
-            // Sync values to UI panels if opening settings
             if (tabId === 'settings') populateSettingsUI();
         }
 
