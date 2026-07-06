@@ -98,13 +98,13 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <div class="flex items-center gap-3">
-                <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate">Connecting...</h1>
+                <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate mr-2">Connecting...</h1>
                 <span id="auth-status-badge" class="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 border border-amber-500/20">Guest Mode</span>
             </div>
             
             <div class="relative w-full max-w-[200px] lg:max-w-xs" id="global-search-container">
                 <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="globalSearchInput" oninput="window.handleSearch(this.value)" placeholder="Search items to edit..." class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow">
+                <input type="text" id="globalSearchInput" oninput="window.handleSearch(this.value)" placeholder="Search items to edit..." class="w-full bg-slate-100 dark:bg-slate-880 border border-slate-200 dark:border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow">
                 <div id="searchResults" class="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 lg:w-96 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden hidden flex-col max-h-96 z-50 overflow-y-auto"></div>
             </div>
         </header>
@@ -240,11 +240,20 @@
                 unsubscribeSnapshot = onSnapshot(docRef, (snapshot) => {
                     try {
                         if (snapshot.exists()) {
+                            const rawData = snapshot.data();
                             const prevBidderId = state ? state.selectedBidderId : null;
-                            state = snapshot.data();
-                            if (state && prevBidderId) state.selectedBidderId = prevBidderId;
                             
-                            // Safe fallbacks to prevent crash
+                            // Safe schema hydration with defaults to prevent UI crash
+                            state = {
+                                ...defaultState,
+                                ...rawData,
+                                posts: rawData.posts || [],
+                                bidders: rawData.bidders || [],
+                                items: rawData.items || [],
+                                brands: rawData.brands || defaultState.brands,
+                                selectedBidderId: prevBidderId
+                            };
+                            
                             if (state && !state.reportFilterPostIds) {
                                 state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                             }
@@ -266,12 +275,20 @@
                         document.getElementById('content-area').innerHTML = `
                             <div class="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl max-w-xl mx-auto mt-10">
                                 <h3 class="font-bold text-lg mb-2"><i class="ph ph-bug"></i> Database Initialization Failure</h3>
-                                <p class="text-sm mb-4">An structural script crash was caught while mapping data schemas.</p>
-                                <pre class="p-3 bg-rose-900 text-rose-100 rounded-lg text-xs overflow-x-auto">${err.stack}</pre>
+                                <p class="text-sm mb-4">An structural script crash was caught while mapping data schemas. Please click the button below to recover your file defaults if needed.</p>
+                                <pre class="p-3 bg-rose-900 text-rose-100 rounded-lg text-xs overflow-x-auto mb-4">${err.stack}</pre>
+                                <button onclick="window.resetData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition-colors">Reset Database to Default</button>
                             </div>`;
                     }
                 }, (error) => {
                     console.error("Firebase Database error:", error);
+                    document.getElementById('content-area').innerHTML = `
+                        <div class="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl max-w-xl mx-auto mt-10">
+                            <h3 class="font-bold text-lg mb-2"><i class="ph ph-warning"></i> Connection Issue</h3>
+                            <p class="text-sm mb-4">The tracker could not connect to your server. Check your Firebase security rules and configuration keys.</p>
+                            <pre class="p-3 bg-slate-900 text-amber-300 rounded-lg text-xs font-mono mb-4">${error.message}</pre>
+                            <button onclick="window.location.reload()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold transition-colors">Retry Connection</button>
+                        </div>`;
                 });
             }
         });
@@ -395,7 +412,7 @@
                     <img src="${draft.image}" class="w-12 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
                     <div class="flex-1 min-w-0">
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Item Title / Description</label>
-                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-880 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
                     </div>
                     <button type="button" onclick="window.removeBatchDraft(${idx})" class="text-rose-500 hover:text-rose-700 p-2 shrink-0">
                         <i class="ph ph-trash text-lg"></i>
@@ -420,10 +437,10 @@
 
         // --- Auto-Numbering Gap-Free Re-sequencing Rule ---
         function resequencePostItems(postId) {
-            const post = state.posts.find(p => p.id === postId);
+            const post = (state.posts || []).find(p => p.id === postId);
             if (!post) return;
             
-            const postItems = state.items.filter(i => i.postId === postId).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+            const postItems = (state.items || []).filter(i => i.postId === postId).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
             
             if (post.numberPrefix) {
                 const startNum = parseInt(post.numberStart) || 1;
@@ -444,7 +461,7 @@
             }
 
             const lowerQuery = query.toLowerCase();
-            const matchedItems = state.items.filter(item => 
+            const matchedItems = (state.items || []).filter(item => 
                 (item.name && item.name.toLowerCase().includes(lowerQuery)) ||
                 (item.brand && item.brand.toLowerCase().includes(lowerQuery)) ||
                 (item.itemNumber && item.itemNumber.toLowerCase().includes(lowerQuery))
@@ -454,9 +471,9 @@
                 resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No items found matching "${query}"</div>`;
             } else {
                 resultsContainer.innerHTML = matchedItems.map(item => {
-                    const post = state.posts.find(p => p.id === item.postId);
+                    const post = (state.posts || []).find(p => p.id === item.postId);
                     const postName = post ? post.name : 'Unknown Post';
-                    const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                    const buyer = item.purchaserId ? (state.bidders || []).find(b => b.id === item.purchaserId) : null;
                     
                     return `
                         <div class="p-3 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex justify-between items-center group">
@@ -530,7 +547,7 @@
 
         function updateBadges() {
             if(!state) return;
-            const unshippedCount = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
+            const unshippedCount = (state.items || []).filter(i => i.status === 'sold' && !i.shipped).length;
             const badge = document.getElementById('openbox-badge');
             if (unshippedCount > 0) {
                 badge.textContent = unshippedCount;
@@ -567,10 +584,10 @@
 
         // 1. Dashboard
         function getDashboardHTML() {
-            const activePosts = state.posts.filter(p => p.status === 'active').length;
-            const openItems = state.items.filter(i => i.status === 'open').length;
-            const revenue = state.items.filter(i => i.status === 'sold').reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
-            const unshipped = state.items.filter(i => i.status === 'sold' && !i.shipped).length;
+            const activePosts = (state.posts || []).filter(p => p.status === 'active').length;
+            const openItems = (state.items || []).filter(i => i.status === 'open').length;
+            const revenue = (state.items || []).filter(i => i.status === 'sold').reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
+            const unshipped = (state.items || []).filter(i => i.status === 'sold' && !i.shipped).length;
 
             return `
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -616,7 +633,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                            ${state.items.slice(-5).reverse().map(item => `
+                            ${(state.items || []).slice(-5).reverse().map(item => `
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                     <td class="p-4 font-medium">${item.name}</td>
                                     <td class="p-4"><span class="px-2 py-1 text-xs rounded-md ${item.type === 'auction' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}">${item.type.toUpperCase()}</span></td>
@@ -629,7 +646,7 @@
                                     </td>
                                 </tr>
                             `).join('')}
-                            ${state.items.length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">No items created yet.</td></tr>` : ''}
+                            ${(state.items || []).length === 0 ? `<tr><td colspan="4" class="p-4 text-center text-slate-500">No items created yet.</td></tr>` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -647,9 +664,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    ${state.posts.length === 0 ? `<div class="col-span-full p-8 text-center text-slate-500 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800">No posts created yet. Click 'New Post' to start.</div>` : ''}
-                    ${state.posts.map(post => {
-                        const postItems = state.items.filter(i => i.postId === post.id);
+                    ${(state.posts || []).length === 0 ? `<div class="col-span-full p-8 text-center text-slate-500 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800">No posts created yet. Click 'New Post' to start.</div>` : ''}
+                    ${(state.posts || []).map(post => {
+                        const postItems = (state.items || []).filter(i => i.postId === post.id);
                         const soldCount = postItems.filter(i => i.status === 'sold').length;
                         
                         let splitLabel = '';
@@ -693,8 +710,8 @@
 
         // Post Details (Items Management with thumbnails and Batch buttons)
         function getPostDetailsHTML(postId) {
-            const post = state.posts.find(p => p.id === postId);
-            const postItems = state.items.filter(i => i.postId === postId).sort((a,b) => a.createdAt - b.createdAt);
+            const post = (state.posts || []).find(p => p.id === postId);
+            const postItems = (state.items || []).filter(i => i.postId === postId).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
 
             return `
                 <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -732,7 +749,7 @@
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
                             ${postItems.length === 0 ? `<tr><td colspan="6" class="p-8 text-center text-slate-500">No items added to this post yet.</td></tr>` : 
                             postItems.map(item => {
-                                const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                                const buyer = item.purchaserId ? (state.bidders || []).find(b => b.id === item.purchaserId) : null;
                                 let splitBadge = '';
                                 let actualRule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post ? post.splitRule : 'none');
                                 if (actualRule === '50_50') splitBadge = '<span class="ml-2 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded align-middle">50/50</span>';
@@ -787,11 +804,11 @@
 
         // 3. Bidders Directory with Winnings Breakdown
         function getBiddersHTML() {
-            const selectedBidder = state.bidders.find(b => b.id === state.selectedBidderId);
+            const selectedBidder = (state.bidders || []).find(b => b.id === state.selectedBidderId);
             let groupedWinnings = {};
             
             if (selectedBidder) {
-                const bidderWinnings = state.items.filter(item => item.purchaserId === selectedBidder.id && item.status === 'sold');
+                const bidderWinnings = (state.items || []).filter(item => item.purchaserId === selectedBidder.id && item.status === 'sold');
                 groupedWinnings = bidderWinnings.reduce((groups, item) => {
                     const postId = item.postId || 'Unknown';
                     if (!groups[postId]) groups[postId] = [];
@@ -813,9 +830,9 @@
                     <div class="lg:col-span-1 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm h-[calc(100vh-12rem)] overflow-y-auto">
                         <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-2">Directory</h2>
                         <div class="space-y-1">
-                            ${state.bidders.length === 0 ? `<div class="p-4 text-center text-slate-500 text-sm">No bidders added yet.</div>` : ''}
-                            ${state.bidders.map(bidder => {
-                                const purchases = state.items.filter(i => i.purchaserId === bidder.id && i.status === 'sold');
+                            ${(state.bidders || []).length === 0 ? `<div class="p-4 text-center text-slate-500 text-sm">No bidders added yet.</div>` : ''}
+                            ${(state.bidders || []).map(bidder => {
+                                const purchases = (state.items || []).filter(i => i.purchaserId === bidder.id && i.status === 'sold');
                                 const totalSpent = purchases.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
                                 const isSelected = state.selectedBidderId === bidder.id;
                                 
@@ -849,7 +866,7 @@
                                 ${Object.keys(groupedWinnings).length === 0 ? `
                                     <div class="text-center py-12 text-slate-500 text-sm">No items won yet.</div>
                                 ` : Object.entries(groupedWinnings).map(([postId, itemsList]) => {
-                                    const postObj = state.posts.find(p => String(p.id) === String(postId));
+                                    const postObj = (state.posts || []).find(p => String(p.id) === String(postId));
                                     const postName = postObj ? postObj.name : 'Unknown Post';
                                     const postDate = postObj ? postObj.date : '';
                                     const groupTotal = itemsList.reduce((sum, item) => sum + (item.currentBid || item.startPrice), 0);
@@ -899,7 +916,7 @@
 
         // 4. Open Box
         function getOpenBoxHTML() {
-            const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
+            const unshippedItems = (state.items || []).filter(i => i.status === 'sold' && !i.shipped);
             const grouped = {};
             unshippedItems.forEach(item => {
                 if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
@@ -920,7 +937,7 @@
                 <div class="mb-6"><p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped.</p></div>
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     ${Object.entries(grouped).map(([purchaserId, items]) => {
-                        const bidder = state.bidders.find(b => b.id == purchaserId) || { name: 'Unknown' };
+                        const bidder = (state.bidders || []).find(b => b.id == purchaserId) || { name: 'Unknown' };
                         const shippingFee = parseFloat(bidder.shippingFee) || 0;
                         const totalOwedItems = items.filter(i => !i.paid).reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
                         const totalValue = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
@@ -978,7 +995,7 @@
         }
 
         function updateShippingFee(purchaserId, fee) {
-            const bidder = state.bidders.find(b => b.id == purchaserId);
+            const bidder = (state.bidders || []).find(b => b.id == purchaserId);
             if(bidder) {
                 bidder.shippingFee = parseFloat(fee) || 0;
                 saveState();
@@ -988,7 +1005,7 @@
         // 5. Reports
         function getReportsHTML() {
             const filterPostIds = state.reportFilterPostIds || ['all'];
-            let soldItems = state.items.filter(i => i.status === 'sold');
+            let soldItems = (state.items || []).filter(i => i.status === 'sold');
             if (!filterPostIds.includes('all')) {
                 soldItems = soldItems.filter(i => filterPostIds.includes(String(i.postId)));
             }
@@ -1001,7 +1018,7 @@
                 const price = item.currentBid || item.startPrice;
                 grossRevenue += price;
 
-                const post = state.posts.find(p => p.id === item.postId);
+                const post = (state.posts || []).find(p => p.id === item.postId);
                 let rule = item.splitRule && item.splitRule !== 'post_default' ? item.splitRule : (post && post.splitRule ? post.splitRule : 'none');
                 let myCut = price;
 
@@ -1037,7 +1054,7 @@
                             <div class="w-full">
                                 <select multiple id="multi-post-filter" class="w-full sm:w-56 bg-white dark:bg-slate-850 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white shadow-sm text-sm h-24 scrollbar-thin">
                                     <option value="all" ${filterPostIds.includes('all') ? 'selected' : ''}>-- All Posts / Events --</option>
-                                    ${state.posts.map(p => `<option value="${p.id}" ${filterPostIds.includes(String(p.id)) ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                    ${(state.posts || []).map(p => `<option value="${p.id}" ${filterPostIds.includes(String(p.id)) ? 'selected' : ''}>${p.name}</option>`).join('')}
                                 </select>
                             </div>
                             <button onclick="window.applyReportFilter()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors h-10">Apply</button>
@@ -1078,7 +1095,7 @@
                     <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><i class="ph ph-trophy text-amber-500"></i> Top 3 Buyers</h3>
                     <div class="space-y-4">
                         ${topBuyers.length === 0 ? '<p class="text-slate-500">No sales data found for this selection.</p>' : topBuyers.map((b, index) => {
-                            const bidder = state.bidders.find(user => user.id === b.id);
+                            const bidder = (state.bidders || []).find(user => user.id === b.id);
                             return `
                                 <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-xl">
                                     <div class="flex items-center gap-4">
@@ -1115,7 +1132,7 @@
                                 </div>
                                 <i class="ph ph-cloud-check text-3xl text-emerald-500"></i>
                             </div>
-                            <button onclick="window.handleSignOut()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-855 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 px-4 rounded-xl font-medium text-xs transition-colors border border-slate-200 dark:border-slate-700"><i class="ph ph-sign-out"></i> Log Out Profile Session</button>
+                            <button onclick="window.handleSignOut()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 px-4 rounded-xl font-medium text-xs transition-colors border border-slate-200 dark:border-slate-700"><i class="ph ph-sign-out"></i> Log Out Profile Session</button>
                         `}
                     </div>
 
@@ -1151,8 +1168,8 @@
         function getShippingHTML() {
             if (!state.activeShippingPurchaserId) return `<p>Error: No active shipment.</p>`;
             const purchaserId = state.activeShippingPurchaserId;
-            const bidder = state.bidders.find(b => b.id == purchaserId);
-            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const bidder = (state.bidders || []).find(b => b.id == purchaserId);
+            const items = (state.items || []).filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             const subtotal = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
             const savedShippingFee = parseFloat(bidder.shippingFee) || 0;
             const grandTotal = subtotal + savedShippingFee;
@@ -1231,17 +1248,17 @@
 
         function downloadPickListCSV() {
             const filterPostIds = state.reportFilterPostIds || ['all'];
-            let soldItems = state.items.filter(i => i.status === 'sold');
+            let soldItems = (state.items || []).filter(i => i.status === 'sold');
             if (!filterPostIds.includes('all')) soldItems = soldItems.filter(i => filterPostIds.includes(String(i.postId)));
 
             if (soldItems.length === 0) {
-                window.openModal('error', { message: "No sold items to export for this selection."});
+                window.openModal('error', { message: "No sold items to export for this selection." });
                 return;
             }
 
             const pickList = soldItems.map(item => {
-                const bidder = state.bidders.find(b => b.id === item.purchaserId);
-                const post = state.posts.find(p => p.id === item.postId);
+                const bidder = (state.bidders || []).find(b => b.id === item.purchaserId);
+                const post = (state.posts || []).find(p => p.id === item.postId);
                 return {
                     postName: post ? post.name : 'Unknown Post',
                     buyerName: bidder ? bidder.name : 'Unknown Buyer',
@@ -1287,8 +1304,8 @@
         function updateStoreName(name) { state.storeName = name; saveState(); }
 
         function copyInvoice(purchaserId, btnElement) {
-            const bidder = state.bidders.find(b => b.id == purchaserId);
-            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const bidder = (state.bidders || []).find(b => b.id == purchaserId);
+            const items = (state.items || []).filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             const subtotal = items.reduce((sum, i) => sum + (i.currentBid || i.startPrice), 0);
             const shipping = parseFloat(bidder.shippingFee) || 0;
             const grandTotal = subtotal + shipping;
@@ -1324,12 +1341,12 @@
         }
 
         function togglePaid(itemId) {
-            const item = state.items.find(i => i.id === itemId);
+            const item = (state.items || []).find(i => i.id === itemId);
             if (item) { item.paid = !item.paid; saveState(); renderCurrentPage(); }
         }
 
         function markBoxPaid(purchaserId) {
-            const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+            const items = (state.items || []).filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
             items.forEach(i => i.paid = true);
             saveState();
             renderCurrentPage();
@@ -1351,10 +1368,10 @@
         function processShipment(purchaserId) {
             window.print();
             setTimeout(() => {
-                const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
+                const items = (state.items || []).filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
                 items.forEach(i => i.shipped = true);
                 
-                const bidder = state.bidders.find(b => b.id == purchaserId);
+                const bidder = (state.bidders || []).find(b => b.id == purchaserId);
                 if (bidder) bidder.shippingFee = 0;
 
                 saveState();
@@ -1364,10 +1381,10 @@
         }
 
         function markSold(itemId) {
-            const item = state.items.find(i => i.id === itemId);
+            const item = (state.items || []).find(i => i.id === itemId);
             if (item && item.type === 'auction') {
                 if (!item.purchaserId) {
-                    window.openModal('error', { message: "Cannot end auction without any bids. Delete or edit item instead."});
+                    window.openModal('error', { message: "Cannot end auction without any bids. Delete or edit item instead." });
                     return;
                 }
                 item.status = 'sold';
@@ -1380,7 +1397,7 @@
         }
 
         function reopenItem(itemId) {
-             const item = state.items.find(i => i.id === itemId);
+             const item = (state.items || []).find(i => i.id === itemId);
              if(item) {
                  item.status = 'open';
                  saveState();
@@ -1428,7 +1445,7 @@
                 `;
             } else if (type === 'addPost' || type === 'editPost') {
                 const isEdit = type === 'editPost';
-                const post = isEdit ? state.posts.find(p => p.id === data.postId) : {};
+                const post = isEdit ? (state.posts || []).find(p => p.id === data.postId) : {};
                 const today = new Date().toISOString().split('T')[0];
                 
                 content = `
@@ -1459,11 +1476,11 @@
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
                                             <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Prefix</label>
-                                            <input type="text" name="numberPrefix" value="${isEdit ? (post.numberPrefix || '') : ''}" placeholder="e.g. JDM-" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            <input type="text" name="numberPrefix" value="${isEdit ? (post.numberPrefix || '') : ''}" placeholder="e.g. JDM-" class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Start Num</label>
-                                            <input type="number" name="numberStart" value="${isEdit ? (post.numberStart || 1) : 1}" min="1" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                            <input type="number" name="numberStart" value="${isEdit ? (post.numberStart || 1) : 1}" min="1" class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                                         </div>
                                     </div>
                                 </div>
@@ -1476,7 +1493,7 @@
                     </div>
                 `;
             } else if (type === 'addItem') {
-                const post = state.posts.find(p => p.id === data.postId);
+                const post = (state.posts || []).find(p => p.id === data.postId);
                 const hasAutoNumbering = post && post.numberPrefix;
                 
                 content = `
@@ -1498,7 +1515,7 @@
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
                                         <input type="text" name="brand" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                                         <datalist id="brandOptions">
-                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                            ${(state.brands || []).map(b => `<option value="${b}"></option>`).join('')}
                                         </datalist>
                                     </div>
                                 </div>
@@ -1547,23 +1564,23 @@
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 shrink-0 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
                                 <div>
                                     <label class="block text-xs font-medium mb-1 text-slate-500">Brand</label>
-                                    <input type="text" name="brand" list="batchBrandOptions" placeholder="Select..." class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
-                                    <datalist id="batchBrandOptions">${state.brands.map(b => `<option value="${b}"></option>`).join('')}</datalist>
+                                    <input type="text" name="brand" list="batchBrandOptions" placeholder="Select..." class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
+                                    <datalist id="batchBrandOptions">${(state.brands || []).map(b => `<option value="${b}"></option>`).join('')}</datalist>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium mb-1 text-slate-500">Type</label>
-                                    <select name="type" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
+                                    <select name="type" class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
                                         <option value="auction">Auction</option>
                                         <option value="bin">Buy It Now</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium mb-1 text-slate-500">Price ($)</label>
-                                    <input type="number" name="price" required min="1" step="0.5" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
+                                    <input type="number" name="price" required min="1" step="0.5" class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium mb-1 text-slate-500">Revenue Rule</label>
-                                    <select name="splitRule" class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
+                                    <select name="splitRule" class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-sm">
                                         <option value="post_default">Default</option>
                                         <option value="none">100% Me</option>
                                         <option value="50_50">50/50 Split</option>
@@ -1596,7 +1613,7 @@
                     </div>
                 `;
             } else if (type === 'editItem') {
-                const item = state.items.find(i => i.id === data.itemId);
+                const item = (state.items || []).find(i => i.id === data.itemId);
                 if (!item) return;
 
                 content = `
@@ -1607,7 +1624,7 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Move to Post / Event</label>
                                     <select name="postId" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
-                                        ${state.posts.map(p => `<option value="${p.id}" ${p.id === item.postId ? 'selected' : ''}>${p.name}</option>`).join('')}
+                                        ${(state.posts || []).map(p => `<option value="${p.id}" ${p.id === item.postId ? 'selected' : ''}>${p.name}</option>`).join('')}
                                     </select>
                                 </div>
                                 
@@ -1628,7 +1645,7 @@
                                         <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Brand</label>
                                         <input type="text" name="brand" value="${item.brand || ''}" list="brandOptions" required placeholder="Select or type..." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                                         <datalist id="brandOptions">
-                                            ${state.brands.map(b => `<option value="${b}"></option>`).join('')}
+                                            ${(state.brands || []).map(b => `<option value="${b}"></option>`).join('')}
                                         </datalist>
                                     </div>
                                 </div>
@@ -1689,7 +1706,7 @@
                     </div>
                 `;
             } else if (type === 'addBid' || type === 'sellBin') {
-                const item = state.items.find(i => i.id === data.itemId);
+                const item = (state.items || []).find(i => i.id === data.itemId);
                 const isBin = type === 'sellBin';
                 const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
                 
@@ -1709,7 +1726,7 @@
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
                                     <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                                         <option value="" disabled selected>-- Choose --</option>
-                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                                        ${(state.bidders || []).map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
                                     </select>
                                 </div>
                                 ${!isBin ? `
@@ -1741,13 +1758,13 @@
 
         function executeDelete(type, id) {
             if (type === 'post') {
-                state.posts = state.posts.filter(p => p.id !== id);
-                state.items = state.items.filter(i => i.postId !== id);
+                state.posts = (state.posts || []).filter(p => p.id !== id);
+                state.items = (state.items || []).filter(i => i.postId !== id);
                 if (state.activePostId === id) state.activePostId = null;
             } else if (type === 'item') {
-                const item = state.items.find(i => i.id === id);
+                const item = (state.items || []).find(i => i.id === id);
                 const postId = item ? item.postId : null;
-                state.items = state.items.filter(i => i.id !== id);
+                state.items = (state.items || []).filter(i => i.id !== id);
                 
                 // Trigger auto re-sequencing on item deletion
                 if (postId) resequencePostItems(postId);
@@ -1775,7 +1792,7 @@
                     status: 'active'
                 });
             } else if (type === 'editPost') {
-                const post = state.posts.find(p => p.id === id);
+                const post = (state.posts || []).find(p => p.id === id);
                 if (post) {
                     post.name = values.name;
                     post.date = values.date;
@@ -1786,7 +1803,7 @@
                     resequencePostItems(post.id);
                 }
             } else if (type === 'addItem') {
-                if (values.brand && !state.brands.includes(values.brand)) {
+                if (values.brand && !(state.brands || []).includes(values.brand)) {
                     state.brands.push(values.brand);
                 }
                 
@@ -1818,9 +1835,9 @@
                 resequencePostItems(id);
 
             } else if (type === 'batchAddItems') {
-                const postId = parseInt(values.postId);
+                const postId = parseInt(id);
                 const brand = values.brand;
-                if (brand && !state.brands.includes(brand)) state.brands.push(brand);
+                if (brand && !(state.brands || []).includes(brand)) state.brands.push(brand);
 
                 window.batchDrafts.forEach((draft, index) => {
                     state.items.push({
@@ -1846,9 +1863,9 @@
                 window.batchDrafts = []; // Clear current file drafts cache
 
             } else if (type === 'editItem') {
-                const item = state.items.find(i => i.id === id);
+                const item = (state.items || []).find(i => i.id === id);
                 if (item) {
-                    if (values.brand && !state.brands.includes(values.brand)) {
+                    if (values.brand && !(state.brands || []).includes(values.brand)) {
                         state.brands.push(values.brand);
                     }
                     const oldPostId = item.postId;
@@ -1880,13 +1897,13 @@
                     shippingFee: 0
                 });
             } else if (type === 'addBid') {
-                const item = state.items.find(i => i.id === id);
+                const item = (state.items || []).find(i => i.id === id);
                 if (item) {
                     item.currentBid = parseFloat(values.amount);
                     item.purchaserId = parseInt(values.bidderId);
                 }
             } else if (type === 'sellBin') {
-                const item = state.items.find(i => i.id === id);
+                const item = (state.items || []).find(i => i.id === id);
                 if (item) {
                     item.purchaserId = parseInt(values.bidderId);
                     item.status = 'sold';
