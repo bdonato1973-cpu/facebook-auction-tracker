@@ -9,24 +9,27 @@
     <style>
         .modal-enter { animation: modalFadeIn 0.2s ease-out forwards; }
         @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @media print { .no-print { display: none !important; } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 h-screen flex overflow-hidden">
     <!-- Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex flex-col shrink-0">
-        <div class="p-6 font-bold text-xl italic">Diecast Tracker</div>
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-lg">Sales Tracker</div>
         <nav class="p-4 space-y-2">
-            <button onclick="window.switchPage('dashboard')" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition">Dashboard</button>
-            <button onclick="window.switchPage('posts')" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition">Manage Posts</button>
-            <button onclick="window.switchPage('bidders')" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition">Bidders</button>
-            <button onclick="window.switchPage('settings')" class="w-full text-left p-3 rounded-xl hover:bg-slate-800 transition">Settings</button>
+            <button onclick="window.switchPage('dashboard')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Dashboard</button>
+            <button onclick="window.switchPage('posts')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Posts</button>
+            <button onclick="window.switchPage('bidders')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Bidders</button>
+            <button onclick="window.switchPage('openbox')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Open Box</button>
+            <button onclick="window.switchPage('reports')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Reports</button>
+            <button onclick="window.switchPage('settings')" class="nav-btn w-full p-3 rounded-xl hover:bg-slate-800 text-left">Settings</button>
         </nav>
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden">
         <header class="h-16 bg-white border-b flex items-center px-8 justify-between">
             <h2 id="page-title" class="text-lg font-bold">Loading...</h2>
-            <div id="auth-status" class="text-xs font-bold px-2 py-1 bg-amber-100 text-amber-800 rounded">Guest</div>
+            <div id="auth-status-badge" class="text-[10px] uppercase font-black px-2 py-1 rounded bg-amber-500/20 text-amber-500">Guest Mode</div>
         </header>
         <div id="content-area" class="flex-1 overflow-y-auto p-8">Loading Database...</div>
     </main>
@@ -50,13 +53,13 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
 
-        let state = { currentPage: 'dashboard', posts: [], items: [], bidders: [], brands: [] };
+        let state = { currentPage: 'dashboard', posts: [], items: [], bidders: [], brands: ['Hot Wheels', 'Matchbox'], theme: 'light' };
+        let docRef = null;
 
-        // --- Core Business Logic ---
+        // --- Core Application Logic ---
         function saveState() {
-            if (auth.currentUser) setDoc(doc(db, 'users', auth.currentUser.uid), state).catch(console.error);
+            if (docRef) setDoc(docRef, state).catch(console.error);
         }
 
         function switchPage(page) {
@@ -68,70 +71,90 @@
         function renderCurrentPage() {
             const el = document.getElementById('content-area');
             if(!el) return;
-            el.innerHTML = `<h2 class="text-2xl font-bold capitalize">${state.currentPage}</h2>
-            <div class="mt-4 p-4 bg-white rounded border">
-                <p>Items: ${state.items.length}</p>
-                ${state.currentPage === 'settings' ? `<button onclick="window.signInWithGoogle()" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg">Sync with Google</button>` : ''}
-            </div>`;
+            
+            if (state.currentPage === 'dashboard') {
+                el.innerHTML = `<div class="grid grid-cols-4 gap-4">
+                    <div class="p-6 bg-white rounded-2xl shadow-sm border"><h3>Posts</h3><p class="text-2xl font-bold">${state.posts.length}</p></div>
+                    <div class="p-6 bg-white rounded-2xl shadow-sm border"><h3>Items</h3><p class="text-2xl font-bold">${state.items.length}</p></div>
+                </div>`;
+            } else if (state.currentPage === 'posts') {
+                el.innerHTML = `<h2 class="text-xl font-bold mb-4">Manage Posts</h2>
+                    <button onclick="window.openModal('addPost')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">+ New Post</button>
+                    <div class="mt-4 grid gap-4">
+                        ${state.posts.map(p => `<div class="p-4 bg-white border rounded-xl">${p.name}</div>`).join('')}
+                    </div>`;
+            } else if (state.currentPage === 'settings') {
+                el.innerHTML = `<div class="p-6 bg-white rounded-2xl border">
+                    <button onclick="window.signInWithGoogle()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">Sync with Google</button>
+                    <button onclick="window.logoutAccount()" class="ml-2 text-rose-600">Sign Out</button>
+                </div>`;
+            }
         }
 
+        function openModal(t, d) { console.log("Open", t); }
+        function closeModal() { document.getElementById('modal-container').classList.add('hidden'); }
+        function submitForm(e, t, id) { e.preventDefault(); closeModal(); saveState(); }
         function applyReportFilter() { console.log("Filtering..."); }
-        function setTheme(t) { state.theme = t; saveState(); }
+        function downloadPickListCSV() { console.log("CSV..."); }
+        function updatePaymentLink(l) { state.paymentLink = l; saveState(); }
+        function updateStoreName(n) { state.storeName = n; saveState(); }
         function togglePaid(id) {}
         function markBoxPaid(id) {}
         function shipBox(id) {}
-        function resetData() {}
-        function updateShippingFee(f, sub) {}
         function processShipment(id) {}
         function markSold(id) {}
         function reopenItem(id) {}
-        function openModal(t, d) {}
-        function closeModal() {}
-        function submitForm(e, t, id) {}
-        function viewPost(id) {}
-        function closePostView() {}
-        function downloadPickListCSV() {}
-        function updatePaymentLink(l) {}
-        function copyInvoice(id, el) {}
-        function updateStoreName(n) {}
         function confirmDelete(t, id) {}
         function executeDelete(t, id) {}
-        function handleSearch(q) {}
-        function closeSearch() {}
-        function selectBidder(id) {}
-        async function signInWithGoogle() { 
+        function copyInvoice(id, el) {}
+
+        async function signInWithGoogle() {
             try {
                 if (auth.currentUser?.isAnonymous) await linkWithPopup(auth.currentUser, provider);
                 else await signInWithPopup(auth, provider);
             } catch(e) { console.error(e); }
         }
+
         function logoutAccount() { signOut(auth); }
 
         // --- Window Bindings ---
         window.switchPage = switchPage;
-        window.applyReportFilter = applyReportFilter;
         window.signInWithGoogle = signInWithGoogle;
         window.logoutAccount = logoutAccount;
-        window.setTheme = setTheme;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.submitForm = submitForm;
+        window.applyReportFilter = applyReportFilter;
+        window.downloadPickListCSV = downloadPickListCSV;
+        window.updatePaymentLink = updatePaymentLink;
+        window.updateStoreName = updateStoreName;
+        window.togglePaid = togglePaid;
+        window.markBoxPaid = markBoxPaid;
+        window.shipBox = shipBox;
+        window.processShipment = processShipment;
+        window.markSold = markSold;
+        window.reopenItem = reopenItem;
+        window.confirmDelete = confirmDelete;
+        window.executeDelete = executeDelete;
+        window.copyInvoice = copyInvoice;
 
         // --- App Initialization ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                document.getElementById('auth-status').innerText = user.isAnonymous ? "Guest Mode" : "Google Secured";
-                onSnapshot(doc(db, 'users', user.uid), (snap) => {
+                document.getElementById('auth-status-badge').innerText = user.isAnonymous ? "Guest Mode" : "Google Secured";
+                docRef = doc(db, 'users', user.uid);
+                onSnapshot(docRef, (snap) => {
                     if (snap.exists()) {
                         state = snap.data();
                         renderCurrentPage();
+                    } else {
+                        renderCurrentPage();
                     }
-                }, (err) => {
-                    document.getElementById('content-area').innerHTML = `<div class="p-8 text-rose-500 font-bold">Error loading database: ${err.message}</div>`;
                 });
             } else {
                 signInAnonymously(auth);
             }
         });
-
-        switchPage('dashboard');
     </script>
 </body>
 </html>
