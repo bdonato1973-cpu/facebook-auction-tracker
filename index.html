@@ -208,13 +208,22 @@
         window.signInWithGoogle = signInWithGoogle;
         
         async function saveState() {
-            if (!docRef) return;
-            try {
-                await setDoc(docRef, state);
-            } catch(e) {
-                console.error("Error saving to Firebase:", e);
-            }
-        }
+    if (!currentUser) {
+        console.log("saveState: no current user");
+        return;
+    }
+
+    try {
+        console.log("Saving", state.posts.length, "posts for", currentUser.uid);
+
+        const docRef = doc(db, "users", currentUser.uid);
+        await setDoc(docRef, state);
+
+        console.log("Save successful");
+    } catch (e) {
+        console.error("Save failed:", e);
+    }
+}
 
         // --- Auth & Initial Load ---
         const initAuth = async () => {
