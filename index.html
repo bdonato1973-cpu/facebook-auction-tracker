@@ -209,15 +209,17 @@
         window.signInWithGoogle = signInWithGoogle;
         
         async function saveState() {
-    if (!currentUser) {
-        console.log("saveState: no current user");
+    const user = auth.currentUser;
+
+    if (!user) {
+        console.log("saveState: no authenticated user");
         return;
     }
 
     try {
-        console.log("Saving", state.posts.length, "posts for", currentUser.uid);
+        console.log("Saving", state.posts.length, "posts for", user.uid);
 
-        const docRef = doc(db, "users", currentUser.uid);
+        const docRef = doc(db, "users", user.uid);
         await setDoc(docRef, state);
 
         console.log("Save successful");
@@ -225,7 +227,6 @@
         console.error("Save failed:", e);
     }
 }
-
         // --- Auth & Initial Load ---
         const initAuth = async () => {
             try {
