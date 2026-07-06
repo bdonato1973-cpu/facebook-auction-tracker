@@ -220,16 +220,152 @@
                         </table>
                     </div>
                 </div>
-            </div>
-            
-        </main>
+            </div>            
+</main>
     </div>
 
-    <script>
-        // --- POSTS & ITEMS LOGIC ---
+    <!-- Firebase v10 Modular SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // =========================================================================
+        // 1. FIREBASE CONFIGURATION (Replace with your actual Vercel/Firebase keys)
+        // =========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
+  authDomain: "facebook-auction-tracker.firebaseapp.com",
+  projectId: "facebook-auction-tracker",
+  storageBucket: "facebook-auction-tracker.firebasestorage.app",
+  messagingSenderId: "936018615344",
+  appId: "1:936018615344:web:91a29634684467ba5121f5",
+  measurementId: "G-7J35PYN94P"
+        };
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Global Single-Page Application State
+        window.appState = {
+            settings: { storeName: '', paypal: '', venmo: '', cashapp: '' },
+            posts: [],
+            items: [],
+            bidders: []
+        };
+
+        let currentUser = null;
         let currentActivePostId = null;
 
-        function togglePostForm(isEdit = false) {
+        // Core DOM Elements for Auth
+        const authScreen = document.getElementById('auth-screen');
+        const appLayout = document.getElementById('app-layout');
+        const btnLogin = document.getElementById('btn-login');
+        const btnLogout = document.getElementById('btn-logout');
+
+        // =========================================================================
+        // 2. AUTHENTICATION FLOW
+        // =========================================================================
+        if (btnLogin) {
+            btnLogin.addEventListener('click', () => {
+                signInWithPopup(auth, provider).catch(error => alert("Login failed: " + error.message));
+            });
+        }
+
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => signOut(auth));
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                authScreen.classList.add('hidden');
+                appLayout.classList.remove('hidden');
+                
+                document.getElementById('user-name').textContent = user.displayName;
+                document.getElementById('user-avatar').src = user.photoURL;
+                
+                await loadDataFromFirebase();
+            } else {
+                currentUser = null;
+                authScreen.classList.remove('hidden');
+                appLayout.classList.add('hidden');
+            }
+        });
+
+        // =========================================================================
+        // 3. DATABASE SYNC LOGIC
+        // =========================================================================
+        async function loadDataFromFirebase() {
+            if (!currentUser) return;
+            try {
+                const docRef = doc(db, "users", currentUser.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const dbData = docSnap.data();
+                    window.appState = { ...window.appState, ...dbData };
+                    
+                    if (!window.appState.settings) {
+                        window.appState.settings = { storeName: '', paypal: '', venmo: '', cashapp: '' };
+                    }
+
+                    populateSettingsUI();
+                    updateDashboardStats();
+                    renderPosts();
+                } else {
+                    await setDoc(docRef, window.appState);
+                }
+            } catch (error) {
+                console.error("Error loading data: ", error);
+            }
+        }
+
+        window.saveStateToFirebase = async function() {
+            if (!currentUser) return;
+            try {
+                if (!window.appState.settings) window.appState.settings = {};
+
+                // Safeguard elements if settings tab hasn't been rendered or altered
+                const sn = document.getElementById('setting-store-name');
+                const pp = document.getElementById('setting-paypal');
+                const vm = document.getElementById('setting-venmo');
+                const ca = document.getElementById('setting-cashapp');
+
+                if (sn) window.appState.settings.storeName = sn.value || '';
+                if (pp) window.appState.settings.paypal = pp.value || '';
+                if (vm) window.appState.settings.venmo = vm.value || '';
+                if (ca) window.appState.settings.cashapp = ca.value || '';
+
+                await setDoc(doc(db, "users", currentUser.uid), window.appState);
+            } catch (error) {
+                console.error("Autosave error: " + error.message);
+            }
+        }
+
+        function populateSettingsUI() {
+            const sn = document.getElementById('setting-store-name');
+            if (!sn) return; // Settings UI elements might not be active yet
+            sn.value = window.appState.settings.storeName || '';
+            document.getElementById('setting-paypal').value = window.appState.settings.paypal || '';
+            document.getElementById('setting-venmo').value = window.appState.settings.venmo || '';
+            document.getElementById('setting-cashapp').value = window.appState.settings.cashapp || '';
+        }
+
+        window.updateDashboardStats = function() {
+            const activePostsEl = document.getElementById('dash-active-posts');
+            const itemsEl = document.getElementById('dash-items');
+            if (activePostsEl) activePostsEl.innerText = (window.appState.posts || []).length;
+            if (itemsEl) itemsEl.innerText = (window.appState.items || []).length;
+        }
+
+        // =========================================================================
+        // 4. POSTS & INVENTORY MANAGEMENT LOGIC
+        // =========================================================================
+        window.togglePostForm = function(isEdit = false) {
             const form = document.getElementById('post-form-section');
             if (form.classList.contains('hidden') || isEdit) {
                 form.classList.remove('hidden');
@@ -248,7 +384,7 @@
             document.getElementById('post-end').value = '';
         }
 
-        function savePost() {
+        window.savePost = async function() {
             const editId = document.getElementById('edit-post-id').value;
             const name = document.getElementById('post-name').value.trim();
             const url = document.getElementById('post-url').value.trim();
@@ -258,7 +394,6 @@
             if (!name) return alert("Please provide a Post Name.");
 
             if (editId) {
-                // Update existing
                 const post = window.appState.posts.find(p => p.id === editId);
                 if (post) {
                     post.name = name;
@@ -267,7 +402,6 @@
                     post.endTime = end;
                 }
             } else {
-                // Create new
                 window.appState.posts.push({
                     id: 'post_' + Date.now(),
                     name: name,
@@ -278,13 +412,13 @@
                 });
             }
 
-            togglePostForm(); // Hide and clear
-            window.saveStateToFirebase();
+            togglePostForm();
+            await window.saveStateToFirebase();
             renderPosts();
-            updateDashboardStats();
+            window.updateDashboardStats();
         }
 
-        function editPost(postId) {
+        window.editPost = function(postId) {
             const post = window.appState.posts.find(p => p.id === postId);
             if (!post) return;
             
@@ -294,13 +428,13 @@
             document.getElementById('post-start').value = post.startTime || '';
             document.getElementById('post-end').value = post.endTime || '';
             
-            togglePostForm(true);
+            window.togglePostForm(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function renderPosts() {
+        window.renderPosts = function() {
             const container = document.getElementById('active-posts-container');
-            if(!container) return; // safety check
+            if(!container) return;
             container.innerHTML = '';
 
             if (!window.appState.posts || window.appState.posts.length === 0) {
@@ -324,13 +458,13 @@
                             <span class="mx-2">|</span> 
                             <i class="fas fa-cubes mr-1"></i> ${itemCount} Items
                         </p>
-                        ${post.fbUrl ? `<a href="${post.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> View FB Post</a>` : ''}
+                        \${post.fbUrl ? `<a href="\${post.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> View FB Post</a>` : ''}
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="editPost('${post.id}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-4 py-2 rounded transition text-sm">
+                        <button onclick="editPost('\${post.id}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-4 py-2 rounded transition text-sm">
                             <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button onclick="openItemManager('${post.id}')" class="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded transition font-bold text-sm shadow-sm">
+                        <button onclick="openItemManager('\${post.id}')" class="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded transition font-bold text-sm shadow-sm">
                             <i class="fas fa-list-check mr-2"></i> Manage Items
                         </button>
                     </div>
@@ -339,9 +473,7 @@
             });
         }
 
-        // --- ITEM MANAGER LOGIC ---
-
-        function openItemManager(postId) {
+        window.openItemManager = function(postId) {
             currentActivePostId = postId;
             const post = window.appState.posts.find(p => p.id === postId);
             
@@ -352,15 +484,16 @@
             renderItemsTable();
         }
 
-        function closeItemManager() {
+        window.closeItemManager = function() {
             currentActivePostId = null;
             document.getElementById('item-manager').classList.add('hidden');
             document.getElementById('post-dashboard').classList.remove('hidden');
-            renderPosts(); // Refresh counts
+            window.renderPosts();
         }
 
         function renderItemsTable() {
             const tbody = document.getElementById('items-table-body');
+            if(!tbody) return;
             tbody.innerHTML = '';
             document.getElementById('select-all-items').checked = false;
 
@@ -375,20 +508,18 @@
             postItems.forEach(item => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition group";
-                
-                // Note: The inputs trigger updateItemField on 'change' (when user clicks away or hits enter)
                 tr.innerHTML = `
-                    <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="${item.id}"></td>
-                    <td class="p-3 font-bold text-primary">#${item.itemNumber}</td>
+                    <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="\${item.id}"></td>
+                    <td class="p-3 font-bold text-primary">#\${item.itemNumber}</td>
                     <td class="p-3">
-                        ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-200">` : `<div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                        \${item.photo ? `<img src="\${item.photo}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-200">` : `<div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
-                    <td class="p-2"><input type="text" value="${item.brand || ''}" onchange="updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="number" value="${item.price || ''}" onchange="updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
+                    <td class="p-2"><input type="text" value="\${item.brand || ''}" onchange="updateItemField('\${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
+                    <td class="p-2"><input type="text" value="\${item.model || ''}" onchange="updateItemField('\${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
+                    <td class="p-2"><input type="text" value="\${item.description || ''}" onchange="updateItemField('\${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
+                    <td class="p-2"><input type="number" value="\${item.price || ''}" onchange="updateItemField('\${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
                     <td class="p-3">
-                        <button onclick="deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
+                        <button onclick="deleteItem('\${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -401,7 +532,7 @@
             return Math.max(...postItems.map(item => item.itemNumber || 0)) + 1;
         }
 
-        function addSingleItem(photoBase64 = null) {
+        function addSingleItemInternal(photoBase64 = null) {
             const newItem = {
                 id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 postId: currentActivePostId,
@@ -414,21 +545,19 @@
             window.appState.items.push(newItem);
         }
 
-        // Exposed function for the manual "Add Blank Item" button
         window.addSingleItem = async function() {
-            addSingleItem();
+            addSingleItemInternal();
             await window.saveStateToFirebase();
             renderItemsTable();
-            updateDashboardStats();
+            window.updateDashboardStats();
         }
 
-        // Inline Field Update
         window.updateItemField = function(itemId, field, value) {
             const item = window.appState.items.find(i => i.id === itemId);
             if (item) {
                 if (field === 'price') value = parseFloat(value) || 0;
                 item[field] = value;
-                window.saveStateToFirebase(); // Autosave to DB on field change
+                window.saveStateToFirebase(); 
             }
         }
 
@@ -437,17 +566,15 @@
                 window.appState.items = window.appState.items.filter(i => i.id !== itemId);
                 await window.saveStateToFirebase();
                 renderItemsTable();
-                updateDashboardStats();
+                window.updateDashboardStats();
             }
         }
 
-        // Checkbox Logic
         window.toggleSelectAll = function() {
             const isChecked = document.getElementById('select-all-items').checked;
             document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = isChecked);
         }
 
-        // Batch Editing Selected
         window.applyBatchEdits = async function() {
             const checkboxes = document.querySelectorAll('.item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
@@ -474,7 +601,6 @@
                 await window.saveStateToFirebase();
                 renderItemsTable();
                 
-                // Clear batch inputs
                 document.getElementById('batch-brand').value = '';
                 document.getElementById('batch-model').value = '';
                 document.getElementById('batch-desc').value = '';
@@ -484,7 +610,6 @@
             }
         }
 
-        // Upload & Compress Photo Batch
         window.handleImageUpload = async function(event) {
             if (!currentActivePostId) return;
 
@@ -506,8 +631,7 @@
                         reader.onerror = error => reject(error);
                     });
                     
-                    // Create an item for each photo
-                    addSingleItem(base64data);
+                    addSingleItemInternal(base64data);
                 } catch (error) {
                     console.error("Compression error on file " + i, error);
                 }
@@ -515,11 +639,59 @@
             
             await window.saveStateToFirebase();
             renderItemsTable(); 
-            updateDashboardStats();
+            window.updateDashboardStats();
             document.getElementById('image-upload').value = '';
             
             statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
             setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
+        }
+
+        window.resetData = function() {
+            if(confirm("Are you sure? This will wipe all Posts, Bidders, and Items.")) {
+                window.appState.posts = [];
+                window.appState.items = [];
+                window.appState.bidders = [];
+                window.saveStateToFirebase();
+                window.renderPosts();
+                window.updateDashboardStats();
+                alert("Data reset complete.");
+            }
+        }
+
+        // =========================================================================
+        // 5. GLOBAL APP UTILITIES (Navigation & Themes)
+        // =========================================================================
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+            const targetedView = document.getElementById('view-' + tabId);
+            if (targetedView) targetedView.classList.add('active');
+            
+            document.querySelectorAll('.nav-link').forEach(el => {
+                el.classList.remove('bg-indigo-50', 'dark:bg-indigo-900/30', 'text-primary');
+            });
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('bg-indigo-50', 'dark:bg-indigo-900/30', 'text-primary');
+            }
+
+            // Sync values to UI panels if opening settings
+            if (tabId === 'settings') populateSettingsUI();
+        }
+
+        window.toggleTheme = function() {
+            const htmlClass = document.documentElement.classList;
+            if(htmlClass.contains('dark')) {
+                htmlClass.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                htmlClass.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            const toggleBtn = document.getElementById('theme-toggle');
+            if (toggleBtn) toggleBtn.checked = true;
         }
     </script>
 </body>
