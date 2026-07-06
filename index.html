@@ -98,14 +98,18 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="h-16 flex items-center justify-between px-4 lg:px-8 border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-10 shrink-0">
             <div class="flex items-center gap-3">
-                <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate mr-2">Connecting...</h1>
+                <h1 id="page-title" class="text-xl lg:text-2xl font-bold truncate mr-4">Connecting...</h1>
                 <span id="auth-status-badge" class="text-[10px] uppercase font-black tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-500 border border-amber-500/20">Guest Mode</span>
             </div>
             
+            <!-- Global Search Feature -->
             <div class="relative w-full max-w-[200px] lg:max-w-xs" id="global-search-container">
                 <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                <input type="text" id="globalSearchInput" oninput="window.handleSearch(this.value)" placeholder="Search items to edit..." class="w-full bg-slate-100 dark:bg-slate-880 border border-slate-200 dark:border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow">
-                <div id="searchResults" class="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 lg:w-96 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden hidden flex-col max-h-96 z-50 overflow-y-auto"></div>
+                <input type="text" id="globalSearchInput" oninput="window.handleSearch(this.value)" placeholder="Search items to edit..." class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow">
+                
+                <div id="searchResults" class="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-80 lg:w-96 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden hidden flex-col max-h-96 z-50 overflow-y-auto">
+                    <!-- Search results injected here -->
+                </div>
             </div>
         </header>
 
@@ -119,43 +123,54 @@
         </div>
     </main>
 
-    <div id="modal-container" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4"></div>
+    <!-- Global Modals Container -->
+    <div id="modal-container" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <!-- Modal content injected here -->
+    </div>
 
     <!-- Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, linkWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithPopup, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup, getAdditionalUserInfo } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let firebaseConfig = {
-            apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
-            authDomain: "facebook-auction-tracker.firebaseapp.com",
-            projectId: "facebook-auction-tracker",
-            storageBucket: "facebook-auction-tracker.firebasestorage.app",
-            messagingSenderId: "936018615344",
-            appId: "1:936018615344:web:91a29634684467ba5121f5",
-            measurementId: "G-7J35PYN94P"
-        };
+        // --- Firebase Configuration ---
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            // YOUR PERSONAL SERVER FALLBACK
+            firebaseConfig = {
+                apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
+                authDomain: "facebook-auction-tracker.firebaseapp.com",
+                projectId: "facebook-auction-tracker",
+                storageBucket: "facebook-auction-tracker.firebasestorage.app",
+                messagingSenderId: "936018615344",
+                appId: "1:936018615344:web:91a29634684467ba5121f5",
+                measurementId: "G-7J35PYN94P"
+            };
+        }
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-        const appId = 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
         let userId = null;
         let userEmail = null;
+        let isAnonymous = true;
         let docRef = null;
-        let unsubscribeSnapshot = null;
         let isInitialized = false;
+        let unsubscribeSnapshot = null;
 
+        // --- State Management ---
         const defaultState = {
             theme: 'dark',
             currentPage: 'dashboard',
             activePostId: null,
             activeShippingPurchaserId: null,
             reportFilterPostIds: ['all'],
-            selectedBidderId: null,
+            selectedBidderId: null, 
             brands: ['Hot Wheels', 'Matchbox', 'Mini GT', 'Jada', 'Maisto', 'Johnny Lightning'],
             posts: [],
             bidders: [],
@@ -164,7 +179,7 @@
 
         let state = null; 
 
-        // Expose functions globally
+        // Expose all necessary functions to the global scope
         window.switchPage = switchPage;
         window.setTheme = setTheme;
         window.togglePaid = togglePaid;
@@ -190,8 +205,8 @@
         window.handleSearch = handleSearch;
         window.closeSearch = closeSearch;
         window.selectBidder = selectBidder;
-        window.handleGoogleSignIn = handleGoogleSignIn;
-        window.handleSignOut = handleSignOut;
+        window.logoutAccount = logoutAccount;
+        window.signInWithGoogle = signInWithGoogle;
         window.handleBatchFiles = handleBatchFiles;
         window.removeBatchDraft = removeBatchDraft;
         window.updateBatchDraftName = updateBatchDraftName;
@@ -205,16 +220,14 @@
             }
         }
 
-        // --- Auth & Initial Load ---
         const initAuth = async () => {
             try {
-                // If in canvas preview, inject standard token
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 }
-                // Intentionally NOT calling signInAnonymously here anymore so Google sessions can persist!
+                // Removed aggressive `signInAnonymously()` here. `onAuthStateChanged` will handle fallback.
             } catch (error) {
-                console.error("Auth init error:", error);
+                console.error("Authentication failed", error);
             }
         };
 
@@ -227,6 +240,7 @@
             if (user) {
                 userId = user.uid;
                 userEmail = user.email;
+                isAnonymous = user.isAnonymous;
                 
                 const badge = document.getElementById('auth-status-badge');
                 if (user.isAnonymous) {
@@ -243,13 +257,14 @@
                     docRef = doc(db, 'users', userId); 
                 }
                 
+                // Bulletproof Loading Wrapper
                 unsubscribeSnapshot = onSnapshot(docRef, (snapshot) => {
                     try {
                         if (snapshot.exists()) {
                             const rawData = snapshot.data();
                             const prevBidderId = state ? state.selectedBidderId : null;
                             
-                            // Safe schema hydration with deep defaults
+                            // Deep hydration fallbacks to prevent mapping crashes
                             state = {
                                 ...JSON.parse(JSON.stringify(defaultState)),
                                 ...rawData,
@@ -264,8 +279,9 @@
                                 state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                             }
                         } else {
+                            // Document missing. Only write defaults if we have safely initialized.
                             state = JSON.parse(JSON.stringify(defaultState));
-                            saveState();
+                            if (isInitialized) saveState();
                         }
                         
                         if (!isInitialized) {
@@ -278,80 +294,86 @@
                             updateBadges();
                         }
                     } catch (err) {
+                        console.error("Hydration processing error:", err);
                         document.getElementById('content-area').innerHTML = `
-                            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl max-w-xl mx-auto mt-10">
-                                <h3 class="font-bold text-lg mb-2"><i class="ph ph-bug"></i> Database Initialization Failure</h3>
-                                <p class="text-sm mb-4">An structural script crash was caught while mapping data schemas.</p>
-                                <pre class="p-3 bg-rose-900 text-rose-100 rounded-lg text-xs overflow-x-auto mb-4">${err.stack}</pre>
+                            <div class="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl max-w-xl mx-auto mt-10 shadow-sm">
+                                <h3 class="font-bold text-lg mb-2 flex items-center gap-2"><i class="ph ph-bug text-2xl"></i> Internal Parsing Error</h3>
+                                <p class="text-sm mb-4">A background error occurred while reading your database properties.</p>
+                                <pre class="p-3 bg-rose-900 text-rose-100 rounded-lg text-xs overflow-x-auto">${err.stack}</pre>
                             </div>`;
                     }
                 }, (error) => {
                     console.error("Firebase Database error:", error);
+                    // Explicit error printing to prevent silent loading freezes
+                    document.getElementById('content-area').innerHTML = `
+                        <div class="bg-rose-50 border border-rose-200 text-rose-800 p-6 rounded-2xl max-w-xl mx-auto mt-10 shadow-sm">
+                            <h3 class="font-bold text-lg mb-2 text-rose-700 flex items-center gap-2"><i class="ph ph-warning-circle text-2xl"></i> Database Access Denied</h3>
+                            <p class="text-sm mb-4 text-rose-900">Your app successfully connected to Firebase, but was blocked from reading your inventory data.</p>
+                            <div class="bg-white p-4 rounded-xl border border-rose-100 mb-4">
+                                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">How to fix this right now:</p>
+                                <ol class="list-decimal pl-4 space-y-2 text-sm text-slate-700">
+                                    <li>Go to your <strong>Firebase Console</strong>.</li>
+                                    <li>Click on <strong>Firestore Database</strong> -> <strong>Rules</strong> tab.</li>
+                                    <li>Change the rules to allow read/write access (e.g., <code class="bg-slate-100 px-1 py-0.5 rounded text-rose-600">allow read, write: if true;</code>).</li>
+                                    <li>Click <strong>Publish</strong>, then refresh this page.</li>
+                                </ol>
+                            </div>
+                            <pre class="p-3 bg-rose-900 text-rose-100 rounded-lg text-xs overflow-x-auto whitespace-pre-wrap">${error.message}</pre>
+                        </div>`;
                 });
             } else {
-                // If genuinely no user is signed in, gracefully fall back to a guest session
                 state = JSON.parse(JSON.stringify(defaultState));
                 isInitialized = false;
                 signInAnonymously(auth);
             }
         });
 
-        async function handleGoogleSignIn() {
-            const button = document.getElementById('google-signin-btn');
-            const originalHTML = button ? button.innerHTML : '';
-            if (button) button.innerHTML = `<i class="ph ph-spinner-gap animate-spin"></i> Authenticating...`;
-            
-            // Backup current guest data
-            const backupState = JSON.parse(JSON.stringify(state));
-            
-            try {
-                if (auth.currentUser && auth.currentUser.isAnonymous) {
-                    // Try to securely link current guest to Google
-                    await linkWithPopup(auth.currentUser, provider);
-                    window.openModal('error', { message: "Account successfully secured! Your guest tracking data has been perfectly preserved and bound to your Google login." });
-                } else {
-                    // Force direct login replacing current session
-                    const result = await signInWithPopup(auth, provider);
-                    const isNewUser = getAdditionalUserInfo(result).isNewUser;
-                    
-                    if (isNewUser) {
-                        let newDocRef;
-                        if (typeof __firebase_config !== 'undefined') {
-                            newDocRef = doc(db, 'artifacts', appId, 'users', result.user.uid, 'data', 'appState');
-                        } else {
-                            newDocRef = doc(db, 'users', result.user.uid); 
-                        }
-                        await setDoc(newDocRef, backupState);
-                        window.openModal('error', { message: "Account successfully created! Your guest tracking data has been copied over." });
-                    } else {
-                        window.openModal('error', { message: "Logged in successfully! Pulling your saved inventory now." });
-                    }
-                }
-            } catch (error) {
-                console.error("Account auth failed:", error);
-                if (error.code === 'auth/credential-already-in-use') {
-                    window.openModal('error', { message: "This Google account is already linked. To access it on this device, simply sign out and log back in." });
-                } else {
-                    window.openModal('error', { message: `Linking Error: ${error.message}` });
-                }
-            } finally {
-                if (button) button.innerHTML = originalHTML;
-            }
-        }
+        initAuth();
 
-        async function handleSignOut() {
+        // --- Account Management Logic ---
+        async function logoutAccount() {
             try {
                 if (unsubscribeSnapshot) unsubscribeSnapshot();
                 await signOut(auth);
-                // onAuthStateChanged automatically handles the clean anonymous fallback
+                // The onAuthStateChanged listener handles falling back to a guest session
+                window.openModal('error', { message: "Signed out. You are now in a clean Guest Session."});
             } catch (error) {
-                window.openModal('error', { message: `Sign Out Error: ${error.message}` });
+                console.error("Sign out failed", error);
             }
         }
 
-        initAuth();
+        async function signInWithGoogle() {
+            const provider = new GoogleAuthProvider();
+            const backupState = JSON.parse(JSON.stringify(state)); 
+            
+            try {
+                // Determine if they actually have valuable guest data to save
+                const hasGuestData = state && (state.posts.length > 0 || state.bidders.length > 0 || state.items.length > 0);
+                
+                const result = await signInWithPopup(auth, provider);
+                const isNewUser = getAdditionalUserInfo(result).isNewUser;
+                const newUid = result.user.uid;
+                
+                // If it's a brand new account, OR they had guest data to migrate
+                if (isNewUser || hasGuestData) {
+                    let newDocRef;
+                    if (typeof __firebase_config !== 'undefined') {
+                        newDocRef = doc(db, 'artifacts', appId, 'users', newUid, 'data', 'appState');
+                    } else {
+                        newDocRef = doc(db, 'users', newUid); 
+                    }
+                    await setDoc(newDocRef, backupState);
+                    window.openModal('error', { message: "Google Account linked successfully! Your data has been securely copied over."});
+                } else {
+                    window.openModal('error', { message: "Logged in with Google! Pulling your cloud data now."});
+                }
+                renderCurrentPage();
+            } catch (error) {
+                window.openModal('error', { message: "Google Sign-In failed: " + error.message });
+            }
+        }
 
-        // --- Client-Side Image Resizer & Compressor ---
+        // --- Image Compression & Batch Upload ---
         function compressImage(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -361,25 +383,19 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const max_size = 400; // Constrain to keep Firestore doc size small
+                        const max_size = 400; // Limit image bounds heavily to keep Firestore documents lightweight
                         let width = img.width;
                         let height = img.height;
                         if (width > height) {
-                            if (width > max_size) {
-                                height *= max_size / width;
-                                width = max_size;
-                            }
+                            if (width > max_size) { height *= max_size / width; width = max_size; }
                         } else {
-                            if (height > max_size) {
-                                width *= max_size / height;
-                                height = max_size;
-                            }
+                            if (height > max_size) { width *= max_size / height; height = max_size; }
                         }
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% quality JPEG
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // Compress to 70% JPEG format
                     };
                     img.onerror = reject;
                 };
@@ -397,16 +413,15 @@
                     <p class="text-sm text-slate-500">Processing and compressing photos...</p>
                 </div>`;
             
-            window.batchDrafts = [];
+            window.batchDrafts = window.batchDrafts || [];
             const files = Array.from(input.files);
             
             for (let i = 0; i < files.length; i++) {
                 try {
                     const compressedBase64 = await compressImage(files[i]);
-                    // Guess clean default title names based on filenames
                     const cleanName = files[i].name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
                     window.batchDrafts.push({
-                        id: i,
+                        id: Date.now() + i, // Temp ID
                         name: cleanName,
                         image: compressedBase64
                     });
@@ -432,7 +447,7 @@
                     <img src="${draft.image}" class="w-12 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
                     <div class="flex-1 min-w-0">
                         <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Item Title / Description</label>
-                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-80 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <input type="text" value="${draft.name}" oninput="window.updateBatchDraftName(${idx}, this.value)" required class="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
                     </div>
                     <button type="button" onclick="window.removeBatchDraft(${idx})" class="text-rose-500 hover:text-rose-700 p-2 shrink-0">
                         <i class="ph ph-trash text-lg"></i>
@@ -450,101 +465,37 @@
         function removeBatchDraft(index) {
             if (window.batchDrafts) {
                 window.batchDrafts.splice(index, 1);
-                window.batchDrafts.forEach((d, i) => d.id = i);
                 renderBatchDrafts();
             }
         }
 
-        // --- Auto-Numbering Gap-Free Re-sequencing Rule ---
+        // --- Core Functions ---
+        function generateId() { 
+            // Safer ID generation to prevent missing references
+            return Date.now() + Math.floor(Math.random() * 1000); 
+        }
+
         function resequencePostItems(postId) {
             const post = state.posts.find(p => p.id === postId);
-            if (!post) return;
+            if (!post || !post.numberPrefix) return;
             
             const postItems = state.items.filter(i => i.postId === postId).sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0));
+            const startNum = parseInt(post.numberStart) || 1;
             
-            if (post.numberPrefix) {
-                const startNum = parseInt(post.numberStart) || 1;
-                postItems.forEach((item, index) => {
-                    const calculatedNum = startNum + index;
-                    const paddedNum = calculatedNum < 10 ? '0' + calculatedNum : calculatedNum;
-                    item.itemNumber = `${post.numberPrefix}${paddedNum}`;
-                });
-            }
+            postItems.forEach((item, index) => {
+                const calculatedNum = startNum + index;
+                const paddedNum = calculatedNum < 10 ? '0' + calculatedNum : calculatedNum;
+                item.itemNumber = `${post.numberPrefix}${paddedNum}`;
+            });
         }
 
-        // --- Global Search Logic ---
-        function handleSearch(query) {
-            const resultsContainer = document.getElementById('searchResults');
-            if (!query || query.trim() === '' || !state) {
-                resultsContainer.classList.add('hidden');
-                return;
-            }
-
-            const lowerQuery = query.toLowerCase();
-            const matchedItems = state.items.filter(item => 
-                (item.name && item.name.toLowerCase().includes(lowerQuery)) ||
-                (item.brand && item.brand.toLowerCase().includes(lowerQuery)) ||
-                (item.itemNumber && item.itemNumber.toLowerCase().includes(lowerQuery))
-            ).slice(0, 10);
-
-            if (matchedItems.length === 0) {
-                resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No items found matching "${query}"</div>`;
-            } else {
-                resultsContainer.innerHTML = matchedItems.map(item => {
-                    const post = state.posts.find(p => p.id === item.postId);
-                    const postName = post ? post.name : 'Unknown Post';
-                    const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
-                    
-                    return `
-                        <div class="p-3 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex justify-between items-center group">
-                            <div class="overflow-hidden pr-2 flex items-center gap-3">
-                                ${item.image ? `<img src="${item.image}" class="w-8 h-8 rounded object-cover shrink-0">` : ''}
-                                <div>
-                                    <p class="text-sm font-bold truncate">
-                                        ${item.itemNumber ? `<span class="text-xs text-indigo-500 dark:text-indigo-400 mr-1 font-mono">${item.itemNumber}</span>` : ''}
-                                        ${item.name}
-                                    </p>
-                                    <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                                        <i class="ph ph-article"></i> ${postName} 
-                                        ${item.status === 'sold' ? `| <i class="ph ph-user"></i> ${buyer ? buyer.name : 'Sold'}` : `| <i class="ph ph-tag"></i> Open`}
-                                    </p>
-                                </div>
-                            </div>
-                            <button type="button" onclick="window.closeSearch(); window.openModal('editItem', {itemId: ${item.id}})" class="shrink-0 p-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors shadow-sm" title="Edit Item">
-                                <i class="ph ph-pencil-simple text-lg"></i>
-                            </button>
-                        </div>
-                    `;
-                }).join('');
-            }
-            resultsContainer.classList.remove('hidden');
-            resultsContainer.style.display = 'flex';
-        }
-
-        function closeSearch() {
-            const resultsContainer = document.getElementById('searchResults');
-            resultsContainer.classList.add('hidden');
-            resultsContainer.style.display = '';
-            document.getElementById('globalSearchInput').value = '';
-        }
-
-        document.addEventListener('click', function(event) {
-            const searchContainer = document.getElementById('global-search-container');
-            if (searchContainer && !searchContainer.contains(event.target)) {
-                const resultsContainer = document.getElementById('searchResults');
-                if(resultsContainer) {
-                    resultsContainer.classList.add('hidden');
-                    resultsContainer.style.display = '';
-                }
-            }
-        });
-
-        // --- View Handlers ---
         function switchPage(page) {
             state.currentPage = page;
             if (page !== 'posts') state.activePostId = null; 
             if (page !== 'shipping') state.activeShippingPurchaserId = null;
-            saveState();
+            
+            // Only trigger database save if fully initialized
+            if (isInitialized) saveState();
 
             const titles = {
                 dashboard: 'Dashboard', posts: 'Manage Posts', bidders: 'Bidders Directory',
@@ -587,6 +538,7 @@
             renderCurrentPage();
         }
 
+        // --- Rendering Logic ---
         function renderCurrentPage() {
             if(!state) return;
             const content = document.getElementById('content-area');
@@ -744,7 +696,6 @@
             renderCurrentPage();
         }
 
-        // Post Details (Items Management)
         function getPostDetailsHTML(postId) {
             const post = state.posts.find(p => p.id === postId);
             const postItems = state.items.filter(i => i.postId === postId).sort((a,b) => a.createdAt - b.createdAt);
@@ -761,8 +712,8 @@
                         </div>
                     </div>
                     <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="window.openModal('addItem', {postId: ${postId}})" class="flex-1 sm:flex-none bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white px-4 py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors text-sm">
-                            <i class="ph ph-plus"></i> Single
+                        <button onclick="window.openModal('addItem', {postId: ${postId}})" class="flex-1 sm:flex-none bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white px-4 py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors text-sm whitespace-nowrap">
+                            <i class="ph ph-plus"></i> Single Item
                         </button>
                         <button onclick="window.openModal('batchAddItems', {postId: ${postId}})" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors text-sm whitespace-nowrap">
                             <i class="ph ph-images"></i> Batch Upload
@@ -862,7 +813,6 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Left Panel: Directory List -->
                     <div class="lg:col-span-1 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm h-[calc(100vh-12rem)] overflow-y-auto">
                         <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-2">Directory</h2>
                         <div class="space-y-1">
@@ -890,7 +840,6 @@
                         </div>
                     </div>
 
-                    <!-- Right Panel: Winnings Breakdown -->
                     <div class="lg:col-span-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm h-[calc(100vh-12rem)] overflow-y-auto">
                         ${selectedBidder ? `
                             <div class="border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">
@@ -960,6 +909,7 @@
         // 4. Open Box
         function getOpenBoxHTML() {
             const unshippedItems = state.items.filter(i => i.status === 'sold' && !i.shipped);
+            
             const grouped = {};
             unshippedItems.forEach(item => {
                 if(!grouped[item.purchaserId]) grouped[item.purchaserId] = [];
@@ -977,7 +927,10 @@
             }
 
             return `
-                <div class="mb-6"><p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped.</p></div>
+                <div class="mb-6">
+                    <p class="text-slate-500 dark:text-slate-400">Track items that have been claimed/won but not yet shipped.</p>
+                </div>
+                
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     ${Object.entries(grouped).map(([purchaserId, items]) => {
                         const bidder = state.bidders.find(b => b.id == purchaserId) || { name: 'Unknown' };
@@ -1037,14 +990,6 @@
                     }).join('')}
                 </div>
             `;
-        }
-
-        function updateShippingFee(purchaserId, fee) {
-            const bidder = state.bidders.find(b => b.id == purchaserId);
-            if(bidder) {
-                bidder.shippingFee = parseFloat(fee) || 0;
-                saveState();
-            }
         }
 
         // 5. Reports
@@ -1159,37 +1104,25 @@
 
         // 6. Settings
         function getSettingsHTML() {
-            const isAnonymous = auth.currentUser ? auth.currentUser.isAnonymous : true;
             return `
                 <div class="max-w-2xl">
-                    <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30 overflow-hidden shadow-sm p-6 mb-6">
-                        <h3 class="text-lg font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2"><i class="ph ph-cloud-check"></i> Account & Cloud Sync</h3>
-                        
+                    <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2 flex items-center gap-2"><i class="ph ph-shield-check text-indigo-500"></i> Cloud Security Profile</h3>
                         ${isAnonymous ? `
-                            <p class="text-indigo-600 dark:text-indigo-400 text-sm mb-4">You are currently using a temporary <strong>Guest Account</strong>. To sync your tracking data to your phone or another computer, sign in with Google below. Your existing guest data will be safely copied over.</p>
-                            
-                            <div class="bg-white dark:bg-slate-850 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800/30 flex flex-col items-center justify-center space-y-4">
-                                <i class="ph ph-google-logo text-5xl text-indigo-500"></i>
-                                <p class="text-sm font-medium text-slate-600 dark:text-slate-400 text-center">Use your Google Account to securely sync your inventory anywhere.</p>
-                                <button id="google-signin-btn" onclick="window.handleGoogleSignIn()" class="flex items-center gap-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 py-3 px-6 rounded-xl text-sm font-bold transition-all shadow-sm w-full max-w-sm justify-center">
-                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                                    </svg>
-                                    Sign in with Google
-                                </button>
+                            <div class="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-4 border border-amber-200 dark:border-amber-900/30 mb-4">
+                                <p class="text-sm text-amber-800 dark:text-amber-400 font-medium">You are currently using a temporary guest sandbox browser profile.</p>
+                                <p class="text-xs text-amber-600 dark:text-amber-500 mt-1">To access this exact inventory from another computer, link your session data seamlessly with your Google identity below.</p>
                             </div>
+                            <button id="google-signin-btn" onclick="window.signInWithGoogle()" class="w-full max-w-sm bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-sm"><i class="ph ph-google-logo text-xl"></i> Backup & Secure with Google</button>
                         ` : `
-                            <div class="flex items-center justify-between bg-white dark:bg-slate-850 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                            <div class="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-900/30 mb-4 flex items-center justify-between">
                                 <div>
-                                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Logged In As</p>
-                                    <p class="font-bold text-slate-900 dark:text-white">${userEmail || 'Google Account'}</p>
-                                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1"><i class="ph ph-check-circle"></i> Securely syncing to cloud</p>
+                                    <p class="text-sm text-emerald-800 dark:text-emerald-400 font-bold">Authenticated Profile Sync Live</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${userEmail || 'Google Authorized Seller ID'}</p>
                                 </div>
-                                <button onclick="window.handleSignOut()" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Sign Out</button>
+                                <i class="ph ph-cloud-check text-3xl text-emerald-500"></i>
                             </div>
+                            <button onclick="window.logoutAccount()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 py-2 px-4 rounded-xl font-medium text-xs transition-colors border border-slate-200 dark:border-slate-700"><i class="ph ph-sign-out"></i> Log Out Profile Session</button>
                         `}
                     </div>
 
@@ -1197,43 +1130,24 @@
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
                         <div class="flex flex-col py-2 mb-4">
                             <label class="font-medium mb-1">Store / Brand Name</label>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">This appears at the top of your printable packing slips.</p>
-                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none">
                         </div>
-                        
                         <div class="flex flex-col py-2 border-t border-slate-100 dark:border-slate-800 pt-4">
                             <label class="font-medium mb-1">Payment Link (PayPal/Venmo)</label>
-                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">Automatically added to your Quick-Copy Messenger Invoices.</p>
-                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none">
                         </div>
                     </div>
 
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Appearance</h3>
-                        
                         <div class="flex items-center justify-between py-2">
                             <div>
                                 <p class="font-medium">Theme Mode</p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">Switch between dark and light appearance.</p>
                             </div>
                             <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <button onclick="window.setTheme('light')" class="${state.theme === 'light' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'} px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                                    <i class="ph ph-sun"></i> Light
-                                </button>
-                                <button onclick="window.setTheme('dark')" class="${state.theme === 'dark' ? 'bg-slate-800 shadow-sm text-white' : 'text-slate-500 hover:text-slate-300'} px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                                    <i class="ph ph-moon"></i> Dark
-                                </button>
+                                <button onclick="window.setTheme('light')" class="${state.theme === 'light' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-sun"></i> Light</button>
+                                <button onclick="window.setTheme('dark')" class="${state.theme === 'dark' ? 'bg-slate-800 shadow-sm text-white' : 'text-slate-500'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-moon"></i> Dark</button>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 overflow-hidden p-6">
-                        <h3 class="text-lg font-bold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2"><i class="ph ph-database"></i> Database Utility</h3>
-                        <p class="text-emerald-600 dark:text-emerald-400 text-sm mb-4">Resetting data will overwrite your current Firebase database with default sample data.</p>
-                        <div class="flex gap-3">
-                            <button onclick="window.openModal('resetData')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 dark:bg-rose-900/30 dark:hover:bg-rose-900/50 dark:text-rose-400 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
-                                Reset All Data
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1260,7 +1174,6 @@
                     </button>
                 </div>
 
-                <!-- 4x6 Label Canvas Layout Container -->
                 <div id="printable-area" class="bg-white text-black w-[4in] h-[6in] border shadow-xl mx-auto p-6 font-sans relative box-border flex flex-col">
                     <div class="text-center mb-4 border-b-2 border-black pb-3 shrink-0">
                         <h1 class="text-xl font-black tracking-tighter uppercase">${state.storeName || "Donato's Diecast"}</h1>
@@ -1312,6 +1225,7 @@
             `;
         }
 
+        // --- System Popups and Data Entry Flow ---
         function openModal(type, data = {}) {
             const container = document.getElementById('modal-container');
             let content = '';
@@ -1321,7 +1235,7 @@
                     <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-sm modal-enter border border-slate-200 dark:border-slate-800 shadow-xl text-center">
                         <i class="ph ph-warning-circle text-4xl text-rose-500 mb-3 block"></i>
                         <h2 class="text-xl font-bold mb-2">Notice</h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">${data.message}</p>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm mb-6">${data.message}</p>
                         <button onclick="window.closeModal()" class="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-white rounded-xl font-medium transition-colors">Okay</button>
                     </div>`;
             } else if (type === 'deleteConfirm') {
@@ -1389,8 +1303,8 @@
                                 </div>
                             </div>
                             <div class="flex justify-end gap-3">
-                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancel</button>
-                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium">${isEdit ? 'Save Changes' : 'Create'}</button>
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">${isEdit ? 'Save Changes' : 'Create'}</button>
                             </div>
                         </form>
                     </div>`;
@@ -1621,7 +1535,7 @@
                             <div class="space-y-4 mb-6">
                                 <div>
                                     <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
-                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none text-slate-900 dark:text-white">
+                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                                         <option value="" disabled selected>-- Choose --</option>
                                         ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
                                     </select>
@@ -1650,9 +1564,7 @@
             container.innerHTML = '';
         }
 
-        function confirmDelete(type, id) {
-            window.openModal('deleteConfirm', { type, id });
-        }
+        function confirmDelete(type, id) { window.openModal('deleteConfirm', { type, id }); }
 
         function executeDelete(type, id) {
             if (type === 'post') {
@@ -1663,7 +1575,7 @@
                 const item = state.items.find(i => i.id === id);
                 const postId = item ? item.postId : null;
                 state.items = state.items.filter(i => i.id !== id);
-                if (postId) resequencePostItems(postId);
+                if (postId) resequencePostItems(postId); 
             }
             saveState();
             closeModal();
@@ -1687,13 +1599,21 @@
                     numberStart: parseInt(values.numberStart) || 1,
                     status: 'active'
                 });
-            } else if (type === 'addItem') {
-                if (values.brand && !state.brands.includes(values.brand)) {
-                    state.brands.push(values.brand);
+            } else if (type === 'editPost') {
+                const post = state.posts.find(p => p.id === id);
+                if (post) {
+                    post.name = values.name;
+                    post.date = values.date;
+                    post.splitRule = values.splitRule || 'none';
+                    post.numberPrefix = values.numberPrefix || '';
+                    post.numberStart = parseInt(values.numberStart) || 1;
+                    resequencePostItems(post.id);
                 }
+            } else if (type === 'addItem') {
+                if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
                 
-                const photoInput = document.getElementById('single-item-photo');
                 let base64Image = null;
+                const photoInput = document.getElementById('single-item-photo');
                 if (photoInput && photoInput.files.length > 0) {
                     base64Image = await compressImage(photoInput.files[0]);
                 }
@@ -1717,15 +1637,15 @@
                 });
                 
                 resequencePostItems(id);
-                
+
             } else if (type === 'batchAddItems') {
-                const postId = parseInt(id);
+                const postId = parseInt(id); // Using the id parameter correctly
                 const brand = values.brand;
                 if (brand && !state.brands.includes(brand)) state.brands.push(brand);
 
                 window.batchDrafts.forEach((draft, index) => {
                     state.items.push({
-                        id: generateId(),
+                        id: generateId() + index, // Differentiated IDs
                         postId: postId,
                         itemNumber: '',
                         brand: brand,
@@ -1749,9 +1669,8 @@
             } else if (type === 'editItem') {
                 const item = state.items.find(i => i.id === id);
                 if (item) {
-                    if (values.brand && !state.brands.includes(values.brand)) {
-                        state.brands.push(values.brand);
-                    }
+                    if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
+                    
                     const oldPostId = item.postId;
                     item.postId = parseInt(values.postId);
                     item.itemNumber = values.itemNumber || '';
