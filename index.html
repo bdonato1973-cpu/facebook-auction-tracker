@@ -179,7 +179,6 @@
 
         let state = null; 
 
-        // Expose all necessary functions to the global scope
         window.switchPage = switchPage;
         window.setTheme = setTheme;
         window.togglePaid = togglePaid;
@@ -225,7 +224,6 @@
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 }
-                // Removed aggressive `signInAnonymously()` here. `onAuthStateChanged` will handle fallback.
             } catch (error) {
                 console.error("Authentication failed", error);
             }
@@ -279,7 +277,7 @@
                                 state.reportFilterPostIds = state.reportFilterPostId ? [state.reportFilterPostId] : ['all'];
                             }
                         } else {
-                            // Document missing. Only write defaults if we have safely initialized.
+                            // Document missing. Write defaults.
                             state = JSON.parse(JSON.stringify(defaultState));
                             if (isInitialized) saveState();
                         }
@@ -335,7 +333,6 @@
             try {
                 if (unsubscribeSnapshot) unsubscribeSnapshot();
                 await signOut(auth);
-                // The onAuthStateChanged listener handles falling back to a guest session
                 window.openModal('error', { message: "Signed out. You are now in a clean Guest Session."});
             } catch (error) {
                 console.error("Sign out failed", error);
@@ -347,14 +344,12 @@
             const backupState = JSON.parse(JSON.stringify(state)); 
             
             try {
-                // Determine if they actually have valuable guest data to save
                 const hasGuestData = state && (state.posts.length > 0 || state.bidders.length > 0 || state.items.length > 0);
                 
                 const result = await signInWithPopup(auth, provider);
                 const isNewUser = getAdditionalUserInfo(result).isNewUser;
                 const newUid = result.user.uid;
                 
-                // If it's a brand new account, OR they had guest data to migrate
                 if (isNewUser || hasGuestData) {
                     let newDocRef;
                     if (typeof __firebase_config !== 'undefined') {
@@ -471,7 +466,6 @@
 
         // --- Core Functions ---
         function generateId() { 
-            // Safer ID generation to prevent missing references
             return Date.now() + Math.floor(Math.random() * 1000); 
         }
 
@@ -489,12 +483,77 @@
             });
         }
 
+        function handleSearch(query) {
+            const resultsContainer = document.getElementById('searchResults');
+            if (!query || query.trim() === '' || !state) {
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const matchedItems = state.items.filter(item => 
+                (item.name && item.name.toLowerCase().includes(lowerQuery)) ||
+                (item.brand && item.brand.toLowerCase().includes(lowerQuery)) ||
+                (item.itemNumber && item.itemNumber.toLowerCase().includes(lowerQuery))
+            ).slice(0, 10); 
+
+            if (matchedItems.length === 0) {
+                resultsContainer.innerHTML = `<div class="p-4 text-center text-sm text-slate-500">No items found matching "${query}"</div>`;
+            } else {
+                resultsContainer.innerHTML = matchedItems.map(item => {
+                    const post = state.posts.find(p => p.id === item.postId);
+                    const postName = post ? post.name : 'Unknown Post';
+                    const buyer = item.purchaserId ? state.bidders.find(b => b.id === item.purchaserId) : null;
+                    
+                    return `
+                        <div class="p-3 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex justify-between items-center group">
+                            <div class="overflow-hidden pr-2 flex items-center gap-3">
+                                ${item.image ? `<img src="${item.image}" class="w-8 h-8 rounded object-cover shrink-0">` : ''}
+                                <div>
+                                    <p class="text-sm font-bold truncate">
+                                        ${item.itemNumber ? `<span class="text-xs text-indigo-500 dark:text-indigo-400 mr-1 font-mono">${item.itemNumber}</span>` : ''}
+                                        ${item.name}
+                                    </p>
+                                    <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                        <i class="ph ph-article"></i> ${postName} 
+                                        ${item.status === 'sold' ? `| <i class="ph ph-user"></i> ${buyer ? buyer.name : 'Sold'}` : `| <i class="ph ph-tag"></i> Open`}
+                                    </p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="window.closeSearch(); window.openModal('editItem', {itemId: ${item.id}})" class="shrink-0 p-2 bg-sky-50 hover:bg-sky-100 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 text-sky-600 dark:text-sky-400 rounded-lg transition-colors shadow-sm" title="Edit Item">
+                                <i class="ph ph-pencil-simple text-lg"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            resultsContainer.classList.remove('hidden');
+            resultsContainer.style.display = 'flex'; 
+        }
+
+        function closeSearch() {
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.classList.add('hidden');
+            resultsContainer.style.display = '';
+            document.getElementById('globalSearchInput').value = '';
+        }
+
+        document.addEventListener('click', function(event) {
+            const searchContainer = document.getElementById('global-search-container');
+            if (searchContainer && !searchContainer.contains(event.target)) {
+                const resultsContainer = document.getElementById('searchResults');
+                if(resultsContainer) {
+                    resultsContainer.classList.add('hidden');
+                    resultsContainer.style.display = '';
+                }
+            }
+        });
+
         function switchPage(page) {
             state.currentPage = page;
             if (page !== 'posts') state.activePostId = null; 
             if (page !== 'shipping') state.activeShippingPurchaserId = null;
             
-            // Only trigger database save if fully initialized
             if (isInitialized) saveState();
 
             const titles = {
@@ -555,7 +614,6 @@
             }
         }
 
-        // 1. Dashboard
         function getDashboardHTML() {
             const activePosts = state.posts.filter(p => p.status === 'active').length;
             const openItems = state.items.filter(i => i.status === 'open').length;
@@ -629,7 +687,6 @@
             `;
         }
 
-        // 2. Posts List
         function getPostsHTML() {
             return `
                 <div class="flex justify-between items-center mb-6">
@@ -1104,6 +1161,7 @@
 
         // 6. Settings
         function getSettingsHTML() {
+            const isAnonymous = auth.currentUser ? auth.currentUser.isAnonymous : true;
             return `
                 <div class="max-w-2xl">
                     <div class="bg-white dark:bg-slate-850 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 mb-6">
@@ -1118,7 +1176,7 @@
                             <div class="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-900/30 mb-4 flex items-center justify-between">
                                 <div>
                                     <p class="text-sm text-emerald-800 dark:text-emerald-400 font-bold">Authenticated Profile Sync Live</p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${userEmail || 'Google Authorized Seller ID'}</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${auth.currentUser.email || 'Google Authorized Seller ID'}</p>
                                 </div>
                                 <i class="ph ph-cloud-check text-3xl text-emerald-500"></i>
                             </div>
@@ -1130,11 +1188,11 @@
                         <h3 class="text-lg font-bold mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">Store Details</h3>
                         <div class="flex flex-col py-2 mb-4">
                             <label class="font-medium mb-1">Store / Brand Name</label>
-                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none">
+                            <input type="text" value="${state.storeName || "Donato's Diecast"}" onchange="window.updateStoreName(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                         </div>
                         <div class="flex flex-col py-2 border-t border-slate-100 dark:border-slate-800 pt-4">
                             <label class="font-medium mb-1">Payment Link (PayPal/Venmo)</label>
-                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none">
+                            <input type="text" value="${state.paymentLink || ""}" placeholder="e.g. paypal.me/DonatosDiecast" onchange="window.updatePaymentLink(this.value)" class="w-full max-w-md bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
                         </div>
                     </div>
 
@@ -1145,8 +1203,8 @@
                                 <p class="font-medium">Theme Mode</p>
                             </div>
                             <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                                <button onclick="window.setTheme('light')" class="${state.theme === 'light' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-sun"></i> Light</button>
-                                <button onclick="window.setTheme('dark')" class="${state.theme === 'dark' ? 'bg-slate-800 shadow-sm text-white' : 'text-slate-500'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-moon"></i> Dark</button>
+                                <button onclick="window.setTheme('light')" class="${state.theme === 'light' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-sun"></i> Light</button>
+                                <button onclick="window.setTheme('dark')" class="${state.theme === 'dark' ? 'bg-slate-800 shadow-sm text-white' : 'text-slate-500 hover:text-slate-300'} px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><i class="ph ph-moon"></i> Dark</button>
                             </div>
                         </div>
                     </div>
@@ -1468,6 +1526,271 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Type</label>
+                                        <select name="type" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                            <option value="auction" ${item.type === 'auction' ? 'selected' : ''}>Auction</option>
+                                            <option value="bin" ${item.type === 'bin' ? 'selected' : ''}>Buy It Now</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Starting/BIN Price ($)</label>
+                                        <input type="number" name="price" value="${item.startPrice}" required min="1" step="0.5" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Override Revenue Rule</label>
+                                    <select name="splitRule" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="post_default" ${item.splitRule === 'post_default' ? 'selected' : ''}>Use Post Default</option>
+                                        <option value="none" ${item.splitRule === 'none' ? 'selected' : ''}>100% to Me</option>
+                                        <option value="50_50" ${item.splitRule === '50_50' ? 'selected' : ''}>50/50 Split</option>
+                                        <option value="50_50_under_3" ${item.splitRule === '50_50_under_3' ? 'selected' : ''}>50/50 Split (100% to Other if &lt; $3)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBidder') {
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-4">Add New Bidder</h2>
+                        <form id="formAddBidder" onsubmit="window.submitForm(event, 'addBidder')">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
+                                    <input type="text" name="name" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Profile URL (Optional)</label>
+                                    <input type="text" name="profile" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">Save Bidder</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            } else if (type === 'addBid' || type === 'sellBin') {
+                const item = state.items.find(i => i.id === data.itemId);
+                const isBin = type === 'sellBin';
+                const minBid = item.currentBid ? item.currentBid + 1 : item.startPrice;
+                
+                content = `
+                    <div class="bg-white dark:bg-slate-850 p-6 rounded-2xl w-full max-w-md modal-enter border border-slate-200 dark:border-slate-800 shadow-xl">
+                        <h2 class="text-xl font-bold mb-2">${isBin ? 'Mark Sold (BIN)' : 'Place New Bid'}</h2>
+                        <div class="flex items-center gap-3 mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                            ${item.image ? `<img src="${item.image}" class="w-12 h-12 object-cover rounded shadow-sm shrink-0 border border-slate-200 dark:border-slate-600">` : ''}
+                            <div>
+                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">${item.name}</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">${isBin ? `Price: $${item.startPrice}` : `Current: $${item.currentBid || 0} (Min: $${minBid})`}</p>
+                            </div>
+                        </div>
+                        <form id="formTransaction" onsubmit="window.submitForm(event, '${type}', ${data.itemId})">
+                            <div class="space-y-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Select Buyer</label>
+                                    <select name="bidderId" required class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white">
+                                        <option value="" disabled selected>-- Choose --</option>
+                                        ${state.bidders.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                ${!isBin ? `
+                                <div>
+                                    <label class="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Bid Amount ($)</label>
+                                    <input type="number" name="amount" required min="${minBid}" step="1" value="${minBid}" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>` : ''}
+                            </div>
+                            <div class="flex justify-end gap-3">
+                                <button type="button" onclick="window.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">Cancel</button>
+                                <button type="submit" class="px-4 py-2 ${isBin ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-xl font-medium transition-colors">${isBin ? 'Confirm Sale' : 'Submit Bid'}</button>
+                            </div>
+                        </form>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = content;
+            container.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const container = document.getElementById('modal-container');
+            container.classList.add('hidden');
+            container.innerHTML = '';
+        }
+
+        function confirmDelete(type, id) {
+            window.openModal('deleteConfirm', { type, id });
+        }
+
+        function executeDelete(type, id) {
+            if (type === 'post') {
+                state.posts = state.posts.filter(p => p.id !== id);
+                state.items = state.items.filter(i => i.postId !== id);
+                if (state.activePostId === id) state.activePostId = null;
+            } else if (type === 'item') {
+                const item = state.items.find(i => i.id === id);
+                const postId = item ? item.postId : null;
+                state.items = state.items.filter(i => i.id !== id);
+                
+                // Re-sequence to fill the gap left by deleted item
+                if (postId) resequencePostItems(postId); 
+            }
+            saveState();
+            closeModal();
+            updateBadges();
+            renderCurrentPage();
+        }
+
+        async function submitForm(e, type, id) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const values = Object.fromEntries(formData.entries());
+
+            if (type === 'addPost') {
+                state.posts.push({
+                    id: generateId(),
+                    name: values.name,
+                    date: values.date,
+                    url: values.url,
+                    splitRule: values.splitRule || 'none',
+                    numberPrefix: values.numberPrefix || '',
+                    numberStart: parseInt(values.numberStart) || 1,
+                    status: 'active'
+                });
+            } else if (type === 'editPost') {
+                const post = state.posts.find(p => p.id === id);
+                if (post) {
+                    post.name = values.name;
+                    post.date = values.date;
+                    post.splitRule = values.splitRule || 'none';
+                    post.numberPrefix = values.numberPrefix || '';
+                    post.numberStart = parseInt(values.numberStart) || 1;
+                    
+                    resequencePostItems(post.id);
+                }
+            } else if (type === 'addItem') {
+                if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
+                
+                // Read and compress image if uploaded
+                const photoInput = document.getElementById('single-item-photo');
+                let base64Image = null;
+                if (photoInput && photoInput.files.length > 0) {
+                    base64Image = await compressImage(photoInput.files[0]);
+                }
+
+                state.items.push({
+                    id: generateId(),
+                    postId: id,
+                    itemNumber: values.itemNumber || '', // Will be overridden if post has Auto-Number
+                    brand: values.brand || '',
+                    name: values.name,
+                    type: values.type,
+                    startPrice: parseFloat(values.price),
+                    splitRule: values.splitRule || 'post_default',
+                    image: base64Image,
+                    currentBid: null,
+                    purchaserId: null,
+                    status: 'open',
+                    paid: false,
+                    shipped: false,
+                    createdAt: Date.now()
+                });
+                
+                resequencePostItems(id);
+
+            } else if (type === 'batchAddItems') {
+                const postId = parseInt(values.postId);
+                const brand = values.brand;
+                if (brand && !state.brands.includes(brand)) state.brands.push(brand);
+
+                window.batchDrafts.forEach((draft, index) => {
+                    state.items.push({
+                        id: generateId(),
+                        postId: postId,
+                        itemNumber: '', // Filled by auto-number
+                        brand: brand,
+                        name: draft.name,
+                        type: values.type,
+                        startPrice: parseFloat(values.price),
+                        splitRule: values.splitRule,
+                        image: draft.image,
+                        currentBid: null,
+                        purchaserId: null,
+                        status: 'open',
+                        paid: false,
+                        shipped: false,
+                        createdAt: Date.now() + index // Ensure chronological sequence 
+                    });
+                });
+
+                resequencePostItems(postId);
+                window.batchDrafts = []; // Clear drafts
+
+            } else if (type === 'editItem') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
+                    
+                    const oldPostId = item.postId;
+                    item.postId = parseInt(values.postId);
+                    item.itemNumber = values.itemNumber || '';
+                    item.brand = values.brand || '';
+                    item.name = values.name;
+                    item.type = values.type;
+                    item.startPrice = parseFloat(values.price);
+                    item.splitRule = values.splitRule || 'post_default';
+                    
+                    // Update photo if new one uploaded
+                    const editPhotoInput = document.getElementById('edit-item-photo');
+                    if (editPhotoInput && editPhotoInput.files.length > 0) {
+                        item.image = await compressImage(editPhotoInput.files[0]);
+                    }
+
+                    // Resequence if moved to a different post
+                    if (oldPostId !== item.postId) {
+                        resequencePostItems(oldPostId);
+                        resequencePostItems(item.postId);
+                    } else {
+                        resequencePostItems(item.postId); // Trigger in case order or itemNumber was touched
+                    }
+                }
+            } else if (type === 'addBidder') {
+                state.bidders.push({
+                    id: generateId(),
+                    name: values.name,
+                    profile: values.profile,
+                    shippingFee: 0
+                });
+            } else if (type === 'addBid') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.currentBid = parseFloat(values.amount);
+                    item.purchaserId = parseInt(values.bidderId);
+                }
+            } else if (type === 'sellBin') {
+                const item = state.items.find(i => i.id === id);
+                if (item) {
+                    item.purchaserId = parseInt(values.bidderId);
+                    item.status = 'sold';
+                    item.paid = false;
+                    item.shipped = false;
+                }
+            }
+
+            saveState();
+            closeModal();
+            updateBadges();
+            renderCurrentPage();
+        }
+
+        // Add back missing Utility functions previously lost to string injection truncation:
         function updateStoreName(name) {
             state.storeName = name;
             saveState();
@@ -1528,7 +1851,6 @@
                 const items = state.items.filter(i => i.purchaserId === purchaserId && i.status === 'sold' && !i.shipped);
                 items.forEach(i => i.shipped = true);
                 
-                // Clear the box data configuration schema safely
                 const bidder = state.bidders.find(b => b.id == purchaserId);
                 if (bidder) bidder.shippingFee = 0;
 
@@ -1562,163 +1884,6 @@
                  updateBadges();
                  renderCurrentPage();
              }
-        }
-
-        function confirmDelete(type, id) { window.openModal('deleteConfirm', { type, id }); }
-
-        function executeDelete(type, id) {
-            if (type === 'post') {
-                state.posts = state.posts.filter(p => p.id !== id);
-                state.items = state.items.filter(i => i.postId !== id);
-                if (state.activePostId === id) state.activePostId = null;
-            } else if (type === 'item') {
-                const item = state.items.find(i => i.id === id);
-                const postId = item ? item.postId : null;
-                state.items = state.items.filter(i => i.id !== id);
-                if (postId) resequencePostItems(postId); 
-            }
-            saveState();
-            closeModal();
-            updateBadges();
-            renderCurrentPage();
-        }
-
-        async function submitForm(e, type, id) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const values = Object.fromEntries(formData.entries());
-
-            if (type === 'addPost') {
-                state.posts.push({
-                    id: generateId(),
-                    name: values.name,
-                    date: values.date,
-                    url: values.url,
-                    splitRule: values.splitRule || 'none',
-                    numberPrefix: values.numberPrefix || '',
-                    numberStart: parseInt(values.numberStart) || 1,
-                    status: 'active'
-                });
-            } else if (type === 'editPost') {
-                const post = state.posts.find(p => p.id === id);
-                if (post) {
-                    post.name = values.name;
-                    post.date = values.date;
-                    post.splitRule = values.splitRule || 'none';
-                    post.numberPrefix = values.numberPrefix || '';
-                    post.numberStart = parseInt(values.numberStart) || 1;
-                    resequencePostItems(post.id);
-                }
-            } else if (type === 'addItem') {
-                if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
-                
-                let base64Image = null;
-                const photoInput = document.getElementById('single-item-photo');
-                if (photoInput && photoInput.files.length > 0) {
-                    base64Image = await compressImage(photoInput.files[0]);
-                }
-
-                state.items.push({
-                    id: generateId(),
-                    postId: id,
-                    itemNumber: values.itemNumber || '',
-                    brand: values.brand || '',
-                    name: values.name,
-                    type: values.type,
-                    startPrice: parseFloat(values.price),
-                    splitRule: values.splitRule || 'post_default',
-                    image: base64Image,
-                    currentBid: null,
-                    purchaserId: null,
-                    status: 'open',
-                    paid: false,
-                    shipped: false,
-                    createdAt: Date.now()
-                });
-                
-                resequencePostItems(id);
-
-            } else if (type === 'batchAddItems') {
-                const postId = parseInt(id); // Using the id parameter correctly
-                const brand = values.brand;
-                if (brand && !state.brands.includes(brand)) state.brands.push(brand);
-
-                window.batchDrafts.forEach((draft, index) => {
-                    state.items.push({
-                        id: generateId() + index, // Differentiated IDs
-                        postId: postId,
-                        itemNumber: '',
-                        brand: brand,
-                        name: draft.name,
-                        type: values.type,
-                        startPrice: parseFloat(values.price),
-                        splitRule: values.splitRule,
-                        image: draft.image,
-                        currentBid: null,
-                        purchaserId: null,
-                        status: 'open',
-                        paid: false,
-                        shipped: false,
-                        createdAt: Date.now() + index 
-                    });
-                });
-
-                resequencePostItems(postId);
-                window.batchDrafts = []; 
-
-            } else if (type === 'editItem') {
-                const item = state.items.find(i => i.id === id);
-                if (item) {
-                    if (values.brand && !state.brands.includes(values.brand)) state.brands.push(values.brand);
-                    
-                    const oldPostId = item.postId;
-                    item.postId = parseInt(values.postId);
-                    item.itemNumber = values.itemNumber || '';
-                    item.brand = values.brand || '';
-                    item.name = values.name;
-                    item.type = values.type;
-                    item.startPrice = parseFloat(values.price);
-                    item.splitRule = values.splitRule || 'post_default';
-                    
-                    const editPhotoInput = document.getElementById('edit-item-photo');
-                    if (editPhotoInput && editPhotoInput.files.length > 0) {
-                        item.image = await compressImage(editPhotoInput.files[0]);
-                    }
-
-                    if (oldPostId !== item.postId) {
-                        resequencePostItems(oldPostId);
-                        resequencePostItems(item.postId);
-                    } else {
-                        resequencePostItems(item.postId); 
-                    }
-                }
-            } else if (type === 'addBidder') {
-                state.bidders.push({
-                    id: generateId(),
-                    name: values.name,
-                    profile: values.profile,
-                    shippingFee: 0
-                });
-            } else if (type === 'addBid') {
-                const item = state.items.find(i => i.id === id);
-                if (item) {
-                    item.currentBid = parseFloat(values.amount);
-                    item.purchaserId = parseInt(values.bidderId);
-                }
-            } else if (type === 'sellBin') {
-                const item = state.items.find(i => i.id === id);
-                if (item) {
-                    item.purchaserId = parseInt(values.bidderId);
-                    item.status = 'sold';
-                    item.paid = false;
-                    item.shipped = false;
-                }
-            }
-
-            saveState();
-            closeModal();
-            updateBadges();
-            renderCurrentPage();
         }
     </script>
 </body>
