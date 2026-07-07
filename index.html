@@ -149,8 +149,15 @@
                                 <label class="block text-sm text-gray-500 mb-1">End Date & Time</label>
                                 <input type="datetime-local" id="post-end" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
                             </div>
-                            <div class="lg:col-span-2 flex gap-2">
-                                <button onclick="savePost()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save Post</button>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">Post Type</label>
+                                <select id="post-type" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="Auction">Auction</option>
+                                    <option value="Sale">Sale</option>
+                                </select>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="savePost()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save</button>
                                 <button onclick="togglePostForm()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 w-full font-bold transition">Cancel</button>
                             </div>
                         </div>
@@ -191,10 +198,15 @@
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
                         <h3 class="font-bold text-sm mb-2 text-primary uppercase">Batch Edit Selected Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
+                            <select id="batch-type" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28">
+                                <option value="">- Type -</option>
+                                <option value="Auction">Auction</option>
+                                <option value="Sale">Sale</option>
+                            </select>
                             <input type="text" id="batch-brand" list="brand-list" placeholder="Brand" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px]">
                             <input type="text" id="batch-model" placeholder="Model" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px]">
                             <input type="text" id="batch-desc" placeholder="Description" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[200px]">
-                            <input type="number" id="batch-price" placeholder="Start Bid ($)" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28">
+                            <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28">
                             <button onclick="applyBatchEdits()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold transition">Apply</button>
                         </div>
                     </div>
@@ -207,16 +219,16 @@
                                     <th class="p-3 w-10"><input type="checkbox" id="select-all-items" onchange="toggleSelectAll()"></th>
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-16">Photo</th>
+                                    <th class="p-3 w-28">Type</th>
                                     <th class="p-3">Brand</th>
                                     <th class="p-3">Model</th>
                                     <th class="p-3">Description</th>
-                                    <th class="p-3 w-24">Start Bid</th>
+                                    <th class="p-3 w-28">Bid / Price</th>
                                     <th class="p-3 w-16">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="items-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                                <!-- Items render here -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
@@ -508,6 +520,7 @@
             document.getElementById('post-url').value = '';
             document.getElementById('post-start').value = '';
             document.getElementById('post-end').value = '';
+            document.getElementById('post-type').value = 'Auction'; // Default
         }
 
         window.savePost = async function() {
@@ -516,6 +529,7 @@
             const url = document.getElementById('post-url').value.trim();
             const start = document.getElementById('post-start').value;
             const end = document.getElementById('post-end').value;
+            const type = document.getElementById('post-type').value;
 
             if (!name) return alert("Please provide a Post Name.");
 
@@ -526,6 +540,7 @@
                     post.fbUrl = url;
                     post.startTime = start;
                     post.endTime = end;
+                    post.type = type;
                 }
             } else {
                 window.appState.posts.push({
@@ -534,6 +549,7 @@
                     fbUrl: url,
                     startTime: start,
                     endTime: end,
+                    type: type,
                     createdAt: new Date().toISOString()
                 });
             }
@@ -553,6 +569,7 @@
             document.getElementById('post-url').value = post.fbUrl || '';
             document.getElementById('post-start').value = post.startTime || '';
             document.getElementById('post-end').value = post.endTime || '';
+            document.getElementById('post-type').value = post.type || 'Auction';
             
             window.togglePostForm(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -617,6 +634,9 @@
             window.renderPosts();
         }
 
+        // ==========================================
+        // OVERWRITE THE ENTIRE renderItemsTable FUNCTION
+        // ==========================================
         window.renderItemsTable = function() {
             const tbody = document.getElementById('items-table-body');
             if(!tbody) return;
@@ -627,25 +647,33 @@
                                 .sort((a, b) => a.itemNumber - b.itemNumber);
 
             if (postItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500">No items added to this post yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items added to this post yet.</td></tr>`;
                 return;
             }
 
             postItems.forEach(item => {
                 const tr = document.createElement('tr');
-                // FIX 1: Use standard Tailwind colors for the row hover
                 tr.className = "hover:bg-gray-100 dark:hover:bg-gray-700 transition group";
-                // FIX 2: Added 'focus:bg-white', 'dark:focus:bg-gray-800', and explicit text colors to the inputs
+                
+                // The price placeholder changes dynamically based on the item type!
+                const pricePlaceholder = item.type === 'Sale' ? 'Price' : 'Start Bid';
+
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary">#${item.itemNumber}</td>
                     <td class="p-3">
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
+                    <td class="p-2">
+                        <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                            <option value="Auction" ${item.type === 'Auction' ? 'selected' : ''}>Auction</option>
+                            <option value="Sale" ${item.type === 'Sale' ? 'selected' : ''}>Sale</option>
+                        </select>
+                    </td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
@@ -660,19 +688,26 @@
             return Math.max(...postItems.map(item => item.itemNumber || 0)) + 1;
         }
 
-        // Updated to save the item directly to Firestore
+        // ==========================================
+        // OVERWRITE addSingleItemInternal
+        // ==========================================
         async function addSingleItemInternal(photoBase64 = null) {
+            // Find parent post to inherit type
+            const parentPost = window.appState.posts.find(p => p.id === currentActivePostId);
+            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Auction';
+
             const newItem = {
                 id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 postId: currentActivePostId,
                 itemNumber: getNextItemNumber(),
+                type: inheritedType,
                 brand: '', model: '', description: '', price: '',
                 photo: photoBase64,
                 status: 'Available',
                 createdAt: new Date().toISOString()
             };
             window.appState.items.push(newItem);
-            await saveItemToFirestore(newItem); // Individual DB save
+            await saveItemToFirestore(newItem); 
         }
 
         window.addSingleItem = async function() {
@@ -704,10 +739,14 @@
             document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = isChecked);
         }
 
+        // ==========================================
+        // OVERWRITE applyBatchEdits
+        // ==========================================
         window.applyBatchEdits = async function() {
             const checkboxes = document.querySelectorAll('.item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
 
+            const bType = document.getElementById('batch-type').value;
             const bBrand = document.getElementById('batch-brand').value.trim();
             const bModel = document.getElementById('batch-model').value.trim();
             const bDesc = document.getElementById('batch-desc').value.trim();
@@ -719,12 +758,12 @@
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
                 if (item) {
+                    if (bType) item.type = bType;
                     if (bBrand) item.brand = bBrand;
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
                     if (bPrice !== '') item.price = parseFloat(bPrice);
                     changesMade = true;
-                    // Batch them into a Promise array to save concurrently
                     savePromises.push(saveItemToFirestore(item));
                 }
             });
@@ -733,6 +772,7 @@
                 await Promise.all(savePromises);
                 window.renderItemsTable();
                 
+                document.getElementById('batch-type').value = '';
                 document.getElementById('batch-brand').value = '';
                 document.getElementById('batch-model').value = '';
                 document.getElementById('batch-desc').value = '';
