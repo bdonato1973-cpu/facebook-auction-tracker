@@ -289,6 +289,16 @@
             <div id="view-open-box" class="view"><h2 class="text-2xl font-bold mb-6">Open Box</h2><p class="text-gray-500">Items paid for but pending shipment.</p></div>
             <div id="view-reports" class="view"><h2 class="text-2xl font-bold mb-6">Financial Reports</h2><p class="text-gray-500">Items sold, Gross revenue, My cut, Top 3 buyers.</p></div>
 
+            <!-- Hidden Popup Container Modal -->
+            <div id="image-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity" onclick="closeImageModal()">
+                <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center">
+                    <button onclick="closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 text-3xl transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <img id="enlarged-image" src="" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl border border-gray-600" onclick="event.stopPropagation()">
+                </div>
+            </div>
+            
             <!-- Datalists -->
             <datalist id="brand-list">
                 <option value="Hot Wheels"></option>
@@ -628,7 +638,7 @@
                     <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary">#${item.itemNumber}</td>
                     <td class="p-3">
-                        ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-200">` : `<div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
@@ -777,6 +787,20 @@
             }
         }
 
+        // --- IMAGE LIGHTBOX LOGIC ---
+        window.openImageModal = function(imageSrc) {
+            document.getElementById('enlarged-image').src = imageSrc;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        window.closeImageModal = function() {
+            document.getElementById('image-modal').classList.add('hidden');
+            // Clear the source slightly after hiding so it doesn't flash the old image next time
+            setTimeout(() => {
+                document.getElementById('enlarged-image').src = '';
+            }, 200);
+        }
+        
         // =========================================================================
         // 5. GLOBAL APP UTILITIES (Navigation & Themes)
         // =========================================================================
