@@ -633,17 +633,19 @@
 
             postItems.forEach(item => {
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition group";
+                // FIX 1: Use standard Tailwind colors for the row hover
+                tr.className = "hover:bg-gray-100 dark:hover:bg-gray-700 transition group";
+                // FIX 2: Added 'focus:bg-white', 'dark:focus:bg-gray-800', and explicit text colors to the inputs
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary">#${item.itemNumber}</td>
                     <td class="p-3">
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
-                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
-                    <td class="p-2"><input type="number" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-600 bg-transparent rounded text-sm"></td>
+                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="number" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
