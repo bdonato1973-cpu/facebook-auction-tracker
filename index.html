@@ -321,6 +321,16 @@
                 </div>
             </div>
 
+            <!-- Open Box View -->
+            <div id="view-open-box" class="view">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Open Box Management</h2>
+                </div>
+                <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Boxes render here -->
+                </div>
+            </div>
+
             <!-- Settings View -->
             <div id="view-settings" class="view">
                 <h2 class="text-2xl font-bold mb-6">Settings</h2>
@@ -381,7 +391,6 @@
             </div>
 
             <!-- Placeholders for other views -->
-            <div id="view-open-box" class="view"><h2 class="text-2xl font-bold mb-6">Open Box</h2><p class="text-gray-500">Items paid for but pending shipment.</p></div>
             <div id="view-reports" class="view"><h2 class="text-2xl font-bold mb-6">Financial Reports</h2><p class="text-gray-500">Items sold, Gross revenue, My cut, Top 3 buyers.</p></div>
 
             <!-- Image Preview Modal (Hidden by default) -->
@@ -423,13 +432,12 @@
         // 1. FIREBASE CONFIGURATION (Replace with your actual keys)
         // =========================================================================
         const firebaseConfig = {
-          apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
-          authDomain: "facebook-auction-tracker.firebaseapp.com",
-          projectId: "facebook-auction-tracker",
-          storageBucket: "facebook-auction-tracker.firebasestorage.app",
-          messagingSenderId: "936018615344",
-          appId: "1:936018615344:web:91a29634684467ba5121f5",
-          measurementId: "G-7J35PYN94P"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -513,6 +521,7 @@
                 window.renderBiddersTable();
                 window.populateLiveSalePosts();
                 window.renderLiveSales();
+                window.renderOpenBox();
                 if (currentActivePostId) window.renderItemsTable();
             } catch (error) {
                 console.error("Error loading data: ", error);
@@ -576,8 +585,26 @@
         window.updateDashboardStats = function() {
             const activePostsEl = document.getElementById('dash-active-posts');
             const itemsEl = document.getElementById('dash-items');
-            if (activePostsEl) activePostsEl.innerText = (window.appState.posts || []).length;
-            if (itemsEl) itemsEl.innerText = (window.appState.items || []).length;
+            const revenueEl = document.getElementById('dash-revenue');
+            const pendingEl = document.getElementById('dash-pending');
+
+            const posts = window.appState.posts || [];
+            const items = window.appState.items || [];
+
+            if (activePostsEl) activePostsEl.innerText = posts.length;
+            
+            // Items for sale
+            const availableItems = items.filter(i => i.status !== 'Sold');
+            if (itemsEl) itemsEl.innerText = availableItems.length;
+
+            // Total revenue (Sold items)
+            const soldItems = items.filter(i => i.status === 'Sold');
+            const totalRevenue = soldItems.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0);
+            if (revenueEl) revenueEl.innerText = '$' + totalRevenue.toFixed(2);
+
+            // Pending shipment (Sold but unshipped)
+            const pendingItems = items.filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+            if (pendingEl) pendingEl.innerText = pendingItems.length;
         }
 
         // =========================================================================
@@ -779,6 +806,8 @@
                 brand: '', model: '', description: '', price: '',
                 photo: photoBase64,
                 status: 'Available',
+                paymentStatus: 'Unpaid',
+                shippingStatus: 'Unshipped',
                 createdAt: new Date().toISOString()
             };
             window.appState.items.push(newItem);
@@ -1049,6 +1078,7 @@
                 window.renderPosts();
                 window.renderBiddersTable();
                 window.updateDashboardStats();
+                window.renderOpenBox();
                 alert("Data reset complete.");
             }
         }
@@ -1067,7 +1097,6 @@
                 const opt = document.createElement('option');
                 opt.value = post.id;
                 
-                // Format the date if it exists
                 let dateStr = '';
                 if (post.startTime) {
                     dateStr = new Date(post.startTime).toLocaleDateString();
@@ -1083,24 +1112,25 @@
 
         window.renderLiveSales = function() {
             const container = document.getElementById('live-sales-container');
-            const postId = document.getElementById('live-sale-post-selector').value;
+            const postId = document.getElementById('live-sale-post-selector');
+            if (!postId) return;
+            const selectedPostId = postId.value;
             
             if(!container) return;
             container.innerHTML = '';
 
-            if (!postId) {
+            if (!selectedPostId) {
                 container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">Please select a post to begin tracking live sales.</div>`;
                 return;
             }
 
-            const postItems = (window.appState.items || []).filter(item => item.postId === postId).sort((a, b) => a.itemNumber - b.itemNumber);
+            const postItems = (window.appState.items || []).filter(item => item.postId === selectedPostId).sort((a, b) => a.itemNumber - b.itemNumber);
 
             if (postItems.length === 0) {
                 container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No items found for this post. Add items in the Posts & Items tab first.</div>`;
                 return;
             }
 
-            // Generate bidder options once for the dropdowns
             const bidders = window.appState.bidders || [];
             let bidderOptions = '<option value="">- Select Bidder -</option>';
             [...bidders].sort((a,b) => a.name.localeCompare(b.name)).forEach(b => {
@@ -1176,9 +1206,13 @@
                 item.status = 'Sold';
                 item.winnerId = bidderId;
                 item.price = parseFloat(finalPrice); 
+                item.paymentStatus = 'Unpaid';
+                item.shippingStatus = 'Unshipped';
                 await saveItemToFirestore(item);
                 window.renderLiveSales();
                 window.renderBiddersTable(); 
+                window.updateDashboardStats();
+                window.renderOpenBox();
             }
         }
 
@@ -1188,11 +1222,198 @@
                 if(confirm("Undo this sale and return item to available?")) {
                     item.status = 'Available';
                     item.winnerId = null;
+                    item.paymentStatus = 'Unpaid';
+                    item.shippingStatus = 'Unshipped';
                     await saveItemToFirestore(item);
                     window.renderLiveSales();
                     window.renderBiddersTable();
+                    window.updateDashboardStats();
+                    window.renderOpenBox();
                 }
             }
+        }
+
+        // =========================================================================
+        // 4.7 OPEN BOX LOGIC
+        // =========================================================================
+        window.renderOpenBox = function() {
+            const container = document.getElementById('open-box-container');
+            if(!container) return;
+            container.innerHTML = '';
+
+            const allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+
+            if (allSoldItems.length === 0) {
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No open boxes currently. Track sales in the Live Sales tab!</div>`;
+                return;
+            }
+
+            // Group by bidder
+            const grouped = {};
+            allSoldItems.forEach(item => {
+                if(!grouped[item.winnerId]) grouped[item.winnerId] = [];
+                grouped[item.winnerId].push(item);
+            });
+
+            const bidders = window.appState.bidders || [];
+
+            for (const [bidderId, items] of Object.entries(grouped)) {
+                const bidder = bidders.find(b => b.id === bidderId) || { name: 'Unknown Bidder', address: '' };
+                
+                const unpaidTotal = items.filter(i => i.paymentStatus !== 'Paid').reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+                const paidTotal = items.filter(i => i.paymentStatus === 'Paid').reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+
+                let itemsHTML = '';
+                items.forEach(item => {
+                    const isPaid = item.paymentStatus === 'Paid';
+                    itemsHTML += `
+                        <div class="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                            <div class="flex items-center gap-3">
+                                ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                    <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <button onclick="window.toggleItemPayment('${item.id}')" class="px-3 py-1 text-xs font-bold rounded ${isPaid ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'} transition">
+                                    ${isPaid ? '<i class="fas fa-check mr-1"></i> Paid' : 'Unpaid'}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col";
+                card.innerHTML = `
+                    <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg text-primary"><i class="fas fa-box-open mr-2"></i>${bidder.name}</h3>
+                            <p class="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500 mb-1">Total Unpaid: <span class="font-bold text-orange-500">$${unpaidTotal.toFixed(2)}</span></p>
+                            <p class="text-xs text-gray-500">Total Paid: <span class="font-bold text-green-500">$${paidTotal.toFixed(2)}</span></p>
+                        </div>
+                    </div>
+                    <div class="p-4 flex-1 overflow-y-auto max-h-72">
+                        ${itemsHTML}
+                    </div>
+                    <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-wrap gap-2 justify-between">
+                        <div class="flex gap-2">
+                            <button onclick="window.markBoxPaid('${bidderId}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">Mark All Paid</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.printPackingSlip('${bidderId}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition"><i class="fas fa-print mr-1"></i> Print Slip</button>
+                            <button onclick="window.shipBox('${bidderId}')" class="bg-primary hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-bold transition"><i class="fas fa-shipping-fast mr-1"></i> Ship Box</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        window.toggleItemPayment = async function(itemId) {
+            const item = window.appState.items.find(i => i.id === itemId);
+            if (item) {
+                item.paymentStatus = item.paymentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+                await saveItemToFirestore(item);
+                window.renderOpenBox();
+            }
+        }
+
+        window.markBoxPaid = async function(bidderId) {
+            const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped' && i.paymentStatus !== 'Paid');
+            if (items.length === 0) return;
+            
+            const savePromises = [];
+            items.forEach(item => {
+                item.paymentStatus = 'Paid';
+                savePromises.push(saveItemToFirestore(item));
+            });
+            await Promise.all(savePromises);
+            window.renderOpenBox();
+        }
+
+        window.shipBox = async function(bidderId) {
+            if(confirm("Mark all items in this box as Shipped? They will be removed from the Open Box view.")) {
+                const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+                const savePromises = [];
+                items.forEach(item => {
+                    item.shippingStatus = 'Shipped';
+                    savePromises.push(saveItemToFirestore(item));
+                });
+                await Promise.all(savePromises);
+                window.renderOpenBox();
+                window.updateDashboardStats();
+            }
+        }
+
+        window.printPackingSlip = function(bidderId) {
+            const bidder = window.appState.bidders.find(b => b.id === bidderId);
+            if (!bidder) return;
+            
+            const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+            const storeName = window.appState.settings.storeName || 'My Store';
+            
+            let rows = '';
+            let total = 0;
+            items.forEach(item => {
+                const price = parseFloat(item.price) || 0;
+                total += price;
+                rows += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 6px 0;">#${item.itemNumber}</td>
+                        <td style="padding: 6px 0;">${item.brand || ''} ${item.model || ''}</td>
+                        <td style="padding: 6px 0; text-align: right;">$${price.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Packing Slip - ${bidder.name}</title>
+                    <style>
+                        @page { size: 4in 6in; margin: 0.25in; }
+                        body { font-family: sans-serif; font-size: 12px; margin: 0; padding: 0; color: #000; }
+                        h1 { font-size: 18px; margin: 0 0 10px 0; }
+                        h2 { font-size: 14px; margin: 0 0 5px 0; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        th { text-align: left; border-bottom: 2px solid #000; padding-bottom: 5px; }
+                        .total { font-weight: bold; font-size: 14px; margin-top: 15px; text-align: right; border-top: 2px solid #000; padding-top: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${storeName}</h1>
+                    <h2>Packing Slip</h2>
+                    <div style="margin-top: 15px; margin-bottom: 15px;">
+                        <strong>Ship To:</strong><br>
+                        ${bidder.name}<br>
+                        ${(bidder.address || 'No address provided').replace(/\n/g, '<br>')}
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item #</th>
+                                <th>Description</th>
+                                <th style="text-align: right;">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                    <div class="total">Total: $${total.toFixed(2)}</div>
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
         }
 
         // =========================================================================
@@ -1214,6 +1435,9 @@
             if (tabId === 'live-sales') {
                 window.populateLiveSalePosts();
                 window.renderLiveSales();
+            }
+            if (tabId === 'open-box') {
+                window.renderOpenBox();
             }
         }
 
