@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales Tracker</title>
     
-    <!-- Tailwind CSS for Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,10 +13,8 @@
         }
     </script>
 
-    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Browser Image Compression -->
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
     <style>
@@ -32,7 +29,6 @@
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
 
-    <!-- Auth / Login Screen -->
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div class="p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg text-center max-w-md w-full">
             <h1 class="text-3xl font-bold mb-2 text-primary">Sales Tracker</h1>
@@ -43,10 +39,8 @@
         </div>
     </div>
 
-    <!-- App Layout (Sidebar + Main Content) -->
     <div id="app-layout" class="hidden flex h-screen overflow-hidden">
         
-        <!-- Sidebar -->
         <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700 font-bold text-xl text-primary">
                 <i class="fas fa-boxes-stacked mr-2"></i> Sales Tracker
@@ -87,10 +81,8 @@
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-8">
             
-            <!-- Dashboard View -->
             <div id="view-dashboard" class="view active">
                 <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -117,16 +109,13 @@
                 </div>
             </div>
 
-            <!-- Posts & Items View -->
             <div id="view-posts" class="view">
-                <!-- MAIN POSTS DASHBOARD -->
                 <div id="post-dashboard">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Posts & Events</h2>
                         <button onclick="window.togglePostForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i> New Post</button>
                     </div>
 
-                    <!-- Create/Edit Post Form -->
                     <div id="post-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                         <h3 class="font-bold text-lg mb-4" id="post-form-title">Create New Post</h3>
                         <input type="hidden" id="edit-post-id">
@@ -161,18 +150,15 @@
                         </div>
                     </div>
 
-                    <!-- Active Posts List -->
                     <div id="active-posts-container" class="space-y-4 mb-6"></div>
                 </div>
 
-                <!-- ITEM MANAGER WORKSPACE -->
                 <div id="item-manager" class="hidden">
                     <div class="flex items-center gap-4 mb-6">
                         <button onclick="window.closeItemManager()" class="text-gray-500 hover:text-primary transition text-2xl"><i class="fas fa-arrow-left"></i></button>
                         <h2 class="text-2xl font-bold" id="manager-post-title">Managing Items</h2>
                     </div>
 
-                    <!-- Add Items Controls -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
@@ -190,7 +176,6 @@
                         </div>
                     </div>
 
-                    <!-- Batch Edit Toolbar -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
                         <h3 class="font-bold text-sm mb-2 text-primary uppercase">Batch Edit Selected Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
@@ -207,7 +192,6 @@
                         </div>
                     </div>
 
-                    <!-- Items Table -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -224,21 +208,18 @@
                                 </tr>
                             </thead>
                             <tbody id="items-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                                <!-- Items render here -->
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- Bidders Directory View -->
             <div id="view-bidders" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Bidders Directory</h2>
                     <button onclick="window.toggleBidderForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-user-plus mr-2"></i> Add Bidder</button>
                 </div>
 
-                <!-- Add/Edit Bidder Form -->
                 <div id="bidder-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                     <h3 class="font-bold text-lg mb-4" id="bidder-form-title">Add New Bidder</h3>
                     <input type="hidden" id="edit-bidder-id">
@@ -262,7 +243,6 @@
                     </div>
                 </div>
 
-                <!-- Bidders List Table -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
@@ -275,12 +255,10 @@
                             </tr>
                         </thead>
                         <tbody id="bidders-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                            <!-- Bidders render here -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
 
-                <!-- Winnings Breakdown Modal (Hidden by default) -->
                 <div id="winnings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeWinningsModal()">
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
                         <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
@@ -292,22 +270,19 @@
                         </div>
                         <div class="p-6 overflow-y-auto flex-1">
                             <div id="winnings-list" class="space-y-3">
-                                <!-- Winning items render here -->
-                            </div>
+                                </div>
                         </div>
                         <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-                            <span class="font-bold text-gray-600 dark:text-gray-300">Total Due:</span>
+                            <span class="font-bold text-gray-600 dark:text-gray-300">Grand Total:</span>
                             <span class="text-2xl font-bold text-green-600 dark:text-green-400" id="winnings-total">$0.00</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Live Sales View -->
             <div id="view-live-sales" class="view">
                 <h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2>
                 
-                <!-- Post Selector -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                     <label class="block text-sm text-gray-500 mb-2">Select Active Post/Event:</label>
                     <select id="live-sale-post-selector" onchange="window.renderLiveSales()" class="w-full max-w-md p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
@@ -315,23 +290,18 @@
                     </select>
                 </div>
 
-                <!-- Live Items Grid -->
                 <div id="live-sales-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Items render here -->
-                </div>
+                    </div>
             </div>
 
-            <!-- Open Box View -->
             <div id="view-open-box" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Open Box Management</h2>
                 </div>
                 <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <!-- Boxes render here -->
-                </div>
+                    </div>
             </div>
 
-            <!-- Settings View -->
             <div id="view-settings" class="view">
                 <h2 class="text-2xl font-bold mb-6">Settings</h2>
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 max-w-2xl">
@@ -390,10 +360,8 @@
                 </div>
             </div>
 
-            <!-- Placeholders for other views -->
             <div id="view-reports" class="view"><h2 class="text-2xl font-bold mb-6">Financial Reports</h2><p class="text-gray-500">Items sold, Gross revenue, My cut, Top 3 buyers.</p></div>
 
-            <!-- Image Preview Modal (Hidden by default) -->
             <div id="image-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
                 <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center">
                     <button onclick="window.closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 text-3xl transition">
@@ -403,7 +371,6 @@
                 </div>
             </div>
 
-            <!-- Predefined Brand List for Autocomplete -->
             <datalist id="brand-list">
                 <option value="Hot Wheels"></option>
                 <option value="Matchbox"></option>
@@ -422,7 +389,6 @@
         </main>
     </div>
 
-    <!-- Firebase v10 Modular SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -665,7 +631,7 @@
             window.togglePostForm();
             await window.saveStateToFirebase();
             window.renderPosts();
-            window.populateLiveSalePosts(); // Update dropdowns
+            window.populateLiveSalePosts(); 
             window.updateDashboardStats();
         }
 
@@ -959,6 +925,7 @@
                     name: name,
                     fbUrl: fb,
                     address: address,
+                    shippingFee: 0,
                     createdAt: new Date().toISOString()
                 });
             }
@@ -1004,7 +971,9 @@
             [...bidders].reverse().forEach(bidder => {
                 const wonItems = (window.appState.items || []).filter(item => item.winnerId === bidder.id);
                 const itemsCount = wonItems.length;
-                const totalOwed = wonItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+                
+                const shippingFee = parseFloat(bidder.shippingFee) || 0;
+                const totalOwed = wonItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) + shippingFee;
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
@@ -1057,10 +1026,22 @@
                             <h4 class="font-bold text-sm">#${item.itemNumber} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">From: ${postName}</p>
                         </div>
-                        <div class="font-bold text-lg text-green-600 dark:text-green-400">$${price.toFixed(2)}</div>
+                        <div class="font-bold text-lg text-gray-700 dark:text-gray-300">$${price.toFixed(2)}</div>
                     `;
                     listContainer.appendChild(itemDiv);
                 });
+            }
+
+            const shippingFee = parseFloat(bidder.shippingFee) || 0;
+            if (shippingFee > 0) {
+                total += shippingFee;
+                const shippingDiv = document.createElement('div');
+                shippingDiv.className = "flex items-center justify-between bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800 shadow-sm mt-2";
+                shippingDiv.innerHTML = `
+                    <div class="font-bold text-sm text-indigo-800 dark:text-indigo-300"><i class="fas fa-box mr-2"></i>Shipping Fee</div>
+                    <div class="font-bold text-lg text-indigo-800 dark:text-indigo-300">$${shippingFee.toFixed(2)}</div>
+                `;
+                listContainer.appendChild(shippingDiv);
             }
 
             document.getElementById('winnings-total').innerText = `$${total.toFixed(2)}`;
@@ -1237,6 +1218,16 @@
         // =========================================================================
         // 4.7 OPEN BOX LOGIC
         // =========================================================================
+        window.updateShippingFee = async function(bidderId, fee) {
+            const bidder = window.appState.bidders.find(b => b.id === bidderId);
+            if (bidder) {
+                bidder.shippingFee = parseFloat(fee) || 0;
+                await window.saveStateToFirebase();
+                window.renderOpenBox();
+                window.renderBiddersTable(); 
+            }
+        }
+
         window.renderOpenBox = function() {
             const container = document.getElementById('open-box-container');
             if(!container) return;
@@ -1249,7 +1240,6 @@
                 return;
             }
 
-            // Group by bidder
             const grouped = {};
             allSoldItems.forEach(item => {
                 if(!grouped[item.winnerId]) grouped[item.winnerId] = [];
@@ -1263,6 +1253,10 @@
                 
                 const unpaidTotal = items.filter(i => i.paymentStatus !== 'Paid').reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
                 const paidTotal = items.filter(i => i.paymentStatus === 'Paid').reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+                
+                const itemsTotal = unpaidTotal + paidTotal;
+                const shippingFee = parseFloat(bidder.shippingFee) || 0;
+                const grandTotal = itemsTotal + shippingFee;
 
                 let itemsHTML = '';
                 items.forEach(item => {
@@ -1293,9 +1287,16 @@
                             <h3 class="font-bold text-lg text-primary"><i class="fas fa-box-open mr-2"></i>${bidder.name}</h3>
                             <p class="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
                         </div>
-                        <div class="text-right">
-                            <p class="text-xs text-gray-500 mb-1">Total Unpaid: <span class="font-bold text-orange-500">$${unpaidTotal.toFixed(2)}</span></p>
-                            <p class="text-xs text-gray-500">Total Paid: <span class="font-bold text-green-500">$${paidTotal.toFixed(2)}</span></p>
+                        <div class="text-right flex flex-col items-end">
+                            <p class="text-xs text-gray-500 mb-1">Items: <span class="font-bold text-gray-800 dark:text-gray-200">$${itemsTotal.toFixed(2)}</span></p>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs text-gray-500">Shipping:</span>
+                                <div class="relative w-20">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-1 text-xs text-gray-500">$</span>
+                                    <input type="number" step="0.01" value="${shippingFee ? shippingFee.toFixed(2) : ''}" onchange="window.updateShippingFee('${bidderId}', this.value)" class="w-full pl-4 p-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 focus:border-primary outline-none transition">
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500">Grand Total: <span class="font-bold text-green-500">$${grandTotal.toFixed(2)}</span></p>
                         </div>
                     </div>
                     <div class="p-4 flex-1 overflow-y-auto max-h-72">
@@ -1345,9 +1346,17 @@
                     item.shippingStatus = 'Shipped';
                     savePromises.push(saveItemToFirestore(item));
                 });
+                
+                const bidder = window.appState.bidders.find(b => b.id === bidderId);
+                if (bidder) {
+                    bidder.shippingFee = 0;
+                    savePromises.push(window.saveStateToFirebase()); 
+                }
+
                 await Promise.all(savePromises);
                 window.renderOpenBox();
                 window.updateDashboardStats();
+                window.renderBiddersTable();
             }
         }
 
@@ -1371,6 +1380,18 @@
                     </tr>
                 `;
             });
+
+            const shippingFee = parseFloat(bidder.shippingFee) || 0;
+            if (shippingFee > 0) {
+                total += shippingFee;
+                rows += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 6px 0;">--</td>
+                        <td style="padding: 6px 0; font-style: italic;">Shipping Fee</td>
+                        <td style="padding: 6px 0; text-align: right;">$${shippingFee.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
 
             const printWindow = window.open('', '_blank');
             printWindow.document.write(`
