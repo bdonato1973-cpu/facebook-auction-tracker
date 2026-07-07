@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales Tracker</title>
     
+    <!-- Tailwind CSS for Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -13,8 +14,10 @@
         }
     </script>
 
+    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Browser Image Compression -->
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
     <style>
@@ -29,6 +32,7 @@
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
 
+    <!-- Auth / Login Screen -->
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div class="p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg text-center max-w-md w-full">
             <h1 class="text-3xl font-bold mb-2 text-primary">Sales Tracker</h1>
@@ -39,8 +43,10 @@
         </div>
     </div>
 
+    <!-- App Layout (Sidebar + Main Content) -->
     <div id="app-layout" class="hidden flex h-screen overflow-hidden">
         
+        <!-- Sidebar -->
         <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700 font-bold text-xl text-primary">
                 <i class="fas fa-boxes-stacked mr-2"></i> Sales Tracker
@@ -81,8 +87,10 @@
             </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-8">
             
+            <!-- Dashboard View -->
             <div id="view-dashboard" class="view active">
                 <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -109,13 +117,16 @@
                 </div>
             </div>
 
+            <!-- Posts & Items View -->
             <div id="view-posts" class="view">
+                <!-- MAIN POSTS DASHBOARD -->
                 <div id="post-dashboard">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Posts & Events</h2>
                         <button onclick="window.togglePostForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i> New Post</button>
                     </div>
 
+                    <!-- Create/Edit Post Form -->
                     <div id="post-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                         <h3 class="font-bold text-lg mb-4" id="post-form-title">Create New Post</h3>
                         <input type="hidden" id="edit-post-id">
@@ -150,15 +161,18 @@
                         </div>
                     </div>
 
+                    <!-- Active Posts List -->
                     <div id="active-posts-container" class="space-y-4 mb-6"></div>
                 </div>
 
+                <!-- ITEM MANAGER WORKSPACE -->
                 <div id="item-manager" class="hidden">
                     <div class="flex items-center gap-4 mb-6">
                         <button onclick="window.closeItemManager()" class="text-gray-500 hover:text-primary transition text-2xl"><i class="fas fa-arrow-left"></i></button>
                         <h2 class="text-2xl font-bold" id="manager-post-title">Managing Items</h2>
                     </div>
 
+                    <!-- Add Items Controls -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
@@ -176,6 +190,7 @@
                         </div>
                     </div>
 
+                    <!-- Batch Edit Toolbar -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
                         <h3 class="font-bold text-sm mb-2 text-primary uppercase">Batch Edit Selected Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
@@ -192,6 +207,7 @@
                         </div>
                     </div>
 
+                    <!-- Items Table -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -208,18 +224,21 @@
                                 </tr>
                             </thead>
                             <tbody id="items-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                                </tbody>
+                                <!-- Items render here -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
+            <!-- Bidders Directory View -->
             <div id="view-bidders" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Bidders Directory</h2>
                     <button onclick="window.toggleBidderForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-user-plus mr-2"></i> Add Bidder</button>
                 </div>
 
+                <!-- Add/Edit Bidder Form -->
                 <div id="bidder-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                     <h3 class="font-bold text-lg mb-4" id="bidder-form-title">Add New Bidder</h3>
                     <input type="hidden" id="edit-bidder-id">
@@ -243,6 +262,7 @@
                     </div>
                 </div>
 
+                <!-- Bidders List Table -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
@@ -255,10 +275,12 @@
                             </tr>
                         </thead>
                         <tbody id="bidders-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                            </tbody>
+                            <!-- Bidders render here -->
+                        </tbody>
                     </table>
                 </div>
 
+                <!-- Winnings Breakdown Modal (Hidden by default) -->
                 <div id="winnings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeWinningsModal()">
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
                         <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
@@ -270,7 +292,8 @@
                         </div>
                         <div class="p-6 overflow-y-auto flex-1">
                             <div id="winnings-list" class="space-y-3">
-                                </div>
+                                <!-- Winning items render here -->
+                            </div>
                         </div>
                         <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
                             <span class="font-bold text-gray-600 dark:text-gray-300">Total Due:</span>
@@ -280,6 +303,25 @@
                 </div>
             </div>
 
+            <!-- Live Sales View -->
+            <div id="view-live-sales" class="view">
+                <h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2>
+                
+                <!-- Post Selector -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+                    <label class="block text-sm text-gray-500 mb-2">Select Active Post/Event:</label>
+                    <select id="live-sale-post-selector" onchange="window.renderLiveSales()" class="w-full max-w-md p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                        <option value="">-- Select a Post --</option>
+                    </select>
+                </div>
+
+                <!-- Live Items Grid -->
+                <div id="live-sales-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Items render here -->
+                </div>
+            </div>
+
+            <!-- Settings View -->
             <div id="view-settings" class="view">
                 <h2 class="text-2xl font-bold mb-6">Settings</h2>
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 max-w-2xl">
@@ -338,10 +380,11 @@
                 </div>
             </div>
 
-            <div id="view-live-sales" class="view"><h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2><p class="text-gray-500">Real-time status of winning bids.</p></div>
+            <!-- Placeholders for other views -->
             <div id="view-open-box" class="view"><h2 class="text-2xl font-bold mb-6">Open Box</h2><p class="text-gray-500">Items paid for but pending shipment.</p></div>
             <div id="view-reports" class="view"><h2 class="text-2xl font-bold mb-6">Financial Reports</h2><p class="text-gray-500">Items sold, Gross revenue, My cut, Top 3 buyers.</p></div>
 
+            <!-- Image Preview Modal (Hidden by default) -->
             <div id="image-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
                 <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center">
                     <button onclick="window.closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 text-3xl transition">
@@ -351,6 +394,7 @@
                 </div>
             </div>
 
+            <!-- Predefined Brand List for Autocomplete -->
             <datalist id="brand-list">
                 <option value="Hot Wheels"></option>
                 <option value="Matchbox"></option>
@@ -369,6 +413,7 @@
         </main>
     </div>
 
+    <!-- Firebase v10 Modular SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -378,13 +423,12 @@
         // 1. FIREBASE CONFIGURATION (Replace with your actual keys)
         // =========================================================================
         const firebaseConfig = {
-          apiKey: "AIzaSyCtNDbpP1AfsqZPBkMeBbP-U_Y2owRc4Js",
-          authDomain: "facebook-auction-tracker.firebaseapp.com",
-          projectId: "facebook-auction-tracker",
-          storageBucket: "facebook-auction-tracker.firebasestorage.app",
-          messagingSenderId: "936018615344",
-          appId: "1:936018615344:web:91a29634684467ba5121f5",
-          measurementId: "G-7J35PYN94P"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -466,6 +510,8 @@
                 window.updateDashboardStats();
                 window.renderPosts();
                 window.renderBiddersTable();
+                window.populateLiveSalePosts();
+                window.renderLiveSales();
                 if (currentActivePostId) window.renderItemsTable();
             } catch (error) {
                 console.error("Error loading data: ", error);
@@ -590,6 +636,7 @@
             window.togglePostForm();
             await window.saveStateToFirebase();
             window.renderPosts();
+            window.populateLiveSalePosts(); // Update dropdowns
             window.updateDashboardStats();
         }
 
@@ -1006,6 +1053,148 @@
         }
 
         // =========================================================================
+        // 4.6 LIVE SALES LOGIC
+        // =========================================================================
+        window.populateLiveSalePosts = function() {
+            const selector = document.getElementById('live-sale-post-selector');
+            if(!selector) return;
+            const currentVal = selector.value;
+            selector.innerHTML = '<option value="">-- Select a Post --</option>';
+            
+            const reversedPosts = [...(window.appState.posts || [])].reverse();
+            reversedPosts.forEach(post => {
+                const opt = document.createElement('option');
+                opt.value = post.id;
+                
+                // Format the date if it exists
+                let dateStr = '';
+                if (post.startTime) {
+                    dateStr = new Date(post.startTime).toLocaleDateString();
+                } else if (post.date) {
+                    dateStr = post.date;
+                }
+                
+                opt.innerText = `${post.name}${dateStr ? ` (${dateStr})` : ''}`;
+                selector.appendChild(opt);
+            });
+            selector.value = currentVal; 
+        }
+
+        window.renderLiveSales = function() {
+            const container = document.getElementById('live-sales-container');
+            const postId = document.getElementById('live-sale-post-selector').value;
+            
+            if(!container) return;
+            container.innerHTML = '';
+
+            if (!postId) {
+                container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">Please select a post to begin tracking live sales.</div>`;
+                return;
+            }
+
+            const postItems = (window.appState.items || []).filter(item => item.postId === postId).sort((a, b) => a.itemNumber - b.itemNumber);
+
+            if (postItems.length === 0) {
+                container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No items found for this post. Add items in the Posts & Items tab first.</div>`;
+                return;
+            }
+
+            // Generate bidder options once for the dropdowns
+            const bidders = window.appState.bidders || [];
+            let bidderOptions = '<option value="">- Select Bidder -</option>';
+            [...bidders].sort((a,b) => a.name.localeCompare(b.name)).forEach(b => {
+                bidderOptions += `<option value="${b.id}">${b.name}</option>`;
+            });
+
+            postItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                const isSold = item.status === 'Sold';
+                
+                let actionHTML = '';
+                if (isSold) {
+                    const winner = bidders.find(b => b.id === item.winnerId);
+                    const winnerName = winner ? winner.name : 'Unknown Bidder';
+                    itemDiv.className = "bg-green-50 dark:bg-green-900/20 rounded-xl shadow-sm border-2 border-green-500 dark:border-green-600 p-4 flex flex-col transition";
+                    actionHTML = `
+                        <div class="mt-auto pt-4 border-t border-green-200 dark:border-green-800">
+                            <p class="text-sm font-bold text-green-700 dark:text-green-400 mb-2"><i class="fas fa-check-circle mr-1"></i> Sold to ${winnerName}</p>
+                            <button onclick="window.undoItemSold('${item.id}')" class="text-xs text-red-500 hover:text-red-700 font-bold transition"><i class="fas fa-undo mr-1"></i> Undo Sale</button>
+                        </div>
+                    `;
+                } else {
+                    itemDiv.className = "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col transition hover:shadow-md";
+                    actionHTML = `
+                        <div class="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                            <select id="live-bidder-${item.id}" class="w-full p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                                ${bidderOptions}
+                            </select>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-gray-500">$</span>
+                                    <input type="number" id="live-price-${item.id}" value="${item.price || ''}" step="0.50" class="w-full pl-6 p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                                </div>
+                                <button onclick="window.markItemSold('${item.id}')" class="bg-primary hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm font-bold transition whitespace-nowrap shadow-sm">
+                                    Mark Sold
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                itemDiv.innerHTML = `
+                    <div class="flex gap-3 mb-3">
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200 dark:border-gray-600"><i class="fas fa-image text-xl"></i></div>`}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-primary truncate">#${item.itemNumber}</h4>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">${item.type || 'Auction'}</span>
+                            </div>
+                            <p class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate mt-0.5" title="${item.brand} ${item.model}">${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="${item.description}">${item.description || 'No description'}</p>
+                        </div>
+                    </div>
+                    <div class="text-sm mb-3">
+                        <span class="text-gray-500">Current/Start:</span> 
+                        <span class="font-bold ${isSold ? 'text-green-600 dark:text-green-400' : 'text-gray-800 dark:text-gray-200'}">$${(parseFloat(item.price)||0).toFixed(2)}</span>
+                    </div>
+                    ${actionHTML}
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        window.markItemSold = async function(itemId) {
+            const bidderId = document.getElementById(`live-bidder-${itemId}`).value;
+            const finalPrice = document.getElementById(`live-price-${itemId}`).value;
+
+            if (!bidderId) return alert("Please select a winning bidder.");
+            if (finalPrice === '') return alert("Please enter a final sold price.");
+
+            const item = window.appState.items.find(i => i.id === itemId);
+            if (item) {
+                item.status = 'Sold';
+                item.winnerId = bidderId;
+                item.price = parseFloat(finalPrice); 
+                await saveItemToFirestore(item);
+                window.renderLiveSales();
+                window.renderBiddersTable(); 
+            }
+        }
+
+        window.undoItemSold = async function(itemId) {
+            const item = window.appState.items.find(i => i.id === itemId);
+            if (item) {
+                if(confirm("Undo this sale and return item to available?")) {
+                    item.status = 'Available';
+                    item.winnerId = null;
+                    await saveItemToFirestore(item);
+                    window.renderLiveSales();
+                    window.renderBiddersTable();
+                }
+            }
+        }
+
+        // =========================================================================
         // 5. GLOBAL APP UTILITIES (Navigation, Themes & Modals)
         // =========================================================================
         window.switchTab = function(tabId) {
@@ -1021,6 +1210,10 @@
             }
 
             if (tabId === 'settings') populateSettingsUI();
+            if (tabId === 'live-sales') {
+                window.populateLiveSalePosts();
+                window.renderLiveSales();
+            }
         }
 
         window.toggleTheme = function() {
