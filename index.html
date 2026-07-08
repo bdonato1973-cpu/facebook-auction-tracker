@@ -55,8 +55,11 @@
                 <a href="#dashboard" onclick="window.switchTab('dashboard')" class="nav-link block px-4 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-primary font-medium transition">
                     <i class="fas fa-chart-pie w-6"></i> Dashboard
                 </a>
+                <a href="#inventory" onclick="window.switchTab('inventory')" class="nav-link block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                    <i class="fas fa-warehouse w-6"></i> Master Inventory
+                </a>
                 <a href="#posts" onclick="window.switchTab('posts')" class="nav-link block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    <i class="fas fa-bullhorn w-6"></i> Posts & Items
+                    <i class="fas fa-bullhorn w-6"></i> Posts & Events
                 </a>
                 <a href="#bidders" onclick="window.switchTab('bidders')" class="nav-link block px-4 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                     <i class="fas fa-users w-6"></i> Bidders
@@ -99,7 +102,7 @@
                         <p class="text-3xl font-bold mt-1" id="dash-active-posts">0</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <p class="text-gray-500 dark:text-gray-400 text-sm">Items for Sale</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">Available Items</p>
                         <p class="text-3xl font-bold mt-1" id="dash-items">0</p>
                     </div>
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
@@ -111,9 +114,61 @@
                         <p class="text-3xl font-bold mt-1 text-orange-500" id="dash-pending">0</p>
                     </div>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <h3 class="font-bold text-lg mb-4">Recent Items</h3>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm">No items added yet.</p>
+            </div>
+
+            <!-- Master Inventory View -->
+            <div id="view-inventory" class="view">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Master Inventory</h2>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+                    <div class="flex flex-wrap gap-4 items-center justify-between">
+                        <div class="flex gap-4">
+                            <button onclick="window.addSingleItem('inventory')" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                                <i class="fas fa-plus mr-2"></i> Add Blank Item
+                            </button>
+                            <div>
+                                <input type="file" id="inventory-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event, 'inventory')">
+                                <button onclick="document.getElementById('inventory-image-upload').click()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
+                                    <i class="fas fa-images mr-2"></i> Upload Photo Batch
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-500" id="inventory-compression-status">Images auto-compress on upload.</p>
+                    </div>
+                </div>
+
+                <!-- Assignment Toolbar -->
+                <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
+                    <h3 class="font-bold text-sm mb-2 text-primary uppercase">Assign Selected Items to Post</h3>
+                    <div class="flex flex-wrap gap-2 items-end">
+                        <select id="inventory-assign-post" class="flex-1 p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                            <option value="">- Select Target Post -</option>
+                        </select>
+                        <button onclick="window.assignInventoryToPost()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold transition">Assign Items</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            <tr>
+                                <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)"></th>
+                                <th class="p-3 w-16">Photo</th>
+                                <th class="p-3 w-24">Status</th>
+                                <th class="p-3">Brand</th>
+                                <th class="p-3">Model</th>
+                                <th class="p-3">Description</th>
+                                <th class="p-3 w-20">Qty</th>
+                                <th class="p-3 w-28">Price</th>
+                                <th class="p-3 w-16">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventory-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- Inventory items render here -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -176,17 +231,17 @@
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
-                                <button onclick="window.addSingleItem()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                                <button onclick="window.addSingleItem(currentActivePostId)" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
                                     <i class="fas fa-plus mr-2"></i> Add Blank Item
                                 </button>
                                 <div>
-                                    <input type="file" id="image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event)">
-                                    <button onclick="document.getElementById('image-upload').click()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
+                                    <input type="file" id="post-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event, currentActivePostId)">
+                                    <button onclick="document.getElementById('post-image-upload').click()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
                                         <i class="fas fa-images mr-2"></i> Upload Photo Batch
                                     </button>
                                 </div>
                             </div>
-                            <p class="text-sm text-gray-500" id="compression-status">Images auto-compress on upload.</p>
+                            <p class="text-sm text-gray-500" id="post-compression-status">Images auto-compress on upload.</p>
                         </div>
                     </div>
 
@@ -209,14 +264,14 @@
 
                     <!-- Batch Move Toolbar -->
                     <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800 p-4 mb-6">
-                        <h3 class="font-bold text-sm mb-2 text-orange-600 dark:text-orange-400 uppercase">Move Selected Items to Another Post</h3>
+                        <h3 class="font-bold text-sm mb-2 text-orange-600 dark:text-orange-400 uppercase">Move Selected Unsold Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
                             <select id="batch-move-post" class="flex-1 p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition">
-                                <option value="">- Select Target Post -</option>
+                                <option value="">- Select Target Post or Inventory -</option>
+                                <!-- Populated dynamically -->
                             </select>
                             <button onclick="window.moveSelectedItems()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 font-bold transition">Move Items</button>
                         </div>
-                        <p class="text-xs text-orange-600 dark:text-orange-400 mt-2 italic">* Only available (unsold) items can be moved.</p>
                     </div>
 
                     <!-- Items Table -->
@@ -224,13 +279,14 @@
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 <tr>
-                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-items" onchange="window.toggleSelectAll()"></th>
+                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)"></th>
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-16">Photo</th>
                                     <th class="p-3 w-28">Type</th>
                                     <th class="p-3">Brand</th>
                                     <th class="p-3">Model</th>
                                     <th class="p-3">Description</th>
+                                    <th class="p-3 w-20">Qty</th>
                                     <th class="p-3 w-28">Bid / Price</th>
                                     <th class="p-3 w-16">Actions</th>
                                 </tr>
@@ -535,6 +591,7 @@
                 window.populateLiveSalePosts();
                 window.renderLiveSales();
                 window.renderOpenBox();
+                window.renderInventoryTable();
                 if (currentActivePostId) window.renderItemsTable();
             } catch (error) {
                 console.error("Error loading data: ", error);
@@ -606,7 +663,7 @@
 
             if (activePostsEl) activePostsEl.innerText = posts.length;
             
-            // Items for sale
+            // Available items
             const availableItems = items.filter(i => i.status !== 'Sold');
             if (itemsEl) itemsEl.innerText = availableItems.length;
 
@@ -640,7 +697,7 @@
             document.getElementById('post-url').value = '';
             document.getElementById('post-start').value = '';
             document.getElementById('post-end').value = '';
-            document.getElementById('post-type').value = 'Auction'; // Default
+            document.getElementById('post-type').value = 'Auction'; 
         }
 
         window.savePost = async function() {
@@ -677,7 +734,7 @@
             window.togglePostForm();
             await window.saveStateToFirebase();
             window.renderPosts();
-            window.populateLiveSalePosts(); 
+            window.populatePostSelectors(); 
             window.updateDashboardStats();
         }
 
@@ -747,20 +804,7 @@
             document.getElementById('item-manager').classList.remove('hidden');
             document.getElementById('manager-post-title').innerText = `Inventory: ${post.name}`;
             
-            // Populate Move Dropdown
-            const moveSelect = document.getElementById('batch-move-post');
-            if (moveSelect) {
-                moveSelect.innerHTML = '<option value="">- Select Target Post -</option>';
-                window.appState.posts.forEach(p => {
-                    if (p.id !== postId) {
-                        const opt = document.createElement('option');
-                        opt.value = p.id;
-                        opt.innerText = p.name;
-                        moveSelect.appendChild(opt);
-                    }
-                });
-            }
-            
+            window.populatePostSelectors();
             window.renderItemsTable();
         }
 
@@ -771,17 +815,95 @@
             window.renderPosts();
         }
 
+        // --- NEW: Global Function to populate all post dropdowns ---
+        window.populatePostSelectors = function() {
+            window.populateLiveSalePosts();
+            
+            // Populate the "Move Selected" dropdown in Post Manager
+            const moveSelect = document.getElementById('batch-move-post');
+            if (moveSelect) {
+                moveSelect.innerHTML = '<option value="">- Select Target Post or Inventory -</option>';
+                const invOpt = document.createElement('option');
+                invOpt.value = 'inventory';
+                invOpt.innerText = '📦 Master Inventory';
+                moveSelect.appendChild(invOpt);
+                
+                window.appState.posts.forEach(p => {
+                    if (p.id !== currentActivePostId) {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.innerText = p.name;
+                        moveSelect.appendChild(opt);
+                    }
+                });
+            }
+
+            // Populate the "Assign" dropdown in Master Inventory
+            const assignSelect = document.getElementById('inventory-assign-post');
+            if (assignSelect) {
+                assignSelect.innerHTML = '<option value="">- Select Target Post -</option>';
+                window.appState.posts.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.innerText = p.name;
+                    assignSelect.appendChild(opt);
+                });
+            }
+        }
+
+        // --- MASTER INVENTORY RENDERING ---
+        window.renderInventoryTable = function() {
+            const tbody = document.getElementById('inventory-table-body');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            document.getElementById('select-all-inventory').checked = false;
+
+            const invItems = (window.appState.items || []).filter(item => item.postId === 'inventory');
+
+            if (invItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items currently stored in Master Inventory.</td></tr>`;
+                return;
+            }
+
+            invItems.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-100 dark:hover:bg-gray-700 transition group";
+                
+                const isSold = item.status === 'Sold';
+
+                tr.innerHTML = `
+                    <td class="p-3"><input type="checkbox" class="inventory-checkbox w-4 h-4" value="${item.id}"></td>
+                    <td class="p-3">
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 text-xs font-bold rounded ${isSold ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${item.status}</span>
+                    </td>
+                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="number" placeholder="Price" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-3">
+                        <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- POST ITEMS RENDERING ---
         window.renderItemsTable = function() {
             const tbody = document.getElementById('items-table-body');
             if(!tbody) return;
             tbody.innerHTML = '';
-            document.getElementById('select-all-items').checked = false;
+            document.getElementById('select-all-post-items').checked = false;
 
             const postItems = (window.appState.items || []).filter(item => item.postId === currentActivePostId)
                                 .sort((a, b) => a.itemNumber - b.itemNumber);
 
             if (postItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items added to this post yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items added to this post yet.</td></tr>`;
                 return;
             }
 
@@ -790,23 +912,25 @@
                 tr.className = "hover:bg-gray-100 dark:hover:bg-gray-700 transition group";
                 
                 const pricePlaceholder = item.type === 'Sale' ? 'Price' : 'Start Bid';
+                const isSold = item.status === 'Sold';
 
                 tr.innerHTML = `
-                    <td class="p-3"><input type="checkbox" class="item-checkbox w-4 h-4" value="${item.id}"></td>
+                    <td class="p-3"><input type="checkbox" class="post-item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary">#${item.itemNumber}</td>
                     <td class="p-3">
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Auction" ${item.type === 'Auction' ? 'selected' : ''}>Auction</option>
                             <option value="Sale" ${item.type === 'Sale' ? 'selected' : ''}>Sale</option>
                         </select>
                     </td>
-                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
@@ -821,20 +945,16 @@
             return Math.max(...postItems.map(item => item.itemNumber || 0)) + 1;
         }
 
-        function getNextItemNumber() {
-            return getNextItemNumberForPost(currentActivePostId);
-        }
-
-        async function addSingleItemInternal(photoBase64 = null) {
-            const parentPost = window.appState.posts.find(p => p.id === currentActivePostId);
-            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Auction';
+        async function addSingleItemInternal(photoBase64 = null, targetPostId = currentActivePostId) {
+            const parentPost = window.appState.posts.find(p => p.id === targetPostId);
+            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
 
             const newItem = {
                 id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-                postId: currentActivePostId,
-                itemNumber: getNextItemNumber(),
+                postId: targetPostId,
+                itemNumber: targetPostId === 'inventory' ? null : getNextItemNumberForPost(targetPostId),
                 type: inheritedType,
-                brand: '', model: '', description: '', price: '',
+                brand: '', model: '', description: '', price: '', quantity: 1,
                 photo: photoBase64,
                 status: 'Available',
                 paymentStatus: 'Unpaid',
@@ -845,9 +965,10 @@
             await saveItemToFirestore(newItem); 
         }
 
-        window.addSingleItem = async function() {
-            await addSingleItemInternal();
-            window.renderItemsTable();
+        window.addSingleItem = async function(targetPostId) {
+            await addSingleItemInternal(null, targetPostId);
+            if (targetPostId === 'inventory') window.renderInventoryTable();
+            else window.renderItemsTable();
             window.updateDashboardStats();
         }
 
@@ -855,6 +976,7 @@
             const item = window.appState.items.find(i => i.id === itemId);
             if (item) {
                 if (field === 'price') value = parseFloat(value) || 0;
+                if (field === 'quantity') value = parseInt(value, 10) || 1;
                 item[field] = value;
                 await saveItemToFirestore(item); 
             }
@@ -862,20 +984,23 @@
 
         window.deleteItem = async function(itemId) {
             if(confirm("Delete this item permanently?")) {
+                const item = window.appState.items.find(i => i.id === itemId);
                 window.appState.items = window.appState.items.filter(i => i.id !== itemId);
                 await deleteItemFromFirestore(itemId);
-                window.renderItemsTable();
+                
+                if (item && item.postId === 'inventory') window.renderInventoryTable();
+                else window.renderItemsTable();
+                
                 window.updateDashboardStats();
             }
         }
 
-        window.toggleSelectAll = function() {
-            const isChecked = document.getElementById('select-all-items').checked;
-            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = isChecked);
+        window.toggleSelectAll = function(checkboxClass, isChecked) {
+            document.querySelectorAll(checkboxClass).forEach(cb => cb.checked = isChecked);
         }
 
         window.applyBatchEdits = async function() {
-            const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+            const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
 
             const bType = document.getElementById('batch-type').value;
@@ -889,7 +1014,7 @@
 
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
-                if (item) {
+                if (item && item.status !== 'Sold') {
                     if (bType) item.type = bType;
                     if (bBrand) item.brand = bBrand;
                     if (bModel) item.model = bModel;
@@ -910,16 +1035,16 @@
                 document.getElementById('batch-desc').value = '';
                 document.getElementById('batch-price').value = '';
                 
-                alert(`Successfully updated ${checkboxes.length} items!`);
+                alert(`Successfully updated unsold selected items!`);
             }
         }
 
         window.moveSelectedItems = async function() {
-            const checkboxes = document.querySelectorAll('.item-checkbox:checked');
+            const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
 
             const targetPostId = document.getElementById('batch-move-post').value;
-            if (!targetPostId) return alert("Please select a target post.");
+            if (!targetPostId) return alert("Please select a target post or inventory.");
             if (targetPostId === currentActivePostId) return alert("Items are already in this post.");
 
             let changesMade = false;
@@ -938,8 +1063,51 @@
                 return alert("No available (unsold) items selected. Sold items cannot be moved.");
             }
             
-            // Maintain order
             selectedItems.sort((a,b) => a.itemNumber - b.itemNumber);
+
+            let nextNum = targetPostId === 'inventory' ? null : getNextItemNumberForPost(targetPostId);
+
+            selectedItems.forEach(item => {
+                item.postId = targetPostId;
+                if (targetPostId === 'inventory') {
+                    item.itemNumber = null;
+                } else {
+                    item.itemNumber = nextNum;
+                    nextNum++;
+                }
+                changesMade = true;
+                savePromises.push(saveItemToFirestore(item));
+            });
+
+            if (changesMade) {
+                await Promise.all(savePromises);
+                window.renderItemsTable();
+                window.renderInventoryTable();
+                window.updateDashboardStats();
+                document.getElementById('batch-move-post').value = '';
+                alert(`Successfully moved ${selectedItems.length} items!`);
+            }
+        }
+
+        window.assignInventoryToPost = async function() {
+            const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
+            if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
+
+            const targetPostId = document.getElementById('inventory-assign-post').value;
+            if (!targetPostId) return alert("Please select a target post.");
+
+            let changesMade = false;
+            const savePromises = [];
+
+            const selectedItems = [];
+            checkboxes.forEach(cb => {
+                const item = window.appState.items.find(i => i.id === cb.value);
+                if (item && item.status !== 'Sold') {
+                    selectedItems.push(item);
+                }
+            });
+
+            if (selectedItems.length === 0) return alert("No available items selected.");
 
             let nextNum = getNextItemNumberForPost(targetPostId);
 
@@ -953,18 +1121,20 @@
 
             if (changesMade) {
                 await Promise.all(savePromises);
-                window.renderItemsTable();
+                window.renderInventoryTable();
+                window.renderPosts();
                 window.updateDashboardStats();
-                document.getElementById('batch-move-post').value = '';
-                alert(`Successfully moved ${selectedItems.length} items to the selected post!`);
+                document.getElementById('inventory-assign-post').value = '';
+                alert(`Successfully assigned ${selectedItems.length} items to post!`);
             }
         }
 
-        window.handleImageUpload = async function(event) {
-            if (!currentActivePostId) return;
+        window.handleImageUpload = async function(event, targetPostId) {
+            if (!targetPostId) return;
 
             const files = event.target.files;
-            const statusText = document.getElementById('compression-status');
+            const statusElId = targetPostId === 'inventory' ? 'inventory-compression-status' : 'post-compression-status';
+            const statusText = document.getElementById(statusElId);
             
             if (files.length === 0) return;
             statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> Processing ${files.length} images... Please wait.`;
@@ -981,15 +1151,17 @@
                         reader.onerror = error => reject(error);
                     });
                     
-                    await addSingleItemInternal(base64data);
+                    await addSingleItemInternal(base64data, targetPostId);
                 } catch (error) {
                     console.error("Compression error on file " + i, error);
                 }
             }
             
-            window.renderItemsTable(); 
+            if (targetPostId === 'inventory') window.renderInventoryTable();
+            else window.renderItemsTable();
+            
             window.updateDashboardStats();
-            document.getElementById('image-upload').value = '';
+            event.target.value = '';
             
             statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
             setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
@@ -1126,14 +1298,14 @@
                     total += price;
 
                     const parentPost = window.appState.posts.find(p => p.id === item.postId);
-                    const postName = parentPost ? parentPost.name : 'Unknown Post';
+                    const postName = parentPost ? parentPost.name : 'Master Inventory';
 
                     const itemDiv = document.createElement('div');
                     itemDiv.className = "flex items-center gap-4 bg-white dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm";
                     itemDiv.innerHTML = `
                         ${item.photo ? `<img src="${item.photo}" class="w-12 h-12 object-cover rounded border border-gray-200">` : `<div class="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                         <div class="flex-1">
-                            <h4 class="font-bold text-sm">#${item.itemNumber} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
+                            <h4 class="font-bold text-sm">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">From: ${postName}</p>
                         </div>
                         <div class="font-bold text-lg text-gray-700 dark:text-gray-300">$${price.toFixed(2)}</div>
@@ -1171,6 +1343,7 @@
                 window.renderBiddersTable();
                 window.updateDashboardStats();
                 window.renderOpenBox();
+                window.populatePostSelectors();
                 alert("Data reset complete.");
             }
         }
@@ -1305,6 +1478,7 @@
                 window.renderBiddersTable(); 
                 window.updateDashboardStats();
                 window.renderOpenBox();
+                window.renderInventoryTable();
             }
         }
 
@@ -1321,6 +1495,7 @@
                     window.renderBiddersTable();
                     window.updateDashboardStats();
                     window.renderOpenBox();
+                    window.renderInventoryTable();
                 }
             }
         }
@@ -1376,7 +1551,7 @@
                             <div class="flex items-center gap-3">
                                 ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
                                 <div>
-                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
                                     <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
                                 </div>
                             </div>
@@ -1484,7 +1659,7 @@
                 total += price;
                 rows += `
                     <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 6px 0;">#${item.itemNumber}</td>
+                        <td style="padding: 6px 0;">#${item.itemNumber || '-'}</td>
                         <td style="padding: 6px 0;">${item.brand || ''} ${item.model || ''}</td>
                         <td style="padding: 6px 0; text-align: right;">$${price.toFixed(2)}</td>
                     </tr>
@@ -1570,6 +1745,10 @@
             }
             if (tabId === 'open-box') {
                 window.renderOpenBox();
+            }
+            if (tabId === 'inventory') {
+                window.populatePostSelectors();
+                window.renderInventoryTable();
             }
         }
 
