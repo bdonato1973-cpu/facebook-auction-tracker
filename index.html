@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales Tracker</title>
     
+    <!-- Tailwind CSS for Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -13,8 +14,10 @@
         }
     </script>
 
+    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Browser Image Compression -->
     <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 
     <style>
@@ -29,6 +32,7 @@
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
 
+    <!-- Auth / Login Screen -->
     <div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div class="p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg text-center max-w-md w-full">
             <h1 class="text-3xl font-bold mb-2 text-primary">Sales Tracker</h1>
@@ -39,13 +43,16 @@
         </div>
     </div>
 
+    <!-- App Layout (Sidebar + Main Content) -->
     <div id="app-layout" class="hidden flex h-screen overflow-hidden">
         
+        <!-- Sidebar -->
         <aside class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <div class="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-700 font-bold text-xl text-primary">
                 <i class="fas fa-boxes-stacked mr-2"></i> Sales Tracker
             </div>
             
+            <!-- GLOBAL SEARCH BAR -->
             <div class="p-4 border-b border-gray-200 dark:border-gray-700">
                 <div class="relative">
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
@@ -92,8 +99,10 @@
             </div>
         </aside>
 
+        <!-- Main Content -->
         <main class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-8">
             
+            <!-- Dashboard View -->
             <div id="view-dashboard" class="view active">
                 <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -116,6 +125,7 @@
                 </div>
             </div>
 
+            <!-- Search Results View -->
             <div id="view-search" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Search Results</h2>
@@ -134,11 +144,13 @@
                             </tr>
                         </thead>
                         <tbody id="search-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                            </tbody>
+                            <!-- Search results render here -->
+                        </tbody>
                     </table>
                 </div>
             </div>
 
+            <!-- Master Inventory View -->
             <div id="view-inventory" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Master Inventory</h2>
@@ -161,6 +173,18 @@
                     </div>
                 </div>
 
+                <!-- Inventory Filter Toolbar -->
+                <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
+                    <h3 class="font-bold text-sm mb-2 text-gray-600 dark:text-gray-400"><i class="fas fa-filter mr-2"></i>Filter Inventory</h3>
+                    <div class="flex flex-wrap gap-2 items-end">
+                        <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px] focus:border-primary outline-none transition">
+                        <input type="text" id="filter-inv-model" placeholder="Model (contains)" oninput="window.renderInventoryTable()" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px] focus:border-primary outline-none transition">
+                        <input type="text" id="filter-inv-desc" placeholder="Description (contains)" oninput="window.renderInventoryTable()" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[200px] focus:border-primary outline-none transition">
+                        <button onclick="window.clearInventoryFilters()" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded font-bold transition">Clear</button>
+                    </div>
+                </div>
+
+                <!-- Assignment Toolbar -->
                 <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
                     <h3 class="font-bold text-sm mb-2 text-primary uppercase">Assign Selected Items to Post</h3>
                     <div class="flex flex-wrap gap-2 items-end">
@@ -187,18 +211,22 @@
                             </tr>
                         </thead>
                         <tbody id="inventory-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                            </tbody>
+                            <!-- Inventory items render here -->
+                        </tbody>
                     </table>
                 </div>
             </div>
 
+            <!-- Posts & Items View -->
             <div id="view-posts" class="view">
+                <!-- MAIN POSTS DASHBOARD -->
                 <div id="post-dashboard">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold">Posts & Events</h2>
                         <button onclick="window.togglePostForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i> New Post</button>
                     </div>
 
+                    <!-- Create/Edit Post Form -->
                     <div id="post-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                         <h3 class="font-bold text-lg mb-4" id="post-form-title">Create New Post</h3>
                         <input type="hidden" id="edit-post-id">
@@ -233,15 +261,18 @@
                         </div>
                     </div>
 
+                    <!-- Active Posts List -->
                     <div id="active-posts-container" class="space-y-4 mb-6"></div>
                 </div>
 
+                <!-- ITEM MANAGER WORKSPACE -->
                 <div id="item-manager" class="hidden">
                     <div class="flex items-center gap-4 mb-6">
                         <button onclick="window.closeItemManager()" class="text-gray-500 hover:text-primary transition text-2xl"><i class="fas fa-arrow-left"></i></button>
                         <h2 class="text-2xl font-bold" id="manager-post-title">Managing Items</h2>
                     </div>
 
+                    <!-- Add Items Controls -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
@@ -259,6 +290,18 @@
                         </div>
                     </div>
 
+                    <!-- Post Items Filter Toolbar -->
+                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-4">
+                        <h3 class="font-bold text-sm mb-2 text-gray-600 dark:text-gray-400"><i class="fas fa-filter mr-2"></i>Filter Items</h3>
+                        <div class="flex flex-wrap gap-2 items-end">
+                            <input type="text" id="filter-post-brand" placeholder="Brand" oninput="window.renderItemsTable()" list="brand-list" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px] focus:border-primary outline-none transition">
+                            <input type="text" id="filter-post-model" placeholder="Model (contains)" oninput="window.renderItemsTable()" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px] focus:border-primary outline-none transition">
+                            <input type="text" id="filter-post-desc" placeholder="Description (contains)" oninput="window.renderItemsTable()" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[200px] focus:border-primary outline-none transition">
+                            <button onclick="window.clearPostFilters()" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded font-bold transition">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Batch Edit Toolbar -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-4">
                         <h3 class="font-bold text-sm mb-2 text-primary uppercase">Batch Edit Selected Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
@@ -275,16 +318,19 @@
                         </div>
                     </div>
 
+                    <!-- Batch Move Toolbar -->
                     <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-800 p-4 mb-6">
                         <h3 class="font-bold text-sm mb-2 text-orange-600 dark:text-orange-400 uppercase">Move Selected Unsold Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
                             <select id="batch-move-post" class="flex-1 p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition">
                                 <option value="">- Select Target Post or Inventory -</option>
-                                </select>
+                                <!-- Populated dynamically -->
+                            </select>
                             <button onclick="window.moveSelectedItems()" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 font-bold transition">Move Items</button>
                         </div>
                     </div>
 
+                    <!-- Items Table -->
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
@@ -302,18 +348,21 @@
                                 </tr>
                             </thead>
                             <tbody id="items-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                                </tbody>
+                                <!-- Items render here -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
+            <!-- Bidders Directory View -->
             <div id="view-bidders" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Bidders Directory</h2>
                     <button onclick="window.toggleBidderForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-user-plus mr-2"></i> Add Bidder</button>
                 </div>
 
+                <!-- Add/Edit Bidder Form -->
                 <div id="bidder-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                     <h3 class="font-bold text-lg mb-4" id="bidder-form-title">Add New Bidder</h3>
                     <input type="hidden" id="edit-bidder-id">
@@ -337,6 +386,7 @@
                     </div>
                 </div>
 
+                <!-- Bidders List Table -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden overflow-x-auto">
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
@@ -349,10 +399,12 @@
                             </tr>
                         </thead>
                         <tbody id="bidders-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
-                            </tbody>
+                            <!-- Bidders render here -->
+                        </tbody>
                     </table>
                 </div>
 
+                <!-- Winnings Breakdown Modal -->
                 <div id="winnings-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeWinningsModal()">
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
                         <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
@@ -364,7 +416,8 @@
                         </div>
                         <div class="p-6 overflow-y-auto flex-1">
                             <div id="winnings-list" class="space-y-3">
-                                </div>
+                                <!-- Winning items render here -->
+                            </div>
                         </div>
                         <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
                             <div>
@@ -379,9 +432,11 @@
                 </div>
             </div>
 
+            <!-- Live Sales View -->
             <div id="view-live-sales" class="view">
                 <h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2>
                 
+                <!-- Post Selector -->
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                     <label class="block text-sm text-gray-500 mb-2">Select Active Post/Event:</label>
                     <select id="live-sale-post-selector" onchange="window.renderLiveSales()" class="w-full max-w-md p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
@@ -389,18 +444,23 @@
                     </select>
                 </div>
 
+                <!-- Live Items Grid -->
                 <div id="live-sales-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    </div>
+                    <!-- Items render here -->
+                </div>
             </div>
 
+            <!-- Open Box View -->
             <div id="view-open-box" class="view">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Open Box Management</h2>
                 </div>
                 <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    </div>
+                    <!-- Boxes render here -->
+                </div>
             </div>
 
+            <!-- Settings View -->
             <div id="view-settings" class="view">
                 <h2 class="text-2xl font-bold mb-6">Settings</h2>
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 max-w-2xl">
@@ -459,8 +519,10 @@
                 </div>
             </div>
 
+            <!-- Placeholders for other views -->
             <div id="view-reports" class="view"><h2 class="text-2xl font-bold mb-6">Financial Reports</h2><p class="text-gray-500">Items sold, Gross revenue, My cut, Top 3 buyers.</p></div>
 
+            <!-- Image Preview Modal -->
             <div id="image-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeImageModal()">
                 <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center">
                     <button onclick="window.closeImageModal()" class="absolute -top-10 right-0 text-white hover:text-gray-300 text-3xl transition">
@@ -470,6 +532,7 @@
                 </div>
             </div>
 
+            <!-- Invoice Modal -->
             <div id="invoice-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeInvoiceModal()">
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden" onclick="event.stopPropagation()">
                     <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
@@ -488,6 +551,7 @@
                 </div>
             </div>
 
+            <!-- Predefined Brand List for Autocomplete -->
             <datalist id="brand-list">
                 <option value="Hot Wheels"></option>
                 <option value="Matchbox"></option>
@@ -506,6 +570,7 @@
         </main>
     </div>
 
+    <!-- Firebase v10 Modular SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -678,16 +743,13 @@
 
             if (activePostsEl) activePostsEl.innerText = posts.length;
             
-            // Available items
             const availableItems = items.filter(i => i.status !== 'Sold');
             if (itemsEl) itemsEl.innerText = availableItems.length;
 
-            // Total revenue (Sold items)
             const soldItems = items.filter(i => i.status === 'Sold');
             const totalRevenue = soldItems.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0);
             if (revenueEl) revenueEl.innerText = '$' + totalRevenue.toFixed(2);
 
-            // Pending shipment (Sold but unshipped)
             const pendingItems = items.filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
             if (pendingEl) pendingEl.innerText = pendingItems.length;
         }
@@ -736,7 +798,6 @@
                     actionBtn = `<button onclick="window.openItemManager('${item.postId}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold transition shadow-sm">View in Post</button>`;
                 }
                 
-                // If it's sold and unshipped, also offer Open Box link
                 if (item.status === 'Sold' && item.shippingStatus !== 'Shipped') {
                     locationName += ' <span class="mx-2 text-gray-300">|</span> <i class="fas fa-box-open text-orange-400 mr-1"></i> Open Box';
                     actionBtn += ` <button onclick="window.switchTab('open-box')" class="bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 px-3 py-1.5 rounded text-xs font-bold ml-2 transition shadow-sm">Go to Open Box</button>`;
@@ -884,7 +945,8 @@
         }
 
         window.openItemManager = function(postId) {
-            window.switchTab('posts'); // Make sure we are in the correct tab framework
+            window.switchTab('posts'); 
+            window.clearPostFilters();
             currentActivePostId = postId;
             const post = window.appState.posts.find(p => p.id === postId);
             
@@ -906,7 +968,6 @@
         window.populatePostSelectors = function() {
             window.populateLiveSalePosts();
             
-            // Populate the "Move Selected" dropdown in Post Manager
             const moveSelect = document.getElementById('batch-move-post');
             if (moveSelect) {
                 moveSelect.innerHTML = '<option value="">- Select Target Post or Inventory -</option>';
@@ -925,7 +986,6 @@
                 });
             }
 
-            // Populate the "Assign" dropdown in Master Inventory
             const assignSelect = document.getElementById('inventory-assign-post');
             if (assignSelect) {
                 assignSelect.innerHTML = '<option value="">- Select Target Post -</option>';
@@ -938,17 +998,33 @@
             }
         }
 
-        // --- MASTER INVENTORY RENDERING ---
+        // --- MASTER INVENTORY RENDERING & FILTERS ---
+        window.clearInventoryFilters = function() {
+            if(document.getElementById('filter-inv-brand')) document.getElementById('filter-inv-brand').value = '';
+            if(document.getElementById('filter-inv-model')) document.getElementById('filter-inv-model').value = '';
+            if(document.getElementById('filter-inv-desc')) document.getElementById('filter-inv-desc').value = '';
+            window.renderInventoryTable();
+        }
+
         window.renderInventoryTable = function() {
             const tbody = document.getElementById('inventory-table-body');
             if(!tbody) return;
             tbody.innerHTML = '';
             document.getElementById('select-all-inventory').checked = false;
 
-            const invItems = (window.appState.items || []).filter(item => item.postId === 'inventory');
+            let invItems = (window.appState.items || []).filter(item => item.postId === 'inventory');
+
+            // Apply Filters
+            const fBrand = (document.getElementById('filter-inv-brand')?.value || '').toLowerCase().trim();
+            const fModel = (document.getElementById('filter-inv-model')?.value || '').toLowerCase().trim();
+            const fDesc = (document.getElementById('filter-inv-desc')?.value || '').toLowerCase().trim();
+
+            if (fBrand) invItems = invItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
+            if (fModel) invItems = invItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
+            if (fDesc) invItems = invItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
 
             if (invItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items currently stored in Master Inventory.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
                 return;
             }
 
@@ -979,18 +1055,34 @@
             });
         }
 
-        // --- POST ITEMS RENDERING ---
+        // --- POST ITEMS RENDERING & FILTERS ---
+        window.clearPostFilters = function() {
+            if(document.getElementById('filter-post-brand')) document.getElementById('filter-post-brand').value = '';
+            if(document.getElementById('filter-post-model')) document.getElementById('filter-post-model').value = '';
+            if(document.getElementById('filter-post-desc')) document.getElementById('filter-post-desc').value = '';
+            window.renderItemsTable();
+        }
+
         window.renderItemsTable = function() {
             const tbody = document.getElementById('items-table-body');
             if(!tbody) return;
             tbody.innerHTML = '';
             document.getElementById('select-all-post-items').checked = false;
 
-            const postItems = (window.appState.items || []).filter(item => item.postId === currentActivePostId)
+            let postItems = (window.appState.items || []).filter(item => item.postId === currentActivePostId)
                                 .sort((a, b) => a.itemNumber - b.itemNumber);
 
+            // Apply Filters
+            const fBrand = (document.getElementById('filter-post-brand')?.value || '').toLowerCase().trim();
+            const fModel = (document.getElementById('filter-post-model')?.value || '').toLowerCase().trim();
+            const fDesc = (document.getElementById('filter-post-desc')?.value || '').toLowerCase().trim();
+
+            if (fBrand) postItems = postItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
+            if (fModel) postItems = postItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
+            if (fDesc) postItems = postItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
+
             if (postItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items added to this post yet.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
                 return;
             }
 
@@ -1088,7 +1180,7 @@
 
         window.applyBatchEdits = async function() {
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
-            if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
+            if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
             const bType = document.getElementById('batch-type').value;
             const bBrand = document.getElementById('batch-brand').value.trim();
@@ -1128,7 +1220,7 @@
 
         window.moveSelectedItems = async function() {
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
-            if (checkboxes.length === 0) return alert("Select at least one item using the checkboxes.");
+            if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
             const targetPostId = document.getElementById('batch-move-post').value;
             if (!targetPostId) return alert("Please select a target post or inventory.");
