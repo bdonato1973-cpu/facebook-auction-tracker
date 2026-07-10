@@ -186,12 +186,17 @@
 
                 <!-- Assignment Toolbar -->
                 <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-6">
-                    <h3 class="font-bold text-sm mb-2 text-primary uppercase">Assign Selected Items to Post</h3>
+                    <h3 class="font-bold text-sm mb-2 text-primary uppercase">Assign/Edit Selected Items</h3>
                     <div class="flex flex-wrap gap-2 items-end">
+                        <select id="inventory-batch-profile" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-32 outline-none transition">
+                            <option value="">- Profile -</option>
+                            <option value="Standard">100% Seller</option>
+                            <option value="Consignment">50/50 Consign</option>
+                        </select>
                         <select id="inventory-assign-post" class="flex-1 p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
                             <option value="">- Select Target Post -</option>
                         </select>
-                        <button onclick="window.assignInventoryToPost()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold transition">Assign Items</button>
+                        <button onclick="window.assignInventoryToPost()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold transition">Update / Assign</button>
                     </div>
                 </div>
 
@@ -202,6 +207,7 @@
                                 <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)"></th>
                                 <th class="p-3 w-16">Photo</th>
                                 <th class="p-3 w-24">Status</th>
+                                <th class="p-3 w-32">Profile</th>
                                 <th class="p-3">Brand</th>
                                 <th class="p-3">Model</th>
                                 <th class="p-3">Description</th>
@@ -230,12 +236,12 @@
                     <div id="post-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
                         <h3 class="font-bold text-lg mb-4" id="post-form-title">Create New Post</h3>
                         <input type="hidden" id="edit-post-id">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                             <div class="lg:col-span-2">
                                 <label class="block text-sm text-gray-500 mb-1">Post/Event Name</label>
                                 <input type="text" id="post-name" placeholder="e.g., Summer Auction" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
                             </div>
-                            <div class="lg:col-span-2">
+                            <div>
                                 <label class="block text-sm text-gray-500 mb-1">Facebook Post URL</label>
                                 <input type="url" id="post-url" placeholder="https://facebook.com/..." class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
                             </div>
@@ -254,7 +260,14 @@
                                     <option value="Sale">Sale</option>
                                 </select>
                             </div>
-                            <div class="flex gap-2">
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">Profit Profile</label>
+                                <select id="post-profit-profile" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="Standard">100% Seller</option>
+                                    <option value="Consignment">50/50 Consignment</option>
+                                </select>
+                            </div>
+                            <div class="lg:col-span-2 flex gap-2">
                                 <button onclick="window.savePost()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save</button>
                                 <button onclick="window.togglePostForm()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 w-full font-bold transition">Cancel</button>
                             </div>
@@ -305,15 +318,20 @@
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 p-4 mb-4">
                         <h3 class="font-bold text-sm mb-2 text-primary uppercase">Batch Edit Selected Items</h3>
                         <div class="flex flex-wrap gap-2 items-end">
-                            <select id="batch-type" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28">
+                            <select id="batch-type" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
                                 <option value="">- Type -</option>
                                 <option value="Auction">Auction</option>
                                 <option value="Sale">Sale</option>
                             </select>
+                            <select id="batch-profit-profile" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition">
+                                <option value="">- Profile -</option>
+                                <option value="Standard">100% Seller</option>
+                                <option value="Consignment">50/50 Consign</option>
+                            </select>
                             <input type="text" id="batch-brand" list="brand-list" placeholder="Brand" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px]">
                             <input type="text" id="batch-model" placeholder="Model" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[120px]">
-                            <input type="text" id="batch-desc" placeholder="Description" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[200px]">
-                            <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28">
+                            <input type="text" id="batch-desc" placeholder="Description" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[150px]">
+                            <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24">
                             <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 font-bold transition">Apply</button>
                         </div>
                     </div>
@@ -339,6 +357,7 @@
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-16">Photo</th>
                                     <th class="p-3 w-28">Type</th>
+                                    <th class="p-3 w-32">Profile</th>
                                     <th class="p-3">Brand</th>
                                     <th class="p-3">Model</th>
                                     <th class="p-3">Description</th>
@@ -846,6 +865,7 @@
             document.getElementById('post-start').value = '';
             document.getElementById('post-end').value = '';
             document.getElementById('post-type').value = 'Auction'; 
+            document.getElementById('post-profit-profile').value = 'Standard'; 
         }
 
         window.savePost = async function() {
@@ -855,6 +875,7 @@
             const start = document.getElementById('post-start').value;
             const end = document.getElementById('post-end').value;
             const type = document.getElementById('post-type').value;
+            const profile = document.getElementById('post-profit-profile').value;
 
             if (!name) return alert("Please provide a Post Name.");
 
@@ -866,6 +887,7 @@
                     post.startTime = start;
                     post.endTime = end;
                     post.type = type;
+                    post.profitProfile = profile;
                 }
             } else {
                 window.appState.posts.push({
@@ -875,6 +897,7 @@
                     startTime: start,
                     endTime: end,
                     type: type,
+                    profitProfile: profile,
                     createdAt: new Date().toISOString()
                 });
             }
@@ -896,6 +919,7 @@
             document.getElementById('post-start').value = post.startTime || '';
             document.getElementById('post-end').value = post.endTime || '';
             document.getElementById('post-type').value = post.type || 'Auction';
+            document.getElementById('post-profit-profile').value = post.profitProfile || 'Standard';
             
             window.togglePostForm(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -928,6 +952,8 @@
                             <i class="fas fa-cubes mr-1"></i> ${itemCount} Items
                             <span class="mx-2">|</span>
                             Type: ${post.type || 'Auction'}
+                            <span class="mx-2">|</span>
+                            Profile: ${post.profitProfile === 'Consignment' ? '50/50' : '100% Seller'}
                         </p>
                         ${post.fbUrl ? `<a href="${post.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> View FB Post</a>` : ''}
                     </div>
@@ -1014,7 +1040,6 @@
 
             let invItems = (window.appState.items || []).filter(item => item.postId === 'inventory');
 
-            // Apply Filters
             const fBrand = (document.getElementById('filter-inv-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-inv-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-inv-desc')?.value || '').toLowerCase().trim();
@@ -1024,7 +1049,7 @@
             if (fDesc) invItems = invItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
 
             if (invItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
                 return;
             }
 
@@ -1041,6 +1066,12 @@
                     </td>
                     <td class="p-3">
                         <span class="px-2 py-1 text-xs font-bold rounded ${isSold ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${item.status}</span>
+                    </td>
+                    <td class="p-2">
+                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
+                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Seller</option>
+                            <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
+                        </select>
                     </td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
@@ -1072,7 +1103,6 @@
             let postItems = (window.appState.items || []).filter(item => item.postId === currentActivePostId)
                                 .sort((a, b) => a.itemNumber - b.itemNumber);
 
-            // Apply Filters
             const fBrand = (document.getElementById('filter-post-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-post-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-post-desc')?.value || '').toLowerCase().trim();
@@ -1082,7 +1112,7 @@
             if (fDesc) postItems = postItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
 
             if (postItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
                 return;
             }
 
@@ -1103,6 +1133,12 @@
                         <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Auction" ${item.type === 'Auction' ? 'selected' : ''}>Auction</option>
                             <option value="Sale" ${item.type === 'Sale' ? 'selected' : ''}>Sale</option>
+                        </select>
+                    </td>
+                    <td class="p-2">
+                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
+                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Seller</option>
+                            <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
                         </select>
                     </td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
@@ -1127,12 +1163,14 @@
         async function addSingleItemInternal(photoBase64 = null, targetPostId = currentActivePostId) {
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
             const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
+            const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
 
             const newItem = {
                 id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
                 postId: targetPostId,
                 itemNumber: targetPostId === 'inventory' ? null : getNextItemNumberForPost(targetPostId),
                 type: inheritedType,
+                profitProfile: inheritedProfile,
                 brand: '', model: '', description: '', price: '', quantity: 1,
                 photo: photoBase64,
                 status: 'Available',
@@ -1183,6 +1221,7 @@
             if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
             const bType = document.getElementById('batch-type').value;
+            const bProfile = document.getElementById('batch-profit-profile').value;
             const bBrand = document.getElementById('batch-brand').value.trim();
             const bModel = document.getElementById('batch-model').value.trim();
             const bDesc = document.getElementById('batch-desc').value.trim();
@@ -1195,6 +1234,7 @@
                 const item = window.appState.items.find(i => i.id === cb.value);
                 if (item && item.status !== 'Sold') {
                     if (bType) item.type = bType;
+                    if (bProfile) item.profitProfile = bProfile;
                     if (bBrand) item.brand = bBrand;
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
@@ -1209,6 +1249,7 @@
                 window.renderItemsTable();
                 
                 document.getElementById('batch-type').value = '';
+                document.getElementById('batch-profit-profile').value = '';
                 document.getElementById('batch-brand').value = '';
                 document.getElementById('batch-model').value = '';
                 document.getElementById('batch-desc').value = '';
@@ -1272,8 +1313,8 @@
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
             const targetPostId = document.getElementById('inventory-assign-post').value;
-            if (!targetPostId) return alert("Please select a target post.");
-
+            const bProfile = document.getElementById('inventory-batch-profile').value;
+            
             let changesMade = false;
             const savePromises = [];
 
@@ -1287,15 +1328,25 @@
 
             if (selectedItems.length === 0) return alert("No available items selected.");
 
-            let nextNum = getNextItemNumberForPost(targetPostId);
-
-            selectedItems.forEach(item => {
-                item.postId = targetPostId;
-                item.itemNumber = nextNum;
-                nextNum++;
-                changesMade = true;
-                savePromises.push(saveItemToFirestore(item));
-            });
+            if (targetPostId) {
+                let nextNum = getNextItemNumberForPost(targetPostId);
+                selectedItems.forEach(item => {
+                    item.postId = targetPostId;
+                    item.itemNumber = nextNum;
+                    if (bProfile) item.profitProfile = bProfile;
+                    nextNum++;
+                    changesMade = true;
+                    savePromises.push(saveItemToFirestore(item));
+                });
+            } else if (bProfile) {
+                selectedItems.forEach(item => {
+                    item.profitProfile = bProfile;
+                    changesMade = true;
+                    savePromises.push(saveItemToFirestore(item));
+                });
+            } else {
+                return alert("Please select a target post or a profile to apply.");
+            }
 
             if (changesMade) {
                 await Promise.all(savePromises);
@@ -1303,7 +1354,8 @@
                 window.renderPosts();
                 window.updateDashboardStats();
                 document.getElementById('inventory-assign-post').value = '';
-                alert(`Successfully assigned ${selectedItems.length} items to post!`);
+                document.getElementById('inventory-batch-profile').value = '';
+                alert(`Successfully updated/assigned ${selectedItems.length} items!`);
             }
         }
 
