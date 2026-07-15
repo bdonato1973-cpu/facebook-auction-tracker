@@ -290,7 +290,7 @@
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
-                               <button onclick="window.addSingleItem()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                                <button onclick="window.addSingleItem()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
                                     <i class="fas fa-plus mr-2"></i> Add Blank Item
                                 </button>
                                 <div>
@@ -1073,7 +1073,7 @@
             if (fDesc) invItems = invItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
 
             if (invItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
                 return;
             }
 
@@ -1266,8 +1266,9 @@
         }
 
         window.addSingleItem = async function(targetPostId) {
-            await addSingleItemInternal(null, targetPostId);
-            if (targetPostId === 'inventory') window.renderInventoryTable();
+            const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
+            await addSingleItemInternal(null, finalTargetId);
+            if (finalTargetId === 'inventory') window.renderInventoryTable();
             else window.renderItemsTable();
             window.updateDashboardStats();
         }
@@ -1282,17 +1283,17 @@
             }
         }
 
-        window.addSingleItem = async function(targetPostId) {
-                    // Safely default to the active post if no target is provided from the HTML
-                    const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
-                    
-                    await addSingleItemInternal(null, finalTargetId);
-                    
-                    if (finalTargetId === 'inventory') window.renderInventoryTable();
-                    else window.renderItemsTable();
-                    
-                    window.updateDashboardStats();
-                }
+        window.deleteItem = async function(itemId) {
+            if(confirm("Delete this item permanently?")) {
+                const item = window.appState.items.find(i => i.id === itemId);
+                window.appState.items = window.appState.items.filter(i => i.id !== itemId);
+                await deleteItemFromFirestore(itemId);
+                
+                if (item && item.postId === 'inventory') window.renderInventoryTable();
+                else window.renderItemsTable();
+                
+                window.updateDashboardStats();
+            }
         }
 
         window.toggleSelectAll = function(checkboxClass, isChecked) {
@@ -1446,44 +1447,43 @@
         }
 
         window.handleImageUpload = async function(event, targetPostId) {
-                    // Safely default to the active post if no target is provided from the HTML
-                    const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
-                    if (!finalTargetId) return;
-        
-                    const files = event.target.files;
-                    const statusElId = finalTargetId === 'inventory' ? 'inventory-compression-status' : 'post-compression-status';
-                    const statusText = document.getElementById(statusElId);
+            const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
+            if (!finalTargetId) return;
+
+            const files = event.target.files;
+            const statusElId = finalTargetId === 'inventory' ? 'inventory-compression-status' : 'post-compression-status';
+            const statusText = document.getElementById(statusElId);
+            
+            if (files.length === 0) return;
+            statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> Processing ${files.length} images... Please wait.`;
+            
+            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+
+            for (let i = 0; i < files.length; i++) {
+                try {
+                    const compressedFile = await imageCompression(files[i], options);
+                    const base64data = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(compressedFile);
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = error => reject(error);
+                    });
                     
-                    if (files.length === 0) return;
-                    statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> Processing ${files.length} images... Please wait.`;
-                    
-                    const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
-        
-                    for (let i = 0; i < files.length; i++) {
-                        try {
-                            const compressedFile = await imageCompression(files[i], options);
-                            const base64data = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.readAsDataURL(compressedFile);
-                                reader.onloadend = () => resolve(reader.result);
-                                reader.onerror = error => reject(error);
-                            });
-                            
-                            await addSingleItemInternal(base64data, finalTargetId);
-                        } catch (error) {
-                            console.error("Compression error on file " + i, error);
-                        }
-                    }
-                    
-                    if (finalTargetId === 'inventory') window.renderInventoryTable();
-                    else window.renderItemsTable();
-                    
-                    window.updateDashboardStats();
-                    event.target.value = '';
-                    
-                    statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
-                    setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
+                    await addSingleItemInternal(base64data, finalTargetId);
+                } catch (error) {
+                    console.error("Compression error on file " + i, error);
                 }
+            }
+            
+            if (finalTargetId === 'inventory') window.renderInventoryTable();
+            else window.renderItemsTable();
+            
+            window.updateDashboardStats();
+            event.target.value = '';
+            
+            statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
+            setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
+        }
 
         // =========================================================================
         // 4.5 BIDDERS DIRECTORY LOGIC
