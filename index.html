@@ -290,11 +290,11 @@
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
                         <div class="flex flex-wrap gap-4 items-center justify-between">
                             <div class="flex gap-4">
-                                <button onclick="window.addSingleItem(currentActivePostId)" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                               <button onclick="window.addSingleItem()" class="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">
                                     <i class="fas fa-plus mr-2"></i> Add Blank Item
                                 </button>
                                 <div>
-                                    <input type="file" id="post-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event, currentActivePostId)">
+                                    <input type="file" id="post-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event)">
                                     <button onclick="document.getElementById('post-image-upload').click()" class="bg-primary text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
                                         <i class="fas fa-images mr-2"></i> Upload Photo Batch
                                     </button>
