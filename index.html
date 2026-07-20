@@ -1395,13 +1395,13 @@
             }
         }
 
-        window.assignInventoryToPost = async function() {
+window.assignInventoryToPost = async function() {
             const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
             const targetPostId = document.getElementById('inventory-assign-post').value;
-            const bProfile = document.getElementById('inventory-batch-profile').value;
-            
+            if (!targetPostId) return alert("Please select a target post.");
+
             let changesMade = false;
             const savePromises = [];
 
@@ -1415,25 +1415,22 @@
 
             if (selectedItems.length === 0) return alert("No available items selected.");
 
-            if (targetPostId) {
-                let nextNum = getNextItemNumberForPost(targetPostId);
-                selectedItems.forEach(item => {
-                    item.postId = targetPostId;
-                    item.itemNumber = nextNum;
-                    if (bProfile) item.profitProfile = bProfile;
-                    nextNum++;
-                    changesMade = true;
-                    savePromises.push(saveItemToFirestore(item));
-                });
-            } else if (bProfile) {
-                selectedItems.forEach(item => {
-                    item.profitProfile = bProfile;
-                    changesMade = true;
-                    savePromises.push(saveItemToFirestore(item));
-                });
-            } else {
-                return alert("Please select a target post or a profile to apply.");
-            }
+            let nextNum = getNextItemNumberForPost(targetPostId);
+            const parentPost = window.appState.posts.find(p => p.id === targetPostId);
+
+            selectedItems.forEach(item => {
+                item.postId = targetPostId;
+                item.itemNumber = nextNum;
+                
+                // Inherit the target post's default profit profile automatically
+                if (parentPost && parentPost.profitProfile) {
+                    item.profitProfile = parentPost.profitProfile;
+                }
+                
+                nextNum++;
+                changesMade = true;
+                savePromises.push(saveItemToFirestore(item));
+            });
 
             if (changesMade) {
                 await Promise.all(savePromises);
@@ -1441,8 +1438,7 @@
                 window.renderPosts();
                 window.updateDashboardStats();
                 document.getElementById('inventory-assign-post').value = '';
-                document.getElementById('inventory-batch-profile').value = '';
-                alert(`Successfully updated/assigned ${selectedItems.length} items!`);
+                alert(`Successfully assigned ${selectedItems.length} items to post!`);
             }
         }
 
