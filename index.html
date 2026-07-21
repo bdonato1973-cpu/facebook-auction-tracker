@@ -635,7 +635,10 @@
                         <p class="text-sm text-gray-500 mb-2">Copy this text to send to your buyer via Messenger or email:</p>
                         <textarea id="invoice-text" rows="12" class="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none resize-none text-sm font-mono"></textarea>
                     </div>
-                    <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-end">
+                    <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+                        <button id="btn-mark-sent" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded font-bold transition flex items-center shadow-sm">
+                            <i class="fas fa-check-circle mr-2"></i> Mark as Sent
+                        </button>
                         <button onclick="window.copyInvoiceText()" class="bg-primary hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold transition flex items-center shadow-sm">
                             <i class="fas fa-copy mr-2"></i> Copy to Clipboard
                         </button>
@@ -917,6 +920,43 @@
             });
         }
 
+        // =========================================================================
+        // INVOICE DATE HELPER LOGIC
+        // =========================================================================
+        function calculateInvoiceStatus(unpaidItems) {
+            const invoicedItems = unpaidItems.filter(i => i.invoiceSentAt);
+            if (invoicedItems.length === 0) return null;
+            
+            // Use the earliest invoice date if there are multiple
+            const oldestTime = Math.min(...invoicedItems.map(i => new Date(i.invoiceSentAt).getTime()));
+            const oldestDate = new Date(oldestTime);
+            const now = new Date();
+            
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const daysSince = Math.floor((now - oldestDate) / msPerDay);
+            const daysLeft = 5 - daysSince;
+
+            return { sentAt: oldestDate, daysLeft: daysLeft };
+        }
+
+        window.markInvoiceSent = async function(bidderId) {
+            const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.paymentStatus === 'Unpaid' && i.status === 'Sold');
+            if(items.length === 0) return;
+            
+            const now = new Date().toISOString();
+            const savePromises = [];
+            
+            items.forEach(item => {
+                item.invoiceSentAt = now;
+                savePromises.push(saveItemToFirestore(item));
+            });
+            
+            await Promise.all(savePromises);
+            window.renderOpenBox();
+            window.renderBiddersTable();
+            alert("Invoice marked as sent! Tracking 5-day countdown.");
+            window.closeInvoiceModal();
+        }
 
         // =========================================================================
         // 4. POSTS & INVENTORY MANAGEMENT LOGIC
@@ -1457,8 +1497,8 @@
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
             const targetPostId = document.getElementById('inventory-assign-post').value;
-            if (!targetPostId) return alert("Please select a target post.");
-
+            const bProfile = document.getElementById('inventory-batch-profile').value;
+            
             let changesMade = false;
             const savePromises = [];
 
@@ -1472,21 +1512,33 @@
 
             if (selectedItems.length === 0) return alert("No available items selected.");
 
-            let nextNum = getNextItemNumberForPost(targetPostId);
-            const parentPost = window.appState.posts.find(p => p.id === targetPostId);
-
-            selectedItems.forEach(item => {
-                item.postId = targetPostId;
-                item.itemNumber = nextNum;
+            if (targetPostId) {
+                let nextNum = getNextItemNumberForPost(targetPostId);
+                const parentPost = window.appState.posts.find(p => p.id === targetPostId);
                 
-                if (parentPost && parentPost.profitProfile) {
-                    item.profitProfile = parentPost.profitProfile;
-                }
-                
-                nextNum++;
-                changesMade = true;
-                savePromises.push(saveItemToFirestore(item));
-            });
+                selectedItems.forEach(item => {
+                    item.postId = targetPostId;
+                    item.itemNumber = nextNum;
+                    
+                    if (bProfile) {
+                        item.profitProfile = bProfile;
+                    } else if (parentPost && parentPost.profitProfile) {
+                        item.profitProfile = parentPost.profitProfile;
+                    }
+                    
+                    nextNum++;
+                    changesMade = true;
+                    savePromises.push(saveItemToFirestore(item));
+                });
+            } else if (bProfile) {
+                selectedItems.forEach(item => {
+                    item.profitProfile = bProfile;
+                    changesMade = true;
+                    savePromises.push(saveItemToFirestore(item));
+                });
+            } else {
+                return alert("Please select a target post or a profile to apply.");
+            }
 
             if (changesMade) {
                 await Promise.all(savePromises);
@@ -1494,7 +1546,8 @@
                 window.renderPosts();
                 window.updateDashboardStats();
                 document.getElementById('inventory-assign-post').value = '';
-                alert(`Successfully assigned ${selectedItems.length} items to post!`);
+                document.getElementById('inventory-batch-profile').value = '';
+                alert(`Successfully updated/assigned ${selectedItems.length} items!`);
             }
         }
 
@@ -1627,6 +1680,18 @@
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 const totalOwed = wonItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) + shippingFee;
 
+                const unpaidItems = wonItems.filter(i => i.paymentStatus !== 'Paid');
+                const invoiceStatus = calculateInvoiceStatus(unpaidItems);
+                let invoiceBadge = '';
+                
+                if (invoiceStatus) {
+                    if (invoiceStatus.daysLeft < 0) {
+                        invoiceBadge = `<div class="mt-1 text-[10px] font-bold text-red-500 uppercase"><i class="fas fa-exclamation-triangle"></i> Past Due</div>`;
+                    } else {
+                        invoiceBadge = `<div class="mt-1 text-[10px] text-blue-500"><i class="fas fa-paper-plane"></i> Sent (${invoiceStatus.daysLeft}d left)</div>`;
+                    }
+                }
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
                 tr.innerHTML = `
@@ -1636,7 +1701,10 @@
                         ${bidder.fbUrl ? `<a href="${bidder.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> FB Profile</a>` : ''}
                     </td>
                     <td class="p-4 text-center font-bold">${itemsCount}</td>
-                    <td class="p-4 text-right text-green-600 dark:text-green-400 font-bold">$${totalOwed.toFixed(2)}</td>
+                    <td class="p-4 text-right">
+                        <div class="text-green-600 dark:text-green-400 font-bold">$${totalOwed.toFixed(2)}</div>
+                        ${invoiceBadge}
+                    </td>
                     <td class="p-4 text-right">
                         <button onclick="window.openWinningsModal('${bidder.id}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold mr-2 transition">
                             <i class="fas fa-receipt mr-1"></i> Winnings
@@ -1699,6 +1767,7 @@
             document.getElementById('winnings-total').innerText = `$${total.toFixed(2)}`;
             
             document.getElementById('btn-generate-invoice').setAttribute('onclick', `window.generateInvoice('${bidderId}')`);
+            document.getElementById('btn-mark-sent').setAttribute('onclick', `window.markInvoiceSent('${bidderId}')`);
             
             document.getElementById('winnings-modal').classList.remove('hidden');
         }
@@ -1835,10 +1904,6 @@
             }
 
             const bidders = window.appState.bidders || [];
-            let bidderOptions = '<option value="">- Select Bidder -</option>';
-            [...bidders].sort((a,b) => a.name.localeCompare(b.name)).forEach(b => {
-                bidderOptions += `<option value="${b.id}">${b.name}</option>`;
-            });
 
             postItems.forEach(item => {
                 const itemDiv = document.createElement('div');
@@ -1988,6 +2053,19 @@
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 const grandTotal = itemsTotal + shippingFee;
 
+                const unpaidItems = items.filter(i => i.paymentStatus !== 'Paid');
+                const invoiceStatus = calculateInvoiceStatus(unpaidItems);
+                
+                let invoiceBadge = '';
+                if (invoiceStatus) {
+                    const sentDateStr = invoiceStatus.sentAt.toLocaleDateString();
+                    if (invoiceStatus.daysLeft < 0) {
+                        invoiceBadge = `<span class="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded text-xs font-bold uppercase animate-pulse"><i class="fas fa-exclamation-triangle mr-1"></i> Past Due</span>`;
+                    } else {
+                        invoiceBadge = `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-paper-plane mr-1"></i> Sent: ${sentDateStr} (${invoiceStatus.daysLeft}d left)</span>`;
+                    }
+                }
+
                 let itemsHTML = '';
                 items.forEach(item => {
                     const isPaid = item.paymentStatus === 'Paid';
@@ -2016,6 +2094,7 @@
                         <div>
                             <h3 class="font-bold text-lg text-primary"><i class="fas fa-box-open mr-2"></i>${bidder.name}</h3>
                             <p class="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
+                            ${invoiceBadge ? `<div class="mt-2">${invoiceBadge}</div>` : ''}
                         </div>
                         <div class="text-right flex flex-col items-end">
                             <p class="text-xs text-gray-500 mb-1">Items: <span class="font-bold text-gray-800 dark:text-gray-200">$${itemsTotal.toFixed(2)}</span></p>
