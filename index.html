@@ -485,12 +485,21 @@
             <div id="view-live-sales" class="view">
                 <h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2>
                 
-                <!-- Post Selector -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
-                    <label class="block text-sm text-gray-500 mb-2">Select Active Post/Event:</label>
-                    <select id="live-sale-post-selector" onchange="window.renderLiveSales()" class="w-full max-w-md p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
-                        <option value="">-- Select a Post --</option>
-                    </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- Post Selector -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                        <label class="block text-sm text-gray-500 mb-2">Select Active Post/Event:</label>
+                        <select id="live-sale-post-selector" onchange="window.renderLiveSales()" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                            <option value="">-- Select a Post --</option>
+                        </select>
+                    </div>
+                    <!-- Bidder Filter -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                        <label class="block text-sm text-gray-500 mb-2">Filter by Bidder (Optional):</label>
+                        <select id="live-sale-bidder-filter" onchange="window.renderLiveSales()" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                            <option value="">-- All Bidders / Available --</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Live Items Grid -->
@@ -501,8 +510,13 @@
 
             <!-- Open Box View -->
             <div id="view-open-box" class="view">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
                     <h2 class="text-2xl font-bold">Open Box Management</h2>
+                    <div class="w-full md:w-64">
+                        <select id="open-box-bidder-filter" onchange="window.renderOpenBox()" class="w-full p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                            <option value="">-- All Open Boxes --</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <!-- Boxes render here -->
@@ -797,6 +811,7 @@
 
                 populateSettingsUI();
                 window.updateDashboardStats();
+                window.populateBidderFilters();
                 window.renderPosts();
                 window.renderBiddersTable();
                 window.populateLiveSalePosts();
@@ -997,6 +1012,32 @@
         // =========================================================================
         // 4. POSTS & INVENTORY MANAGEMENT LOGIC
         // =========================================================================
+        
+        window.returnToInventory = async function(itemId) {
+            if(confirm("Return this item to the Master Inventory? This will remove it from its current post and undo any active sales.")) {
+                const item = window.appState.items.find(i => i.id === itemId);
+                if (item) {
+                    item.postId = 'inventory';
+                    item.itemNumber = null;
+                    item.status = 'Available';
+                    item.winnerId = null;
+                    item.paymentStatus = 'Unpaid';
+                    item.shippingStatus = 'Unshipped';
+                    item.invoiceSentAt = null; 
+                    
+                    await saveItemToFirestore(item);
+                    
+                    window.renderLiveSales();
+                    window.renderOpenBox();
+                    window.renderInventoryTable();
+                    window.updateDashboardStats();
+                    window.renderBiddersTable();
+                    window.renderReports();
+                    if (currentActivePostId) window.renderItemsTable();
+                }
+            }
+        }
+
         window.togglePostForm = function(isEdit = false) {
             const form = document.getElementById('post-form-section');
             if (form.classList.contains('hidden') || isEdit) {
@@ -1627,6 +1668,30 @@
         }
 
         // =========================================================================
+        // BIDDER POPULATION FOR FILTERS
+        // =========================================================================
+        window.populateBidderFilters = function() {
+            const liveFilter = document.getElementById('live-sale-bidder-filter');
+            const openBoxFilter = document.getElementById('open-box-bidder-filter');
+            
+            const liveVal = liveFilter ? liveFilter.value : '';
+            const obVal = openBoxFilter ? openBoxFilter.value : '';
+
+            let optionsLive = '<option value="">-- All Bidders / Available --</option>';
+            let optionsOb = '<option value="">-- All Open Boxes --</option>';
+            
+            const sortedBidders = [...(window.appState.bidders || [])].sort((a,b) => a.name.localeCompare(b.name));
+            
+            sortedBidders.forEach(b => {
+                optionsLive += `<option value="${b.id}">${b.name}</option>`;
+                optionsOb += `<option value="${b.id}">${b.name}</option>`;
+            });
+
+            if(liveFilter) { liveFilter.innerHTML = optionsLive; liveFilter.value = liveVal; }
+            if(openBoxFilter) { openBoxFilter.innerHTML = optionsOb; openBoxFilter.value = obVal; }
+        }
+
+        // =========================================================================
         // 4.5 BIDDERS DIRECTORY LOGIC
         // =========================================================================
         window.toggleBidderForm = function(isEdit = false) {
@@ -1673,6 +1738,7 @@
 
             window.toggleBidderForm();
             await window.saveStateToFirebase();
+            window.populateBidderFilters();
             window.renderBiddersTable();
         }
 
@@ -1693,6 +1759,7 @@
             if(confirm("Are you sure you want to delete this bidder?")) {
                 window.appState.bidders = window.appState.bidders.filter(b => b.id !== bidderId);
                 await window.saveStateToFirebase();
+                window.populateBidderFilters();
                 window.renderBiddersTable();
             }
         }
@@ -1886,6 +1953,7 @@
                 window.updateDashboardStats();
                 window.renderOpenBox();
                 window.populatePostSelectors();
+                window.populateBidderFilters();
                 window.renderReports();
                 alert("Data reset complete.");
             }
@@ -1920,22 +1988,25 @@
 
         window.renderLiveSales = function() {
             const container = document.getElementById('live-sales-container');
-            const postId = document.getElementById('live-sale-post-selector');
-            if (!postId) return;
-            const selectedPostId = postId.value;
+            const postId = document.getElementById('live-sale-post-selector')?.value;
+            const bidderFilter = document.getElementById('live-sale-bidder-filter')?.value;
             
             if(!container) return;
             container.innerHTML = '';
 
-            if (!selectedPostId) {
+            if (!postId) {
                 container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">Please select a post to begin tracking live sales.</div>`;
                 return;
             }
 
-            const postItems = (window.appState.items || []).filter(item => item.postId === selectedPostId).sort((a, b) => a.itemNumber - b.itemNumber);
+            let postItems = (window.appState.items || []).filter(item => item.postId === postId).sort((a, b) => a.itemNumber - b.itemNumber);
+
+            if (bidderFilter) {
+                postItems = postItems.filter(item => item.winnerId === bidderFilter);
+            }
 
             if (postItems.length === 0) {
-                container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No items found for this post. Add items in the Posts & Items tab first.</div>`;
+                container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No items match your filter criteria.</div>`;
                 return;
             }
 
@@ -1954,7 +2025,7 @@
                 if (isSold) {
                     const winner = bidders.find(b => b.id === item.winnerId);
                     const winnerName = winner ? winner.name : 'Unknown Bidder';
-                    itemDiv.className = "bg-green-50 dark:bg-green-900/20 rounded-xl shadow-sm border-2 border-green-500 dark:border-green-600 p-4 flex flex-col transition";
+                    itemDiv.className = "relative bg-green-50 dark:bg-green-900/20 rounded-xl shadow-sm border-2 border-green-500 dark:border-green-600 p-4 flex flex-col transition";
                     actionHTML = `
                         <div class="mt-auto pt-4 border-t border-green-200 dark:border-green-800">
                             <p class="text-sm font-bold text-green-700 dark:text-green-400 mb-2"><i class="fas fa-check-circle mr-1"></i> Sold to ${winnerName}</p>
@@ -1962,7 +2033,7 @@
                         </div>
                     `;
                 } else {
-                    itemDiv.className = "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col transition hover:shadow-md";
+                    itemDiv.className = "relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex flex-col transition hover:shadow-md";
                     actionHTML = `
                         <div class="mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
                             <select id="live-bidder-${item.id}" onchange="window.updateItemField('${item.id}', 'winnerId', this.value)" class="w-full p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
@@ -1987,7 +2058,10 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-start">
                                 <h4 class="font-bold text-primary dark:text-indigo-300 truncate">#${item.itemNumber}</h4>
-                                <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">${item.type || 'Auction'}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">${item.type || 'Auction'}</span>
+                                    <button onclick="window.returnToInventory('${item.id}')" class="text-gray-400 hover:text-orange-500 transition" title="Return to Master Inventory"><i class="fas fa-level-up-alt"></i></button>
+                                </div>
                             </div>
                             <p class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate mt-0.5" title="${item.brand} ${item.model}">${item.brand || 'Unbranded'} ${item.model || ''}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="${item.description}">${item.description || 'No description'}</p>
@@ -2035,6 +2109,7 @@
                     item.winnerId = null;
                     item.paymentStatus = 'Unpaid';
                     item.shippingStatus = 'Unshipped';
+                    item.invoiceSentAt = null;
                     await saveItemToFirestore(item);
                     window.renderLiveSales();
                     window.renderBiddersTable();
@@ -2061,13 +2136,19 @@
 
         window.renderOpenBox = function() {
             const container = document.getElementById('open-box-container');
+            const bidderFilter = document.getElementById('open-box-bidder-filter')?.value;
+            
             if(!container) return;
             container.innerHTML = '';
 
-            const allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+            let allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+
+            if (bidderFilter) {
+                allSoldItems = allSoldItems.filter(i => i.winnerId === bidderFilter);
+            }
 
             if (allSoldItems.length === 0) {
-                container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No open boxes currently. Track sales in the Live Sales tab!</div>`;
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No open boxes currently match your view.</div>`;
                 return;
             }
 
@@ -2114,7 +2195,10 @@
                                     <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
                                 </div>
                             </div>
-                            <div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="window.returnToInventory('${item.id}')" class="text-xs text-gray-400 hover:text-orange-500 transition" title="Return to Master Inventory">
+                                    <i class="fas fa-level-up-alt text-lg"></i>
+                                </button>
                                 <button onclick="window.toggleItemPayment('${item.id}')" class="px-3 py-1 text-xs font-bold rounded ${isPaid ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'} transition">
                                     ${isPaid ? '<i class="fas fa-check mr-1"></i> Paid' : 'Unpaid'}
                                 </button>
