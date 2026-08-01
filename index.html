@@ -229,7 +229,7 @@
                             <tr>
                                 <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)"></th>
                                 <th class="p-3 w-16">Photo</th>
-                                <th class="p-3 w-24">Status</th>
+                                <th class="p-3 w-28">Status</th>
                                 <th class="p-3 w-32">Profile</th>
                                 <th class="p-3 w-32">Source</th>
                                 <th class="p-3">Brand</th>
@@ -890,7 +890,7 @@
 
             if (activePostsEl) activePostsEl.innerText = posts.length;
             
-            const availableItems = items.filter(i => i.status !== 'Sold');
+            const availableItems = items.filter(i => i.status !== 'Sold' && i.status !== 'Out of Stock');
             if (itemsEl) itemsEl.innerText = availableItems.length;
 
             const soldItems = items.filter(i => i.status === 'Sold');
@@ -962,7 +962,7 @@
                         <div class="text-xs text-gray-500 truncate max-w-[250px]" title="${item.description || ''}">${item.description || 'No description'}</div>
                     </td>
                     <td class="p-3">
-                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}">${item.status}</span>
+                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (item.status === 'Out of Stock' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}">${item.status}</span>
                     </td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${locationName}</td>
                     <td class="p-3 text-right">${actionBtn}</td>
@@ -978,7 +978,6 @@
             const invoicedItems = unpaidItems.filter(i => i.invoiceSentAt);
             if (invoicedItems.length === 0) return null;
             
-            // Use the earliest invoice date if there are multiple
             const oldestTime = Math.min(...invoicedItems.map(i => new Date(i.invoiceSentAt).getTime()));
             const oldestDate = new Date(oldestTime);
             const now = new Date();
@@ -1017,15 +1016,30 @@
             if(confirm("Return this item to the Master Inventory? This will remove it from its current post and undo any active sales.")) {
                 const item = window.appState.items.find(i => i.id === itemId);
                 if (item) {
-                    item.postId = 'inventory';
-                    item.itemNumber = null;
-                    item.status = 'Available';
-                    item.winnerId = null;
-                    item.paymentStatus = 'Unpaid';
-                    item.shippingStatus = 'Unshipped';
-                    item.invoiceSentAt = null; 
-                    
-                    await saveItemToFirestore(item);
+                    const savePromises = [];
+                    const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
+
+                    if (masterItem) {
+                        masterItem.quantity = (parseInt(masterItem.quantity, 10) || 0) + (parseInt(item.quantity, 10) || 1);
+                        if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
+                            masterItem.status = 'Available';
+                        }
+                        savePromises.push(saveItemToFirestore(masterItem));
+
+                        window.appState.items = window.appState.items.filter(i => i.id !== itemId);
+                        savePromises.push(deleteItemFromFirestore(itemId));
+                    } else {
+                        item.postId = 'inventory';
+                        item.itemNumber = null;
+                        item.status = 'Available';
+                        item.winnerId = null;
+                        item.paymentStatus = 'Unpaid';
+                        item.shippingStatus = 'Unshipped';
+                        item.invoiceSentAt = null;
+                        savePromises.push(saveItemToFirestore(item));
+                    }
+
+                    await Promise.all(savePromises);
                     
                     window.renderLiveSales();
                     window.renderOpenBox();
@@ -1250,6 +1264,16 @@
                 tr.className = "hover:bg-gray-100 dark:hover:bg-gray-700 transition group";
                 
                 const isSold = item.status === 'Sold';
+                const isOutOfStock = item.status === 'Out of Stock' || (parseInt(item.quantity, 10) || 0) <= 0;
+
+                let statusBadge = '';
+                if (isSold) {
+                    statusBadge = `<span class="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Sold</span>`;
+                } else if (isOutOfStock) {
+                    statusBadge = `<span class="px-2 py-1 text-xs font-bold rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Out of Stock</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Available</span>`;
+                }
 
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="inventory-checkbox w-4 h-4" value="${item.id}"></td>
@@ -1257,7 +1281,7 @@
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                     </td>
                     <td class="p-3">
-                        <span class="px-2 py-1 text-xs font-bold rounded ${isSold ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}">${item.status}</span>
+                        ${statusBadge}
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
@@ -1274,7 +1298,7 @@
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="number" min="0" value="${item.quantity !== undefined ? item.quantity : 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="number" placeholder="Price" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
@@ -1445,9 +1469,20 @@
             const item = window.appState.items.find(i => i.id === itemId);
             if (item) {
                 if (field === 'price') value = parseFloat(value) || 0;
-                if (field === 'quantity') value = parseInt(value, 10) || 1;
+                if (field === 'quantity') {
+                    value = parseInt(value, 10);
+                    if (isNaN(value) || value < 0) value = 0;
+                    if (item.postId === 'inventory') {
+                        if (value === 0 && item.status !== 'Sold') {
+                            item.status = 'Out of Stock';
+                        } else if (value > 0 && item.status === 'Out of Stock') {
+                            item.status = 'Available';
+                        }
+                    }
+                }
                 item[field] = value;
                 await saveItemToFirestore(item); 
+                if (item.postId === 'inventory') window.renderInventoryTable();
             }
         }
 
@@ -1543,20 +1578,32 @@
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
 
             selectedItems.forEach(item => {
-                item.postId = targetPostId;
-                
-                if (parentPost && parentPost.profitProfile) {
-                    item.profitProfile = parentPost.profitProfile;
-                }
-
                 if (targetPostId === 'inventory') {
-                    item.itemNumber = null;
+                    const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
+                    if (masterItem) {
+                        masterItem.quantity = (parseInt(masterItem.quantity, 10) || 0) + (parseInt(item.quantity, 10) || 1);
+                        if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
+                            masterItem.status = 'Available';
+                        }
+                        savePromises.push(saveItemToFirestore(masterItem));
+                        window.appState.items = window.appState.items.filter(i => i.id !== item.id);
+                        savePromises.push(deleteItemFromFirestore(item.id));
+                    } else {
+                        item.postId = 'inventory';
+                        item.itemNumber = null;
+                        item.status = 'Available';
+                        savePromises.push(saveItemToFirestore(item));
+                    }
                 } else {
+                    item.postId = targetPostId;
+                    if (parentPost && parentPost.profitProfile) {
+                        item.profitProfile = parentPost.profitProfile;
+                    }
                     item.itemNumber = nextNum;
                     nextNum++;
+                    savePromises.push(saveItemToFirestore(item));
                 }
                 changesMade = true;
-                savePromises.push(saveItemToFirestore(item));
             });
 
             if (changesMade) {
@@ -1574,6 +1621,7 @@
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
             const targetPostId = document.getElementById('inventory-assign-post').value;
+            const bProfile = document.getElementById('inventory-batch-profile')?.value;
             if (!targetPostId) return alert("Please select a target post.");
 
             let changesMade = false;
@@ -1589,21 +1637,55 @@
 
             if (selectedItems.length === 0) return alert("No available items selected.");
 
+            const outOfStockSelected = selectedItems.filter(i => i.status === 'Out of Stock' || (parseInt(i.quantity, 10) || 0) <= 0);
+            if (outOfStockSelected.length > 0) {
+                if (!confirm(`${outOfStockSelected.length} of the selected item(s) are Out of Stock. Skip out-of-stock items and assign the rest?`)) {
+                    return;
+                }
+            }
+
+            const validItems = selectedItems.filter(i => i.status !== 'Out of Stock' && (parseInt(i.quantity, 10) || 0) > 0);
+            if (validItems.length === 0) return alert("No items with available stock selected.");
+
             let nextNum = getNextItemNumberForPost(targetPostId);
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
 
-            selectedItems.forEach(item => {
-                item.postId = targetPostId;
-                item.itemNumber = nextNum;
-                
-                // Inherit the target post's default profit profile automatically
-                if (parentPost && parentPost.profitProfile) {
-                    item.profitProfile = parentPost.profitProfile;
+            validItems.forEach(masterItem => {
+                let currentQty = parseInt(masterItem.quantity, 10) || 1;
+                let moveQty = 1; 
+                let remainingQty = currentQty - moveQty;
+
+                masterItem.quantity = remainingQty > 0 ? remainingQty : 0;
+                if (masterItem.quantity === 0) {
+                    masterItem.status = 'Out of Stock';
                 }
-                
+                savePromises.push(saveItemToFirestore(masterItem));
+
+                const newItem = {
+                    id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                    masterItemId: masterItem.id,
+                    postId: targetPostId,
+                    itemNumber: nextNum,
+                    type: parentPost ? (parentPost.type || 'Auction') : 'Sale',
+                    profitProfile: bProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : masterItem.profitProfile) || 'Standard',
+                    source: masterItem.source || 'Benjamin',
+                    brand: masterItem.brand || '',
+                    model: masterItem.model || '',
+                    description: masterItem.description || '',
+                    price: masterItem.price || '',
+                    quantity: moveQty,
+                    photo: masterItem.photo || null,
+                    status: 'Available',
+                    paymentStatus: 'Unpaid',
+                    shippingStatus: 'Unshipped',
+                    createdAt: new Date().toISOString()
+                };
+
+                window.appState.items.push(newItem);
+                savePromises.push(saveItemToFirestore(newItem));
+
                 nextNum++;
                 changesMade = true;
-                savePromises.push(saveItemToFirestore(item));
             });
 
             if (changesMade) {
@@ -1612,7 +1694,8 @@
                 window.renderPosts();
                 window.updateDashboardStats();
                 document.getElementById('inventory-assign-post').value = '';
-                alert(`Successfully assigned ${selectedItems.length} items to post!`);
+                if(document.getElementById('inventory-batch-profile')) document.getElementById('inventory-batch-profile').value = '';
+                alert(`Successfully assigned item(s) to post! Master inventory quantity updated.`);
             }
         }
 
@@ -1976,13 +2059,13 @@
 
         window.renderLiveSales = function() {
             const container = document.getElementById('live-sales-container');
-            const postId = document.getElementById('live-sale-post-selector')?.value;
+            const selectedPostId = document.getElementById('live-sale-post-selector')?.value;
             const bidderFilter = document.getElementById('live-sale-bidder-filter')?.value;
             
             if(!container) return;
             container.innerHTML = '';
 
-            if (!postId) {
+            if (!selectedPostId) {
                 container.innerHTML = `<div class="col-span-full p-6 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">Please select a post to begin tracking live sales.</div>`;
                 return;
             }
