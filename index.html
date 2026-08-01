@@ -136,7 +136,7 @@
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                             <tr>
                                 <th class="p-3 w-16">Item #</th>
-                                <th class="p-3 w-16">Photo</th>
+                                <th class="p-3 w-28">Photo</th>
                                 <th class="p-3">Brand / Model</th>
                                 <th class="p-3">Status</th>
                                 <th class="p-3">Location Context</th>
@@ -228,8 +228,8 @@
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                             <tr>
                                 <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)"></th>
-                                <th class="p-3 w-16">Photo</th>
-                                <th class="p-3 w-28">Status</th>
+                                <th class="p-3 w-28">Photo</th>
+                                <th class="p-3 w-24">Status</th>
                                 <th class="p-3 w-32">Profile</th>
                                 <th class="p-3 w-32">Source</th>
                                 <th class="p-3">Brand</th>
@@ -384,7 +384,7 @@
                                 <tr>
                                     <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)"></th>
                                     <th class="p-3 w-16">Item #</th>
-                                    <th class="p-3 w-16">Photo</th>
+                                    <th class="p-3 w-28">Photo</th>
                                     <th class="p-3 w-28">Type</th>
                                     <th class="p-3 w-32">Profile</th>
                                     <th class="p-3 w-32">Source</th>
@@ -954,15 +954,15 @@
                 tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber || '-'}</td>
-                    <td class="p-3">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">` : `<div class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                    <td class="p-3 text-center">
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-3">
                         <div class="font-bold text-gray-800 dark:text-gray-200">${item.brand || 'Unbranded'} ${item.model || ''}</div>
                         <div class="text-xs text-gray-500 truncate max-w-[250px]" title="${item.description || ''}">${item.description || 'No description'}</div>
                     </td>
                     <td class="p-3">
-                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (item.status === 'Out of Stock' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}">${item.status}</span>
+                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}">${item.status}</span>
                     </td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${locationName}</td>
                     <td class="p-3 text-right">${actionBtn}</td>
@@ -1277,8 +1277,8 @@
 
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="inventory-checkbox w-4 h-4" value="${item.id}"></td>
-                    <td class="p-3">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                    <td class="p-3 text-center">
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-3">
                         ${statusBadge}
@@ -1394,8 +1394,8 @@
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="post-item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber}</td>
-                    <td class="p-3">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                    <td class="p-3 text-center">
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
@@ -2125,7 +2125,7 @@
 
                 itemDiv.innerHTML = `
                     <div class="flex gap-3 mb-3">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-16 h-16 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">` : `<div class="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200 dark:border-gray-600"><i class="fas fa-image text-xl"></i></div>`}
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200 dark:border-gray-600"><i class="fas fa-image text-2xl"></i></div>`}
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-start">
                                 <h4 class="font-bold text-primary dark:text-indigo-300 truncate">#${item.itemNumber}</h4>
