@@ -965,7 +965,7 @@
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber || '-'}</td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-3">
                         <div class="font-bold text-gray-800 dark:text-gray-200">${item.brand || 'Unbranded'} ${item.model || ''}</div>
@@ -1946,25 +1946,38 @@
             if (wonItems.length === 0) {
                 listContainer.innerHTML = `<p class="text-gray-500 text-center py-8">This bidder hasn't won any items yet.</p>`;
             } else {
+                const wonByPost = {};
                 wonItems.forEach(item => {
-                    const price = parseFloat(item.price) || 0;
-                    total += price;
+                    const pId = item.postId || 'inventory';
+                    if (!wonByPost[pId]) wonByPost[pId] = [];
+                    wonByPost[pId].push(item);
+                });
 
-                    const parentPost = window.appState.posts.find(p => p.id === item.postId);
+                for (const [pId, postItems] of Object.entries(wonByPost)) {
+                    const parentPost = window.appState.posts.find(p => p.id === pId);
                     const postName = parentPost ? parentPost.name : 'Master Inventory';
 
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = "flex items-center gap-4 bg-white dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm";
-                    itemDiv.innerHTML = `
-                        ${item.photo ? `<img src="${item.photo}" class="w-12 h-12 object-cover rounded border border-gray-200">` : `<div class="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
-                        <div class="flex-1">
-                            <h4 class="font-bold text-sm">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">From: ${postName}</p>
-                        </div>
-                        <div class="font-bold text-lg text-gray-700 dark:text-gray-300">$${price.toFixed(2)}</div>
-                    `;
-                    listContainer.appendChild(itemDiv);
-                });
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = "px-3 py-1.5 mt-2 mb-1 bg-gray-100 dark:bg-gray-700 rounded text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider";
+                    headerDiv.innerText = postName;
+                    listContainer.appendChild(headerDiv);
+
+                    postItems.forEach(item => {
+                        const price = parseFloat(item.price) || 0;
+                        total += price;
+
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = "flex items-center gap-4 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-2";
+                        itemDiv.innerHTML = `
+                            ${item.photo ? `<img src="${item.photo}" class="w-12 h-12 object-cover rounded border border-gray-200">` : `<div class="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
+                            <div class="flex-1">
+                                <h4 class="font-bold text-sm">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
+                            </div>
+                            <div class="font-bold text-lg text-gray-700 dark:text-gray-300">$${price.toFixed(2)}</div>
+                        `;
+                        listContainer.appendChild(itemDiv);
+                    });
+                }
             }
 
             const shippingFee = parseFloat(bidder.shippingFee) || 0;
@@ -1997,9 +2010,10 @@
 
             const allItems = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
             const unpaidItems = allItems.filter(i => i.paymentStatus !== 'Paid');
+            const paidItems = allItems.filter(i => i.paymentStatus === 'Paid');
 
-            if (unpaidItems.length === 0) {
-                return alert("This bidder has no unpaid items to invoice.");
+            if (unpaidItems.length === 0 && paidItems.length === 0) {
+                return alert("This bidder has no active items to invoice.");
             }
 
             let unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
@@ -2007,16 +2021,43 @@
             const grandTotal = unpaidTotal + shippingFee;
 
             let invoiceText = `Hi ${bidder.name},\n\n`;
-            invoiceText += `Here is the total for your recent unpaid winnings:\n`;
-            
-            unpaidItems.forEach(item => {
-                invoiceText += `- #${item.itemNumber || '-'} ${item.brand || ''} ${item.model || ''}: $${(parseFloat(item.price)||0).toFixed(2)}\n`;
-            });
-            
-            if (shippingFee > 0) {
-                invoiceText += `- Shipping Fee: $${shippingFee.toFixed(2)}\n`;
+
+            if (unpaidItems.length > 0) {
+                invoiceText += `Here is the total for your recent unpaid winnings:\n\n`;
+
+                const unpaidByPost = {};
+                unpaidItems.forEach(item => {
+                    const pId = item.postId || 'inventory';
+                    if (!unpaidByPost[pId]) unpaidByPost[pId] = [];
+                    unpaidByPost[pId].push(item);
+                });
+
+                for (const [pId, postItems] of Object.entries(unpaidByPost)) {
+                    const parentPost = window.appState.posts.find(p => p.id === pId);
+                    const postName = parentPost ? parentPost.name : 'Master Inventory';
+                    
+                    invoiceText += `--- ${postName} ---\n`;
+                    postItems.forEach(item => {
+                        invoiceText += `- #${item.itemNumber || '-'} ${item.brand || ''} ${item.model || ''}: $${(parseFloat(item.price)||0).toFixed(2)}\n`;
+                    });
+                    invoiceText += `\n`;
+                }
+                
+                if (shippingFee > 0) {
+                    invoiceText += `Shipping Fee: $${shippingFee.toFixed(2)}\n`;
+                }
+                invoiceText += `\nTotal Due: $${grandTotal.toFixed(2)}\n\n`;
+            } else {
+                invoiceText += `Your items are currently fully paid for.\n\n`;
             }
-            invoiceText += `\nTotal Due: $${grandTotal.toFixed(2)}\n\n`;
+
+            if (paidItems.length > 0 && unpaidItems.length > 0) {
+                invoiceText += `You also have ${paidItems.length} paid item(s) waiting in your open box. Let me know if you'd like me to ship your box now, or if you'd like to pay for these new items and add them to your open box!\n\n`;
+            } else if (paidItems.length > 0 && unpaidItems.length === 0) {
+                invoiceText += `You have ${paidItems.length} item(s) waiting in your open box. Let me know when you are ready to ship!\n\n`;
+            } else if (paidItems.length === 0 && unpaidItems.length > 0) {
+                invoiceText += `Let me know if you'd like to ship now, or pay as you go and start an open box!\n\n`;
+            }
 
             const settings = window.appState.settings || {};
             if (settings.paypal || settings.venmo || settings.cashapp) {
@@ -2295,29 +2336,47 @@
                 if (bidder.stickerSent) bidderBadges += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold mr-2"><i class="fas fa-stamp mr-1"></i> Sticker Sent</span>`;
                 bidderBadges += `<span class="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="far fa-clock mr-1"></i> Unshipped: ${boxStats.daysOpen}d</span>`;
 
-                let itemsHTML = '';
+                const itemsByPost = {};
                 items.forEach(item => {
-                    const isPaid = item.paymentStatus === 'Paid';
+                    const pId = item.postId || 'inventory';
+                    if (!itemsByPost[pId]) itemsByPost[pId] = [];
+                    itemsByPost[pId].push(item);
+                });
+
+                let itemsHTML = '';
+                for (const [pId, postItems] of Object.entries(itemsByPost)) {
+                    const parentPost = window.appState.posts.find(p => p.id === pId);
+                    const postName = parentPost ? parentPost.name : 'Master Inventory';
+
                     itemsHTML += `
-                        <div class="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                            <div class="flex items-center gap-3">
-                                ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
-                                <div>
-                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
-                                    <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <button onclick="window.returnToInventory('${item.id}')" class="text-xs text-gray-400 hover:text-orange-500 transition" title="Return to Master Inventory">
-                                    <i class="fas fa-level-up-alt text-lg"></i>
-                                </button>
-                                <button onclick="window.toggleItemPayment('${item.id}')" class="px-3 py-1 text-xs font-bold rounded ${isPaid ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'} transition">
-                                    ${isPaid ? '<i class="fas fa-check mr-1"></i> Paid' : 'Unpaid'}
-                                </button>
-                            </div>
+                        <div class="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider sticky top-0 z-10 border-y border-gray-200 dark:border-gray-600 shadow-sm">
+                            ${postName}
                         </div>
                     `;
-                });
+
+                    postItems.forEach(item => {
+                        const isPaid = item.paymentStatus === 'Paid';
+                        itemsHTML += `
+                            <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700 last:border-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition">
+                                <div class="flex items-center gap-3">
+                                    ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                        <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <button onclick="window.returnToInventory('${item.id}')" class="text-xs text-gray-400 hover:text-orange-500 transition" title="Return to Master Inventory">
+                                        <i class="fas fa-level-up-alt text-lg"></i>
+                                    </button>
+                                    <button onclick="window.toggleItemPayment('${item.id}')" class="px-3 py-1 text-xs font-bold rounded ${isPaid ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'} transition">
+                                        ${isPaid ? '<i class="fas fa-check mr-1"></i> Paid' : 'Unpaid'}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
 
                 const card = document.createElement('div');
                 card.className = "bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col";
@@ -2341,12 +2400,11 @@
                             <p class="text-xs text-gray-500">Grand Total: <span class="font-bold text-green-500">$${grandTotal.toFixed(2)}</span></p>
                         </div>
                     </div>
-                    <div class="p-4 flex-1 overflow-y-auto max-h-72">
+                    <div class="flex-1 overflow-y-auto max-h-72 bg-white dark:bg-gray-800 relative">
                         ${itemsHTML}
                     </div>
                     <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-wrap gap-2 justify-between">
                         <div class="flex gap-2">
-                            <button onclick="window.generateInvoice('${bidderId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-file-invoice-dollar mr-1"></i> Invoice</button>
                             <button onclick="window.markBoxPaid('${bidderId}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">Mark All Paid</button>
                         </div>
                         <div class="flex gap-2">
