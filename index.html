@@ -1299,7 +1299,7 @@
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="inventory-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-3">
                         ${statusBadge}
@@ -2315,6 +2315,7 @@
                 const itemsTotal = unpaidTotal + paidTotal;
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 const grandTotal = itemsTotal + shippingFee;
+                const totalDue = unpaidTotal + shippingFee;
 
                 const unpaidItems = items.filter(i => i.paymentStatus !== 'Paid');
                 const invoiceStatus = calculateInvoiceStatus(unpaidItems);
@@ -2388,8 +2389,8 @@
                             <p class="text-xs text-gray-500 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
                             ${invoiceBadge ? `<div class="mt-2">${invoiceBadge}</div>` : ''}
                         </div>
-                        <div class="text-right flex flex-col items-end">
-                            <p class="text-xs text-gray-500 mb-1">Items: <span class="font-bold text-gray-800 dark:text-gray-200">$${itemsTotal.toFixed(2)}</span></p>
+                        <div class="text-right flex flex-col items-end min-w-[145px]">
+                            <p class="text-xs text-gray-500 mb-1">Items Total: <span class="font-bold text-gray-800 dark:text-gray-200">$${itemsTotal.toFixed(2)}</span></p>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="text-xs text-gray-500">Shipping:</span>
                                 <div class="relative w-20">
@@ -2397,7 +2398,10 @@
                                     <input type="number" step="0.01" value="${shippingFee ? shippingFee.toFixed(2) : ''}" onchange="window.updateShippingFee('${bidderId}', this.value)" class="w-full pl-4 p-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 focus:border-primary outline-none transition">
                                 </div>
                             </div>
-                            <p class="text-xs text-gray-500">Grand Total: <span class="font-bold text-green-500">$${grandTotal.toFixed(2)}</span></p>
+                            ${paidTotal > 0 ? `<p class="text-xs text-gray-500 mb-1">Already Paid: <span class="font-bold text-green-600 dark:text-green-400">-$${paidTotal.toFixed(2)}</span></p>` : ''}
+                            <div class="mt-1 pt-1 border-t border-gray-200 dark:border-gray-600 w-full text-right">
+                                <p class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Total Due: <span class="text-base font-bold text-green-600 dark:text-green-400 ml-1">$${totalDue.toFixed(2)}</span></p>
+                            </div>
                         </div>
                     </div>
                     <div class="flex-1 overflow-y-auto max-h-72 bg-white dark:bg-gray-800 relative">
