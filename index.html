@@ -428,6 +428,16 @@
                             <label class="block text-sm text-gray-500 mb-1">Address / Shipping Info (Optional)</label>
                             <textarea id="bidder-address" rows="2" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"></textarea>
                         </div>
+                        <div class="md:col-span-2 flex flex-wrap items-center gap-6 mt-2 mb-2">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" id="bidder-group-chat" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                                <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">In "Auction Alert" Group</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="checkbox" id="bidder-sticker" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                                <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">Company Sticker Sent</span>
+                            </label>
+                        </div>
                         <div class="md:col-span-2 flex gap-2">
                             <button onclick="window.saveBidder()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save Bidder</button>
                             <button onclick="window.toggleBidderForm()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 w-full font-bold transition">Cancel</button>
@@ -962,7 +972,7 @@
                         <div class="text-xs text-gray-500 truncate max-w-[250px]" title="${item.description || ''}">${item.description || 'No description'}</div>
                     </td>
                     <td class="p-3">
-                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}">${item.status}</span>
+                        <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (item.status === 'Out of Stock' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}">${item.status}</span>
                     </td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${locationName}</td>
                     <td class="p-3 text-right">${actionBtn}</td>
@@ -972,7 +982,7 @@
         }
 
         // =========================================================================
-        // INVOICE DATE HELPER LOGIC
+        // OPEN BOX & INVOICE DATE HELPER LOGICS
         // =========================================================================
         function calculateInvoiceStatus(unpaidItems) {
             const invoicedItems = unpaidItems.filter(i => i.invoiceSentAt);
@@ -987,6 +997,16 @@
             const daysLeft = 5 - daysSince;
 
             return { sentAt: oldestDate, daysLeft: daysLeft };
+        }
+
+        window.getOpenBoxStats = function(bidderId, items) {
+            const unshipped = items.filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+            if (unshipped.length === 0) return { hasBox: false, daysOpen: 0 };
+            
+            const latestTime = Math.max(...unshipped.map(i => new Date(i.soldAt || i.createdAt).getTime()));
+            const daysOpen = Math.floor((new Date().getTime() - latestTime) / (1000 * 60 * 60 * 24));
+            
+            return { hasBox: true, daysOpen, count: unshipped.length };
         }
 
         window.markInvoiceSent = async function(bidderId) {
@@ -1035,7 +1055,8 @@
                         item.winnerId = null;
                         item.paymentStatus = 'Unpaid';
                         item.shippingStatus = 'Unshipped';
-                        item.invoiceSentAt = null;
+                        item.invoiceSentAt = null; 
+                        item.soldAt = null;
                         savePromises.push(saveItemToFirestore(item));
                     }
 
@@ -1395,7 +1416,7 @@
                     <td class="p-3"><input type="checkbox" class="post-item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber}</td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
@@ -1776,6 +1797,8 @@
                 document.getElementById('bidder-name').value = '';
                 document.getElementById('bidder-fb').value = '';
                 document.getElementById('bidder-address').value = '';
+                document.getElementById('bidder-group-chat').checked = false;
+                document.getElementById('bidder-sticker').checked = false;
             }
         }
 
@@ -1784,6 +1807,8 @@
             const name = document.getElementById('bidder-name').value.trim();
             const fb = document.getElementById('bidder-fb').value.trim();
             const address = document.getElementById('bidder-address').value.trim();
+            const inGroup = document.getElementById('bidder-group-chat').checked;
+            const gotSticker = document.getElementById('bidder-sticker').checked;
 
             if (!name) return alert("Please provide a Bidder Name.");
 
@@ -1795,6 +1820,8 @@
                     bidder.name = name;
                     bidder.fbUrl = fb;
                     bidder.address = address;
+                    bidder.inGroupChat = inGroup;
+                    bidder.stickerSent = gotSticker;
                 }
             } else {
                 window.appState.bidders.push({
@@ -1802,6 +1829,8 @@
                     name: name,
                     fbUrl: fb,
                     address: address,
+                    inGroupChat: inGroup,
+                    stickerSent: gotSticker,
                     shippingFee: 0,
                     createdAt: new Date().toISOString()
                 });
@@ -1821,6 +1850,8 @@
             document.getElementById('bidder-name').value = bidder.name || '';
             document.getElementById('bidder-fb').value = bidder.fbUrl || '';
             document.getElementById('bidder-address').value = bidder.address || '';
+            document.getElementById('bidder-group-chat').checked = bidder.inGroupChat || false;
+            document.getElementById('bidder-sticker').checked = bidder.stickerSent || false;
             
             window.toggleBidderForm(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1866,20 +1897,30 @@
                     }
                 }
 
+                const boxStats = window.getOpenBoxStats(bidder.id, window.appState.items);
+                let badgesHTML = '<div class="mt-1 flex flex-wrap gap-1">';
+                if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
+                if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
+                if (boxStats.hasBox) badgesHTML += `<span class="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-box-open mr-1"></i> Box: ${boxStats.daysOpen}d</span>`;
+                badgesHTML += '</div>';
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
                 tr.innerHTML = `
-                    <td class="p-4 font-bold text-primary dark:text-indigo-300">${bidder.name}</td>
-                    <td class="p-4">
+                    <td class="p-4 align-top">
+                        <div class="font-bold text-primary dark:text-indigo-300">${bidder.name}</div>
+                        ${badgesHTML}
+                    </td>
+                    <td class="p-4 align-top">
                         <div class="text-xs text-gray-500 whitespace-normal min-w-[150px]">${bidder.address || '<i class="text-gray-400">No address provided</i>'}</div>
                         ${bidder.fbUrl ? `<a href="${bidder.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> FB Profile</a>` : ''}
                     </td>
-                    <td class="p-4 text-center font-bold">${itemsCount}</td>
-                    <td class="p-4 text-right">
+                    <td class="p-4 text-center font-bold align-top">${itemsCount}</td>
+                    <td class="p-4 text-right align-top">
                         <div class="text-green-600 dark:text-green-400 font-bold">$${totalOwed.toFixed(2)}</div>
                         ${invoiceBadge}
                     </td>
-                    <td class="p-4 text-right">
+                    <td class="p-4 text-right align-top">
                         <button onclick="window.openWinningsModal('${bidder.id}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold mr-2 transition">
                             <i class="fas fa-receipt mr-1"></i> Winnings
                         </button>
@@ -1956,10 +1997,9 @@
 
             const allItems = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
             const unpaidItems = allItems.filter(i => i.paymentStatus !== 'Paid');
-            const paidItems = allItems.filter(i => i.paymentStatus === 'Paid');
 
-            if (unpaidItems.length === 0 && paidItems.length === 0) {
-                return alert("This bidder has no active items to invoice.");
+            if (unpaidItems.length === 0) {
+                return alert("This bidder has no unpaid items to invoice.");
             }
 
             let unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
@@ -1967,27 +2007,16 @@
             const grandTotal = unpaidTotal + shippingFee;
 
             let invoiceText = `Hi ${bidder.name},\n\n`;
-
-            if (unpaidItems.length > 0) {
-                invoiceText += `Here is the total for your recent winnings:\n`;
-                unpaidItems.forEach(item => {
-                    invoiceText += `- #${item.itemNumber || '-'} ${item.brand || ''} ${item.model || ''}: $${(parseFloat(item.price)||0).toFixed(2)}\n`;
-                });
-                if (shippingFee > 0) {
-                    invoiceText += `- Shipping Fee: $${shippingFee.toFixed(2)}\n`;
-                }
-                invoiceText += `\nTotal Due: $${grandTotal.toFixed(2)}\n\n`;
-            } else {
-                invoiceText += `Your items are currently fully paid for.\n\n`;
+            invoiceText += `Here is the total for your recent unpaid winnings:\n`;
+            
+            unpaidItems.forEach(item => {
+                invoiceText += `- #${item.itemNumber || '-'} ${item.brand || ''} ${item.model || ''}: $${(parseFloat(item.price)||0).toFixed(2)}\n`;
+            });
+            
+            if (shippingFee > 0) {
+                invoiceText += `- Shipping Fee: $${shippingFee.toFixed(2)}\n`;
             }
-
-            if (paidItems.length > 0 && unpaidItems.length > 0) {
-                invoiceText += `You also have ${paidItems.length} paid item(s) waiting in your open box. Let me know if you'd like me to ship your box now, or if you'd like to pay for these new items and add them to your open box!\n\n`;
-            } else if (paidItems.length > 0 && unpaidItems.length === 0) {
-                invoiceText += `You have ${paidItems.length} item(s) waiting in your open box. Let me know when you are ready to ship!\n\n`;
-            } else if (paidItems.length === 0 && unpaidItems.length > 0) {
-                invoiceText += `Let me know if you'd like to ship now, or pay as you go and start an open box!\n\n`;
-            }
+            invoiceText += `\nTotal Due: $${grandTotal.toFixed(2)}\n\n`;
 
             const settings = window.appState.settings || {};
             if (settings.paypal || settings.venmo || settings.cashapp) {
@@ -1998,6 +2027,9 @@
             }
 
             document.getElementById('invoice-text').value = invoiceText;
+            
+            document.getElementById('btn-mark-sent').setAttribute('onclick', `window.markInvoiceSent('${bidderId}')`);
+            
             document.getElementById('invoice-modal').classList.remove('hidden');
         };
 
@@ -2162,6 +2194,7 @@
                 item.price = parseFloat(finalPrice); 
                 item.paymentStatus = 'Unpaid';
                 item.shippingStatus = 'Unshipped';
+                item.soldAt = new Date().toISOString(); 
                 await saveItemToFirestore(item);
                 window.renderLiveSales();
                 window.renderBiddersTable(); 
@@ -2181,6 +2214,7 @@
                     item.paymentStatus = 'Unpaid';
                     item.shippingStatus = 'Unshipped';
                     item.invoiceSentAt = null;
+                    item.soldAt = null;
                     await saveItemToFirestore(item);
                     window.renderLiveSales();
                     window.renderBiddersTable();
@@ -2254,6 +2288,13 @@
                     }
                 }
 
+                const boxStats = window.getOpenBoxStats(bidderId, window.appState.items);
+                
+                let bidderBadges = '';
+                if (bidder.inGroupChat) bidderBadges += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold mr-2"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
+                if (bidder.stickerSent) bidderBadges += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold mr-2"><i class="fas fa-stamp mr-1"></i> Sticker Sent</span>`;
+                bidderBadges += `<span class="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="far fa-clock mr-1"></i> Unshipped: ${boxStats.daysOpen}d</span>`;
+
                 let itemsHTML = '';
                 items.forEach(item => {
                     const isPaid = item.paymentStatus === 'Paid';
@@ -2283,8 +2324,9 @@
                 card.innerHTML = `
                     <div class="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-start">
                         <div>
-                            <h3 class="font-bold text-lg text-primary dark:text-indigo-300"><i class="fas fa-box-open mr-2"></i>${bidder.name}</h3>
-                            <p class="text-xs text-gray-500 mt-1 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
+                            <h3 class="font-bold text-lg text-primary dark:text-indigo-300 mb-1"><i class="fas fa-box-open mr-2"></i>${bidder.name}</h3>
+                            <div class="mb-2 flex flex-wrap gap-y-1">${bidderBadges}</div>
+                            <p class="text-xs text-gray-500 max-w-[200px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
                             ${invoiceBadge ? `<div class="mt-2">${invoiceBadge}</div>` : ''}
                         </div>
                         <div class="text-right flex flex-col items-end">
@@ -2304,6 +2346,7 @@
                     </div>
                     <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-wrap gap-2 justify-between">
                         <div class="flex gap-2">
+                            <button onclick="window.generateInvoice('${bidderId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-file-invoice-dollar mr-1"></i> Invoice</button>
                             <button onclick="window.markBoxPaid('${bidderId}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">Mark All Paid</button>
                         </div>
                         <div class="flex gap-2">
