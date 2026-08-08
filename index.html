@@ -982,7 +982,7 @@
         }
 
         // =========================================================================
-        // OPEN BOX & INVOICE DATE HELPER LOGICS
+        // INVOICE DATE HELPER LOGIC
         // =========================================================================
         function calculateInvoiceStatus(unpaidItems) {
             const invoicedItems = unpaidItems.filter(i => i.invoiceSentAt);
@@ -2405,6 +2405,7 @@
                     </div>
                     <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-wrap gap-2 justify-between">
                         <div class="flex gap-2">
+                            <button onclick="window.generateInvoice('${bidderId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-sm"><i class="fas fa-file-invoice-dollar mr-1"></i> Invoice</button>
                             <button onclick="window.markBoxPaid('${bidderId}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">Mark All Paid</button>
                         </div>
                         <div class="flex gap-2">
