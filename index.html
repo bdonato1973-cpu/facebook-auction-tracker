@@ -493,7 +493,12 @@
 
             <!-- Live Sales View -->
             <div id="view-live-sales" class="view">
-                <h2 class="text-2xl font-bold mb-6">Live Sales Tracker</h2>
+                <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                    <h2 class="text-2xl font-bold">Live Sales Tracker</h2>
+                    <button onclick="window.returnAllUnsoldToInventory()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition font-bold shadow-sm flex items-center">
+                        <i class="fas fa-level-up-alt mr-2"></i> Return Unsold to Inventory
+                    </button>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <!-- Post Selector -->
@@ -1032,6 +1037,55 @@
         // 4. POSTS & INVENTORY MANAGEMENT LOGIC
         // =========================================================================
         
+        window.returnAllUnsoldToInventory = async function() {
+            const selectedPostId = document.getElementById('live-sale-post-selector')?.value;
+            if (!selectedPostId) return alert("Please select a post first.");
+
+            let unsoldItems = (window.appState.items || []).filter(item => item.postId === selectedPostId && item.status !== 'Sold');
+
+            if (unsoldItems.length === 0) {
+                return alert("No unsold items found in this post to return.");
+            }
+
+            if(!confirm(`Return all ${unsoldItems.length} unsold items to Master Inventory?`)) return;
+
+            const savePromises = [];
+
+            unsoldItems.forEach(item => {
+                const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
+
+                if (masterItem) {
+                    masterItem.quantity = (parseInt(masterItem.quantity, 10) || 0) + (parseInt(item.quantity, 10) || 1);
+                    if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
+                        masterItem.status = 'Available';
+                    }
+                    savePromises.push(saveItemToFirestore(masterItem));
+
+                    window.appState.items = window.appState.items.filter(i => i.id !== item.id);
+                    savePromises.push(deleteItemFromFirestore(item.id));
+                } else {
+                    item.postId = 'inventory';
+                    item.itemNumber = null;
+                    item.status = 'Available';
+                    item.winnerId = null;
+                    item.paymentStatus = 'Unpaid';
+                    item.shippingStatus = 'Unshipped';
+                    item.invoiceSentAt = null; 
+                    item.soldAt = null;
+                    savePromises.push(saveItemToFirestore(item));
+                }
+            });
+
+            await Promise.all(savePromises);
+            
+            window.renderLiveSales();
+            window.renderInventoryTable();
+            window.updateDashboardStats();
+            if (currentActivePostId) window.renderItemsTable();
+            
+            alert(`Successfully returned ${unsoldItems.length} items to Master Inventory.`);
+        }
+
         window.returnToInventory = async function(itemId) {
             if(confirm("Return this item to the Master Inventory? This will remove it from its current post and undo any active sales.")) {
                 const item = window.appState.items.find(i => i.id === itemId);
