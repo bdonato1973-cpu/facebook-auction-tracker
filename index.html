@@ -28,6 +28,17 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        /* Item Highlight Animation */
+        .highlight-row { animation: highlightFlash 3s ease-out; }
+        @keyframes highlightFlash {
+            0% { background-color: #fef08a; } /* yellow-200 */
+            100% { background-color: transparent; }
+        }
+        .dark .highlight-row { animation: highlightFlashDark 3s ease-out; }
+        @keyframes highlightFlashDark {
+            0% { background-color: #713f12; } /* yellow-900 */
+            100% { background-color: transparent; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200">
@@ -381,7 +392,7 @@
                                 <input type="text" id="batch-brand" list="brand-list" placeholder="Brand" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
                                 <input type="text" id="batch-model" placeholder="Model" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
                                 <input type="text" id="batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[110px]">
-                                <input type="number" id="batch-price" placeholder="Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
+                                <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
                                 
                                 <div class="flex gap-2 ml-auto">
                                     <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
@@ -967,16 +978,16 @@
                 
                 if (item.postId === 'inventory') {
                     locationName = '<i class="fas fa-warehouse text-gray-400 mr-1"></i> Master Inventory';
-                    actionBtn = `<button onclick="window.switchTab('inventory')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition">Go to Inventory</button>`;
+                    actionBtn = `<button onclick="window.goToItem('inventory', '${item.id}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Inventory</button>`;
                 } else {
                     const post = window.appState.posts.find(p => p.id === item.postId);
                     locationName = post ? `<i class="fas fa-bullhorn text-gray-400 mr-1"></i> Post: ${post.name}` : 'Unknown Post';
-                    actionBtn = `<button onclick="window.openItemManager('${item.postId}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold transition shadow-sm">View in Post</button>`;
+                    actionBtn = `<button onclick="window.goToItem('${item.postId}', '${item.id}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Post</button>`;
                 }
                 
                 if (item.status === 'Sold' && item.shippingStatus !== 'Shipped') {
                     locationName += ' <span class="mx-2 text-gray-300">|</span> <i class="fas fa-box-open text-orange-400 mr-1"></i> Open Box';
-                    actionBtn += ` <button onclick="window.switchTab('open-box')" class="bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 px-3 py-1.5 rounded text-xs font-bold ml-2 transition shadow-sm">Go to Open Box</button>`;
+                    actionBtn += ` <button onclick="window.switchTab('open-box')" class="bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 px-3 py-1.5 rounded text-xs font-bold ml-2 transition shadow-sm mt-1 whitespace-nowrap">Go to Open Box</button>`;
                 }
                 
                 const tr = document.createElement('tr');
@@ -994,10 +1005,33 @@
                         <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (item.status === 'Out of Stock' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}">${item.status}</span>
                     </td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${locationName}</td>
-                    <td class="p-3 text-right">${actionBtn}</td>
+                    <td class="p-3 text-right flex flex-col items-end justify-center">${actionBtn}</td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        window.goToItem = function(postId, itemId) {
+            if (postId === 'inventory') {
+                window.switchTab('inventory');
+                window.clearInventoryFilters();
+            } else {
+                window.openItemManager(postId);
+            }
+            
+            setTimeout(() => {
+                const checkbox = document.querySelector(`input[value="${itemId}"]`);
+                if (checkbox) {
+                    const row = checkbox.closest('tr');
+                    if (row) {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        row.classList.add('highlight-row');
+                        setTimeout(() => {
+                            row.classList.remove('highlight-row');
+                        }, 3000);
+                    }
+                }
+            }, 100);
         }
 
         // =========================================================================
