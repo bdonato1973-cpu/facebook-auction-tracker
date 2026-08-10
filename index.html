@@ -190,6 +190,16 @@
                         <div class="bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col justify-center">
                             <div class="flex flex-wrap gap-2 items-center">
                                 <h3 class="font-bold text-xs text-gray-600 dark:text-gray-400 uppercase w-full md:w-auto md:mr-2"><i class="fas fa-filter mr-1"></i>Filter</h3>
+                                <select id="filter-inv-source" onchange="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
+                                    <option value="">Source</option>
+                                    <option value="Benjamin">Benjamin</option>
+                                    <option value="Partner">Partner</option>
+                                </select>
+                                <select id="filter-inv-profile" onchange="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition">
+                                    <option value="">Profile</option>
+                                    <option value="Standard">100% Ben</option>
+                                    <option value="Consignment">50/50 Consign</option>
+                                </select>
                                 <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
                                 <input type="text" id="filter-inv-model" placeholder="Model" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
                                 <input type="text" id="filter-inv-desc" placeholder="Desc" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[120px] focus:border-primary outline-none transition">
@@ -354,6 +364,16 @@
                             <div class="bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col justify-center">
                                 <div class="flex flex-wrap gap-2 items-center">
                                     <h3 class="font-bold text-xs text-gray-600 dark:text-gray-400 uppercase w-full md:w-auto md:mr-2"><i class="fas fa-filter mr-1"></i>Filter</h3>
+                                    <select id="filter-post-source" onchange="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
+                                        <option value="">Source</option>
+                                        <option value="Benjamin">Benjamin</option>
+                                        <option value="Partner">Partner</option>
+                                    </select>
+                                    <select id="filter-post-profile" onchange="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition">
+                                        <option value="">Profile</option>
+                                        <option value="Standard">100% Ben</option>
+                                        <option value="Consignment">50/50 Consign</option>
+                                    </select>
                                     <input type="text" id="filter-post-brand" placeholder="Brand" oninput="window.renderItemsTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
                                     <input type="text" id="filter-post-model" placeholder="Model" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
                                     <input type="text" id="filter-post-desc" placeholder="Desc" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[120px] focus:border-primary outline-none transition">
@@ -1353,6 +1373,8 @@
             if(document.getElementById('filter-inv-brand')) document.getElementById('filter-inv-brand').value = '';
             if(document.getElementById('filter-inv-model')) document.getElementById('filter-inv-model').value = '';
             if(document.getElementById('filter-inv-desc')) document.getElementById('filter-inv-desc').value = '';
+            if(document.getElementById('filter-inv-source')) document.getElementById('filter-inv-source').value = '';
+            if(document.getElementById('filter-inv-profile')) document.getElementById('filter-inv-profile').value = '';
             window.renderInventoryTable();
         }
 
@@ -1383,10 +1405,14 @@
             const fBrand = (document.getElementById('filter-inv-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-inv-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-inv-desc')?.value || '').toLowerCase().trim();
+            const fSource = document.getElementById('filter-inv-source')?.value || '';
+            const fProfile = document.getElementById('filter-inv-profile')?.value || '';
 
             if (fBrand) invItems = invItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
             if (fModel) invItems = invItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
             if (fDesc) invItems = invItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
+            if (fSource) invItems = invItems.filter(i => i.source === fSource);
+            if (fProfile) invItems = invItems.filter(i => (i.profitProfile || 'Standard') === fProfile);
 
             if (window.inventorySortCol === 'model') {
                 invItems.sort((a, b) => {
@@ -1399,7 +1425,7 @@
             }
 
             if (invItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No items found in Master Inventory.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No items found matching your filters in Master Inventory.</td></tr>`;
                 return;
             }
 
@@ -1429,7 +1455,7 @@
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
-                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Benjamin</option>
+                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Ben</option>
                             <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
                         </select>
                     </td>
@@ -1503,6 +1529,8 @@
             if(document.getElementById('filter-post-brand')) document.getElementById('filter-post-brand').value = '';
             if(document.getElementById('filter-post-model')) document.getElementById('filter-post-model').value = '';
             if(document.getElementById('filter-post-desc')) document.getElementById('filter-post-desc').value = '';
+            if(document.getElementById('filter-post-source')) document.getElementById('filter-post-source').value = '';
+            if(document.getElementById('filter-post-profile')) document.getElementById('filter-post-profile').value = '';
             window.renderItemsTable();
         }
 
@@ -1518,10 +1546,14 @@
             const fBrand = (document.getElementById('filter-post-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-post-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-post-desc')?.value || '').toLowerCase().trim();
+            const fSource = document.getElementById('filter-post-source')?.value || '';
+            const fProfile = document.getElementById('filter-post-profile')?.value || '';
 
             if (fBrand) postItems = postItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
             if (fModel) postItems = postItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
             if (fDesc) postItems = postItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
+            if (fSource) postItems = postItems.filter(i => i.source === fSource);
+            if (fProfile) postItems = postItems.filter(i => (i.profitProfile || 'Standard') === fProfile);
 
             if (postItems.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
@@ -1549,7 +1581,7 @@
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
-                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Benjamin</option>
+                            <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Ben</option>
                             <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
                         </select>
                     </td>
