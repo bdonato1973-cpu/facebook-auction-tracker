@@ -150,6 +150,7 @@
                                 <th class="p-3 w-28">Photo</th>
                                 <th class="p-3">Brand / Model</th>
                                 <th class="p-3">Status</th>
+                                <th class="p-3">Source</th>
                                 <th class="p-3">Location Context</th>
                                 <th class="p-3 w-48 text-right">Actions</th>
                             </tr>
@@ -974,7 +975,7 @@
             });
             
             if (results.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">No items found matching your search.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500">No items found matching your search.</td></tr>`;
                 return;
             }
             
@@ -1010,6 +1011,7 @@
                     <td class="p-3">
                         <span class="px-2 py-1 text-xs font-bold rounded ${item.status === 'Sold' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : (item.status === 'Out of Stock' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300')}">${item.status}</span>
                     </td>
+                    <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${item.source || 'Unknown'}</td>
                     <td class="p-3 text-sm text-gray-600 dark:text-gray-300">${locationName}</td>
                     <td class="p-3 text-right flex flex-col items-end justify-center">${actionBtn}</td>
                 `;
