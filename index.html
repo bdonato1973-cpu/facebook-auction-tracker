@@ -245,6 +245,7 @@
                             
                             <div class="flex gap-2 ml-auto">
                                 <button onclick="window.applyInventoryBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
+                                <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
                                 <button onclick="window.deleteSelectedInventoryItems()" class="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 font-bold transition text-sm shadow-sm"><i class="fas fa-trash-alt md:mr-1"></i><span class="hidden md:inline">Delete</span></button>
                             </div>
                         </div>
@@ -419,6 +420,7 @@
                                 
                                 <div class="flex gap-2 ml-auto">
                                     <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
+                                    <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
                                     <button onclick="window.deleteSelectedPostItems()" class="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 font-bold transition text-sm shadow-sm"><i class="fas fa-trash-alt md:mr-1"></i><span class="hidden md:inline">Delete</span></button>
                                 </div>
                             </div>
@@ -753,6 +755,28 @@
                             <i class="fas fa-check-circle mr-2"></i> Mark as Sent
                         </button>
                         <button onclick="window.copyInvoiceText()" class="bg-primary hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold transition flex items-center shadow-sm">
+                            <i class="fas fa-copy mr-2"></i> Copy to Clipboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Evaluator Modal -->
+            <div id="export-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm transition-opacity" onclick="window.closeExportModal()">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden" onclick="event.stopPropagation()">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                        <h3 class="text-xl font-bold">Export for Evaluator Gem</h3>
+                        <button onclick="window.closeExportModal()" class="text-gray-500 hover:text-red-500 transition text-2xl"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-6 flex-1">
+                        <p class="text-sm text-gray-500 mb-2">Copy this JSON data and paste it into your Diecast Value Evaluator:</p>
+                        <textarea id="export-text" rows="12" class="w-full p-3 border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none resize-none text-sm font-mono bg-gray-50 dark:bg-gray-900"></textarea>
+                    </div>
+                    <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
+                        <button onclick="window.closeExportModal()" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded font-bold transition shadow-sm">
+                            Close
+                        </button>
+                        <button onclick="window.copyExportText()" class="bg-teal-500 hover:bg-teal-600 text-white px-6 py-2 rounded font-bold transition flex items-center shadow-sm">
                             <i class="fas fa-copy mr-2"></i> Copy to Clipboard
                         </button>
                     </div>
@@ -1148,6 +1172,46 @@
         // =========================================================================
         // 4. POSTS & INVENTORY MANAGEMENT LOGIC
         // =========================================================================
+        
+        window.exportSelectedItems = function() {
+            const isInventory = document.getElementById('view-inventory').classList.contains('active');
+            const checkboxClass = isInventory ? '.inventory-checkbox:checked' : '.post-item-checkbox:checked';
+            const checkboxes = document.querySelectorAll(checkboxClass);
+            
+            if (checkboxes.length === 0) return alert("Select at least one item to export.");
+
+            const exportList = [];
+            checkboxes.forEach(cb => {
+                const item = window.appState.items.find(i => i.id === cb.value);
+                if (item) {
+                    exportList.push({
+                        Brand: item.brand || "",
+                        Model: item.model || "",
+                        Description: item.description || ""
+                    });
+                }
+            });
+
+            const exportText = JSON.stringify(exportList, null, 2);
+            document.getElementById('export-text').value = exportText;
+            document.getElementById('export-modal').classList.remove('hidden');
+        }
+
+        window.closeExportModal = function() {
+            document.getElementById('export-modal').classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById('export-text').value = '';
+            }, 200);
+        }
+
+        window.copyExportText = function() {
+            const copyText = document.getElementById('export-text');
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                alert("Export copied to clipboard! You can now paste this into your Diecast Value Evaluator gem.");
+            });
+        }
         
         window.returnToInventory = async function(itemId) {
             if(confirm("Return this item to the Master Inventory? This will remove it from its current post and undo any active sales.")) {
