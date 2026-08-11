@@ -500,7 +500,9 @@
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
                             <tr>
-                                <th class="p-4">Name</th>
+                                <th class="p-4 cursor-pointer hover:text-primary transition" onclick="window.toggleBidderSort('name')" title="Click to sort by Name">
+                                    Name <i id="sort-icon-bidder-name" class="fas fa-sort text-gray-400 ml-1"></i>
+                                </th>
                                 <th class="p-4">Contact / Address</th>
                                 <th class="p-4 w-24 text-center">Items Won</th>
                                 <th class="p-4 w-32 text-right">Total Owed</th>
@@ -839,6 +841,8 @@
         // Sorting state
         window.inventorySortCol = null;
         window.inventorySortAsc = true;
+        window.bidderSortCol = null;
+        window.bidderSortAsc = true;
 
         const authScreen = document.getElementById('auth-screen');
         const appLayout = document.getElementById('app-layout');
@@ -2097,7 +2101,20 @@
                 return;
             }
 
-            [...bidders].reverse().forEach(bidder => {
+            let displayBidders = [...bidders];
+            if (window.bidderSortCol === 'name') {
+                displayBidders.sort((a, b) => {
+                    const nameA = (a.name || '').toLowerCase();
+                    const nameB = (b.name || '').toLowerCase();
+                    if (nameA < nameB) return window.bidderSortAsc ? -1 : 1;
+                    if (nameA > nameB) return window.bidderSortAsc ? 1 : -1;
+                    return 0;
+                });
+            } else {
+                displayBidders.reverse(); 
+            }
+
+            displayBidders.forEach(bidder => {
                 const wonItems = (window.appState.items || []).filter(item => item.winnerId === bidder.id && item.status === 'Sold');
                 const itemsCount = wonItems.length;
                 
