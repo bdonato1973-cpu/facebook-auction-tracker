@@ -221,7 +221,10 @@
 
                     <!-- Batch Edit Toolbar -->
                     <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 p-3">
-                        <h3 class="font-bold text-xs mb-2 text-primary dark:text-indigo-300 uppercase"><i class="fas fa-layer-group mr-1"></i>Batch Edit Selected Items</h3>
+                        <h3 class="font-bold text-xs mb-2 text-primary dark:text-indigo-300 uppercase">
+                            <i class="fas fa-layer-group mr-1"></i>Batch Edit Selected Items
+                            <span class="text-gray-500 dark:text-gray-400 font-normal normal-case tracking-normal ml-2 hidden sm:inline">(Hold Shift to select multiple)</span>
+                        </h3>
                         <div class="flex flex-wrap gap-2 items-center">
                             <select id="inv-batch-type" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
                                 <option value="">- Type -</option>
@@ -257,7 +260,7 @@
                     <table class="w-full text-left text-sm whitespace-nowrap">
                         <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                             <tr>
-                                <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)"></th>
+                                <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)" title="Select All"></th>
                                 <th class="p-3 w-28">Photo</th>
                                 <th class="p-3 w-24">Status</th>
                                 <th class="p-3 w-32">Profile</th>
@@ -396,7 +399,10 @@
 
                         <!-- Batch Edit Toolbar -->
                         <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 p-3">
-                            <h3 class="font-bold text-xs mb-2 text-primary dark:text-indigo-300 uppercase"><i class="fas fa-layer-group mr-1"></i>Batch Edit Selected Items</h3>
+                            <h3 class="font-bold text-xs mb-2 text-primary dark:text-indigo-300 uppercase">
+                                <i class="fas fa-layer-group mr-1"></i>Batch Edit Selected Items
+                                <span class="text-gray-500 dark:text-gray-400 font-normal normal-case tracking-normal ml-2 hidden sm:inline">(Hold Shift to select multiple)</span>
+                            </h3>
                             <div class="flex flex-wrap gap-2 items-center">
                                 <select id="batch-type" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
                                     <option value="">- Type -</option>
@@ -432,7 +438,7 @@
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 <tr>
-                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)"></th>
+                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)" title="Select All"></th>
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-28">Photo</th>
                                     <th class="p-3 w-28">Type</th>
@@ -2982,6 +2988,41 @@
                 document.getElementById('enlarged-image').src = '';
             }, 200);
         }
+
+        // Shift-click functionality for checkboxes
+        let lastCheckedId = null;
+        let lastCheckedType = null;
+
+        document.addEventListener('click', function(e) {
+            const isInv = e.target.matches('.inventory-checkbox');
+            const isPost = e.target.matches('.post-item-checkbox');
+            
+            if (!isInv && !isPost) return;
+
+            const currentType = isInv ? 'inventory' : 'post';
+            const checkboxSelector = isInv ? '.inventory-checkbox' : '.post-item-checkbox';
+            const checkboxes = Array.from(document.querySelectorAll(checkboxSelector));
+            
+            if (e.shiftKey && lastCheckedId && lastCheckedType === currentType) {
+                const startIdx = checkboxes.findIndex(cb => cb.value === e.target.value);
+                const endIdx = checkboxes.findIndex(cb => cb.value === lastCheckedId);
+                
+                if (startIdx !== -1 && endIdx !== -1) {
+                    const start = Math.min(startIdx, endIdx);
+                    const end = Math.max(startIdx, endIdx);
+                    
+                    const isChecked = e.target.checked; 
+                    
+                    for (let i = start; i <= end; i++) {
+                        checkboxes[i].checked = isChecked;
+                    }
+                }
+            }
+            
+            lastCheckedId = e.target.value;
+            lastCheckedType = currentType;
+        });
+
     </script>
 </body>
 </html>
