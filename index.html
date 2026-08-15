@@ -2359,9 +2359,10 @@
             const allItems = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
             const unpaidItems = allItems.filter(i => i.paymentStatus !== 'Paid');
             const paidItems = allItems.filter(i => i.paymentStatus === 'Paid');
+            const activeBids = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status !== 'Sold');
 
-            if (unpaidItems.length === 0 && paidItems.length === 0) {
-                return alert("This bidder has no active items to invoice.");
+            if (unpaidItems.length === 0 && paidItems.length === 0 && activeBids.length === 0) {
+                return alert("This bidder has no active items to invoice and is not winning any ongoing sales.");
             }
 
             let unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
@@ -2395,7 +2396,7 @@
                     invoiceText += `Shipping Fee: $${shippingFee.toFixed(2)}\n`;
                 }
                 invoiceText += `\nTotal Due: $${grandTotal.toFixed(2)}\n\n`;
-            } else {
+            } else if (paidItems.length > 0) {
                 invoiceText += `Your items are currently fully paid for.\n\n`;
             }
 
@@ -2405,6 +2406,10 @@
                 invoiceText += `You have ${paidItems.length} item(s) waiting in your open box. Let me know when you are ready to ship!\n\n`;
             } else if (paidItems.length === 0 && unpaidItems.length > 0) {
                 invoiceText += `Let me know if you'd like to ship now, or pay as you go and start an open box!\n\n`;
+            }
+
+            if (activeBids.length > 0) {
+                invoiceText += `* Note: You are currently the highest bidder on ${activeBids.length} active item(s) in ongoing sales!\n\n`;
             }
 
             const settings = window.appState.settings || {};
