@@ -587,34 +587,14 @@
 
             <!-- Open Box View -->
             <div id="view-open-box" class="view">
-                
-                <!-- Open Box Filter Toolbar -->
-                <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4 mb-6">
-                    <h3 class="font-bold text-sm mb-2 text-gray-600 dark:text-gray-400"><i class="fas fa-filter mr-2"></i>Filter Open Boxes</h3>
-                    <div class="flex flex-wrap gap-2 items-end">
-                        <select id="open-box-bidder-filter" onchange="window.renderOpenBox()" class="flex-1 p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition min-w-[150px]">
-                            <option value="">-- All Bidders --</option>
+                <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+                    <h2 class="text-2xl font-bold">Open Box Management</h2>
+                    <div class="w-full md:w-64">
+                        <select id="open-box-bidder-filter" onchange="window.renderOpenBox()" class="w-full p-2 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition">
+                            <option value="">-- All Open Boxes --</option>
                         </select>
-                        <select id="filter-ob-invoice" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-36">
-                            <option value="">Invoice Status</option>
-                            <option value="pending">Pending Invoice</option>
-                            <option value="sent">Invoice Sent</option>
-                            <option value="paid">Fully Paid</option>
-                        </select>
-                        <select id="filter-ob-alert" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-36">
-                            <option value="">Auction Alert</option>
-                            <option value="yes">In Group</option>
-                            <option value="no">Not in Group</option>
-                        </select>
-                        <select id="filter-ob-sticker" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
-                            <option value="">Sticker Sent</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                        <button onclick="window.clearOpenBoxFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
                     </div>
                 </div>
-                
                 <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     <!-- Boxes render here -->
                 </div>
@@ -1286,6 +1266,55 @@
                     if (currentActivePostId) window.renderItemsTable();
                 }
             }
+        }
+
+        window.returnAllUnsoldToInventory = async function() {
+            const selectedPostId = document.getElementById('live-sale-post-selector')?.value;
+            if (!selectedPostId) return alert("Please select a post first.");
+
+            let unsoldItems = (window.appState.items || []).filter(item => item.postId === selectedPostId && item.status !== 'Sold');
+
+            if (unsoldItems.length === 0) {
+                return alert("No unsold items found in this post to return.");
+            }
+
+            if(!confirm(`Return all ${unsoldItems.length} unsold items to Master Inventory?`)) return;
+
+            const savePromises = [];
+
+            unsoldItems.forEach(item => {
+                const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
+
+                if (masterItem) {
+                    masterItem.quantity = (parseInt(masterItem.quantity, 10) || 0) + (parseInt(item.quantity, 10) || 1);
+                    if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
+                        masterItem.status = 'Available';
+                    }
+                    savePromises.push(saveItemToFirestore(masterItem));
+
+                    window.appState.items = window.appState.items.filter(i => i.id !== item.id);
+                    savePromises.push(deleteItemFromFirestore(item.id));
+                } else {
+                    item.postId = 'inventory';
+                    item.itemNumber = null;
+                    item.status = 'Available';
+                    item.winnerId = null;
+                    item.paymentStatus = 'Unpaid';
+                    item.shippingStatus = 'Unshipped';
+                    item.invoiceSentAt = null; 
+                    item.soldAt = null;
+                    savePromises.push(saveItemToFirestore(item));
+                }
+            });
+
+            await Promise.all(savePromises);
+            
+            window.renderLiveSales();
+            window.renderInventoryTable();
+            window.updateDashboardStats();
+            if (currentActivePostId) window.renderItemsTable();
+            
+            alert(`Successfully returned ${unsoldItems.length} items to Master Inventory.`);
         }
 
         window.togglePostForm = function(isEdit = false) {
@@ -3090,6 +3119,55 @@
             lastCheckedId = e.target.value;
             lastCheckedType = currentType;
         });
+
+        window.returnAllUnsoldToInventory = async function() {
+            const selectedPostId = document.getElementById('live-sale-post-selector')?.value;
+            if (!selectedPostId) return alert("Please select a post first.");
+
+            let unsoldItems = (window.appState.items || []).filter(item => item.postId === selectedPostId && item.status !== 'Sold');
+
+            if (unsoldItems.length === 0) {
+                return alert("No unsold items found in this post to return.");
+            }
+
+            if(!confirm(`Return all ${unsoldItems.length} unsold items to Master Inventory?`)) return;
+
+            const savePromises = [];
+
+            unsoldItems.forEach(item => {
+                const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
+
+                if (masterItem) {
+                    masterItem.quantity = (parseInt(masterItem.quantity, 10) || 0) + (parseInt(item.quantity, 10) || 1);
+                    if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
+                        masterItem.status = 'Available';
+                    }
+                    savePromises.push(saveItemToFirestore(masterItem));
+
+                    window.appState.items = window.appState.items.filter(i => i.id !== item.id);
+                    savePromises.push(deleteItemFromFirestore(item.id));
+                } else {
+                    item.postId = 'inventory';
+                    item.itemNumber = null;
+                    item.status = 'Available';
+                    item.winnerId = null;
+                    item.paymentStatus = 'Unpaid';
+                    item.shippingStatus = 'Unshipped';
+                    item.invoiceSentAt = null; 
+                    item.soldAt = null;
+                    savePromises.push(saveItemToFirestore(item));
+                }
+            });
+
+            await Promise.all(savePromises);
+            
+            window.renderLiveSales();
+            window.renderInventoryTable();
+            window.updateDashboardStats();
+            if (currentActivePostId) window.renderItemsTable();
+            
+            alert(`Successfully returned ${unsoldItems.length} items to Master Inventory.`);
+        }
 
     </script>
 </body>
