@@ -2281,9 +2281,12 @@
                 const itemsCount = wonItems.length;
                 
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
-                const totalOwed = wonItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0) + shippingFee;
-
+                
+                // For Total Owed in Bidders List, we also respect the "If all paid, don't include shipping fee" rule
                 const unpaidItems = wonItems.filter(i => i.paymentStatus !== 'Paid');
+                const unpaidTotal = unpaidItems.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+                const totalOwed = unpaidItems.length > 0 ? (unpaidTotal + shippingFee) : 0;
+
                 const invoiceStatus = calculateInvoiceStatus(unpaidItems);
                 let invoiceBadge = '';
                 
@@ -2417,7 +2420,7 @@
 
             let unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
             const shippingFee = parseFloat(bidder.shippingFee) || 0;
-            const grandTotal = unpaidTotal + shippingFee;
+            const grandTotal = unpaidItems.length > 0 ? (unpaidTotal + shippingFee) : 0;
 
             let invoiceText = `Hi ${bidder.name},\n\n`;
 
@@ -2764,9 +2767,6 @@
 
         window.clearOpenBoxFilters = function() {
             if(document.getElementById('open-box-bidder-filter')) document.getElementById('open-box-bidder-filter').value = '';
-            if(document.getElementById('filter-ob-invoice')) document.getElementById('filter-ob-invoice').value = '';
-            if(document.getElementById('filter-ob-alert')) document.getElementById('filter-ob-alert').value = '';
-            if(document.getElementById('filter-ob-sticker')) document.getElementById('filter-ob-sticker').value = '';
             window.renderOpenBox();
         }
 
@@ -2785,9 +2785,6 @@
             let allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold');
             
             // Supplemental filters from dropdowns
-            const invFilter = document.getElementById('filter-ob-invoice')?.value;
-            const alertFilter = document.getElementById('filter-ob-alert')?.value;
-            const stickerFilter = document.getElementById('filter-ob-sticker')?.value;
             const bidderFilter = document.getElementById('open-box-bidder-filter')?.value;
 
             if (bidderFilter) {
@@ -2823,17 +2820,6 @@
                 const paid = unshipped.filter(i => i.paymentStatus === 'Paid');
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 
-                // Supplemental filters
-                if (alertFilter === 'yes' && !bidder.inGroupChat) return;
-                if (alertFilter === 'no' && bidder.inGroupChat) return;
-                if (stickerFilter === 'yes' && !bidder.stickerSent) return;
-                if (stickerFilter === 'no' && bidder.stickerSent) return;
-
-                const invoiceStatus = calculateInvoiceStatus(unpaid);
-                if (invFilter === 'pending' && (unpaid.length === 0 || invoiceStatus !== null)) return;
-                if (invFilter === 'sent' && (unpaid.length === 0 || invoiceStatus === null)) return;
-                if (invFilter === 'paid' && unpaid.length > 0) return;
-                
                 // Primary Box Workflow Filters
                 if (filter === 'all' && unshipped.length === 0) return;
                 if (filter === 'unpaid' && (unshipped.length === 0 || unpaid.length === 0)) return;
@@ -2849,7 +2835,7 @@
                 count++;
                 
                 const isActive = window.currentOBBidder === bidder.id;
-                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-indigo-300';
+                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700';
                 
                 let badge = '';
                 if (unshipped.length === 0 && shipped.length > 0) {
@@ -2862,7 +2848,8 @@
                     badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Ready to Ship</span>`;
                 }
 
-                const totalDue = unpaid.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0) + shippingFee;
+                const unpaidTotal = unpaid.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+                const totalDue = unpaid.length > 0 ? (unpaidTotal + shippingFee) : 0;
 
                 html += `
                     <div onclick="window.selectOBBidder('${bidder.id}')" class="cursor-pointer p-3 rounded-lg border transition ${activeClasses} flex justify-between items-center shadow-sm">
@@ -2919,7 +2906,7 @@
             
             const shippingFee = parseFloat(bidder.shippingFee) || 0;
             const unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
-            const totalDue = unpaidTotal + shippingFee;
+            const totalDue = unpaidItems.length > 0 ? (unpaidTotal + shippingFee) : 0;
 
             const invoiceStatus = calculateInvoiceStatus(unpaidItems);
             let invoiceBadge = '';
