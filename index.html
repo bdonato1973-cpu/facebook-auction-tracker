@@ -2923,15 +2923,24 @@
 
         window.markBoxPaid = async function(bidderId) {
             const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped' && i.paymentStatus !== 'Paid');
-            if (items.length === 0) return;
+            const bidder = window.appState.bidders.find(b => b.id === bidderId);
+            
+            if (items.length === 0 && (!bidder || !bidder.shippingFee)) return;
             
             const savePromises = [];
             items.forEach(item => {
                 item.paymentStatus = 'Paid';
                 savePromises.push(saveItemToFirestore(item));
             });
+
+            if (bidder && bidder.shippingFee > 0) {
+                bidder.shippingFee = 0;
+                savePromises.push(window.saveStateToFirebase());
+            }
+
             await Promise.all(savePromises);
             window.renderOpenBox();
+            window.renderBiddersTable();
         }
 
         window.shipBox = async function(bidderId) {
@@ -2942,6 +2951,12 @@
                     item.shippingStatus = 'Shipped';
                     savePromises.push(saveItemToFirestore(item));
                 });
+                
+                const bidder = window.appState.bidders.find(b => b.id === bidderId);
+                if (bidder) {
+                    bidder.shippingFee = 0;
+                    savePromises.push(window.saveStateToFirebase()); 
+                }
 
                 await Promise.all(savePromises);
                 window.renderOpenBox();
