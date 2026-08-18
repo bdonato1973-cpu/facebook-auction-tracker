@@ -28,6 +28,11 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        /* Highlight Text Selection */
+        ::selection { background-color: #c7d2fe; color: #1e1b4b; }
+        .dark ::selection { background-color: #3730a3; color: #e0e7ff; }
+
         /* Item Highlight Animation */
         .highlight-row { animation: highlightFlash 3s ease-out; }
         @keyframes highlightFlash {
@@ -1071,7 +1076,7 @@
                 
                 if (item.postId === 'inventory') {
                     locationName = '<i class="fas fa-warehouse text-gray-400 mr-1"></i> Master Inventory';
-                    actionBtn = `<button onclick="window.goToItem('inventory', '${item.id}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Inventory</button>`;
+                    actionBtn = `<button onclick="window.goToItem('inventory', '${item.id}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Inventory</button>`;
                 } else {
                     const post = window.appState.posts.find(p => p.id === item.postId);
                     locationName = post ? `<i class="fas fa-bullhorn text-gray-400 mr-1"></i> Post: ${post.name}` : 'Unknown Post';
@@ -1084,7 +1089,7 @@
                 }
                 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
+                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition";
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber || '-'}</td>
                     <td class="p-3 text-center">
@@ -2261,7 +2266,7 @@
                 badgesHTML += '</div>';
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
+                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition";
                 tr.innerHTML = `
                     <td class="p-4 align-top">
                         <div class="font-bold text-primary dark:text-indigo-300">${bidder.name}</div>
@@ -2323,11 +2328,11 @@
                         total += price;
 
                         const itemDiv = document.createElement('div');
-                        itemDiv.className = "flex items-center gap-4 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-2";
+                        itemDiv.className = "flex items-center gap-4 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm mb-2 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group";
                         itemDiv.innerHTML = `
                             ${item.photo ? `<img src="${item.photo}" class="w-12 h-12 object-cover rounded border border-gray-200">` : `<div class="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image"></i></div>`}
                             <div class="flex-1">
-                                <h4 class="font-bold text-sm">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
+                                <h4 class="font-bold text-sm group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</h4>
                             </div>
                             <div class="font-bold text-lg text-gray-700 dark:text-gray-300">$${price.toFixed(2)}</div>
                         `;
@@ -2765,7 +2770,7 @@
                 count++;
                 
                 const isActive = window.currentOBBidder === bidder.id;
-                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-indigo-300';
+                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700';
                 
                 let badge = '';
                 if (unpaid.length > 0) badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">Needs Pay</span>`;
@@ -2862,12 +2867,12 @@
                 }
 
                 return `
-                    <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-750 transition group">
+                    <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group">
                         <div class="flex items-center gap-3">
                             ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
                             <div>
-                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
-                                <p class="text-xs text-gray-500">$${(parseFloat(item.price)||0).toFixed(2)}</p>
+                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">$${(parseFloat(item.price)||0).toFixed(2)}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
