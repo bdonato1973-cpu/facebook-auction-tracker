@@ -592,41 +592,52 @@
 
             <!-- Open Box View -->
             <div id="view-open-box" class="view h-full flex-col">
-                <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                    <h2 class="text-2xl font-bold">Open Box Management</h2>
+                
+                <!-- Open Box Filter Toolbar -->
+                <div class="sticky top-0 -mx-8 px-8 -mt-8 pt-8 z-30 bg-gray-50 dark:bg-gray-900 pb-4 shadow-sm border-b border-gray-200 dark:border-gray-700 mb-6 space-y-3">
+                    <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
+                        <h2 class="text-2xl font-bold">Open Box Management</h2>
+                    </div>
+                    <div class="bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col justify-center">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <h3 class="font-bold text-xs text-gray-600 dark:text-gray-400 uppercase w-full md:w-auto md:mr-2"><i class="fas fa-filter mr-1"></i>Filter</h3>
+                            
+                            <select id="open-box-bidder-filter" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition min-w-[150px]">
+                                <option value="">-- All Bidders --</option>
+                            </select>
+                            <select id="filter-ob-status" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-36">
+                                <option value="unshipped">Open Boxes</option>
+                                <option value="shipped">Shipped Boxes</option>
+                                <option value="all">All Boxes</option>
+                            </select>
+                            <select id="filter-ob-ready" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-36">
+                                <option value="">Shipping Readiness</option>
+                                <option value="ready">Ready (Fee Added)</option>
+                                <option value="needs">Needs Shipping Cost</option>
+                            </select>
+                            <select id="filter-ob-invoice" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Invoice Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="sent">Sent</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                            <select id="filter-ob-alert" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Auction Alert</option>
+                                <option value="yes">In Group</option>
+                                <option value="no">Not in Group</option>
+                            </select>
+                            <select id="filter-ob-sticker" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Sticker Sent</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                            <button onclick="window.clearOpenBoxFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="flex flex-col md:flex-row gap-6 flex-1 min-h-[calc(100vh-14rem)] h-[calc(100vh-14rem)]">
-                    <!-- Left Pane: Master List -->
-                    <div class="w-full md:w-80 lg:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-full flex-shrink-0">
-                        <div class="p-4 border-b border-gray-100 dark:border-gray-700 space-y-3">
-                            <div class="relative">
-                                <i class="fas fa-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
-                                <input type="text" id="ob-search" oninput="window.renderOpenBoxList()" placeholder="Search bidders..." class="w-full pl-9 p-2 text-sm border rounded bg-gray-50 dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition">
-                            </div>
-                            <div class="flex flex-wrap gap-1.5">
-                                <button onclick="window.setOBFilter('all')" id="ob-filter-all" class="ob-filter-btn px-3 py-1 rounded-full text-[10px] font-bold bg-primary text-white transition">All Active</button>
-                                <button onclick="window.setOBFilter('unpaid')" id="ob-filter-unpaid" class="ob-filter-btn px-3 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 transition">Unpaid</button>
-                                <button onclick="window.setOBFilter('ready')" id="ob-filter-ready" class="ob-filter-btn px-3 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 transition">Ready to Ship</button>
-                                <button onclick="window.setOBFilter('shipped')" id="ob-filter-shipped" class="ob-filter-btn px-3 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 transition">Shipped</button>
-                            </div>
-                        </div>
-                        <div id="ob-bidder-list" class="flex-1 overflow-y-auto p-2 space-y-1">
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
-
-                    <!-- Right Pane: Details -->
-                    <div id="ob-empty-state" class="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center h-full text-gray-400">
-                        <div class="text-center">
-                            <i class="fas fa-box-open text-6xl mb-4 opacity-30"></i>
-                            <p class="text-lg font-medium">Select a box to view details</p>
-                        </div>
-                    </div>
-                    
-                    <div id="ob-detail-pane" class="hidden flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-full overflow-hidden">
-                        <!-- Populated by JS -->
-                    </div>
+                <div id="open-box-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Boxes render here -->
                 </div>
             </div>
 
@@ -1076,7 +1087,7 @@
                 
                 if (item.postId === 'inventory') {
                     locationName = '<i class="fas fa-warehouse text-gray-400 mr-1"></i> Master Inventory';
-                    actionBtn = `<button onclick="window.goToItem('inventory', '${item.id}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Inventory</button>`;
+                    actionBtn = `<button onclick="window.goToItem('inventory', '${item.id}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Inventory</button>`;
                 } else {
                     const post = window.appState.posts.find(p => p.id === item.postId);
                     locationName = post ? `<i class="fas fa-bullhorn text-gray-400 mr-1"></i> Post: ${post.name}` : 'Unknown Post';
@@ -1089,7 +1100,7 @@
                 }
                 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition";
+                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber || '-'}</td>
                     <td class="p-3 text-center">
@@ -1174,7 +1185,8 @@
             });
             
             await Promise.all(savePromises);
-            window.renderOpenBox();
+            window.renderOpenBoxList();
+            window.renderOBDetails();
             window.renderBiddersTable();
             alert("Invoice marked as sent! Tracking 5-day countdown.");
             window.closeInvoiceModal();
@@ -1291,7 +1303,8 @@
                     await Promise.all(savePromises);
                     
                     window.renderLiveSales();
-                    window.renderOpenBox();
+                    window.renderOpenBoxList();
+                    if(window.currentOBBidder) window.renderOBDetails();
                     window.renderInventoryTable();
                     window.updateDashboardStats();
                     window.renderBiddersTable();
@@ -1568,9 +1581,9 @@
             const fSource = document.getElementById('filter-inv-source')?.value || '';
             const fProfile = document.getElementById('filter-inv-profile')?.value || '';
 
-            if (fBrand) invItems = invItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
-            if (fModel) invItems = invItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
-            if (fDesc) invItems = invItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
+            if (fBrand) invItems = filterSearchMatch(invItems, 'brand', fBrand);
+            if (fModel) invItems = filterSearchMatch(invItems, 'model', fModel);
+            if (fDesc) invItems = filterSearchMatch(invItems, 'description', fDesc);
             if (fSource) invItems = invItems.filter(i => i.source === fSource);
             if (fProfile) invItems = invItems.filter(i => (i.profitProfile || 'Standard') === fProfile);
 
@@ -1694,6 +1707,10 @@
             window.renderItemsTable();
         }
 
+        function filterSearchMatch(items, field, query) {
+            return items.filter(i => (i[field] || '').toLowerCase().includes(query));
+        }
+
         window.renderItemsTable = function() {
             const tbody = document.getElementById('items-table-body');
             if(!tbody) return;
@@ -1709,9 +1726,9 @@
             const fSource = document.getElementById('filter-post-source')?.value || '';
             const fProfile = document.getElementById('filter-post-profile')?.value || '';
 
-            if (fBrand) postItems = postItems.filter(i => (i.brand || '').toLowerCase().includes(fBrand));
-            if (fModel) postItems = postItems.filter(i => (i.model || '').toLowerCase().includes(fModel));
-            if (fDesc) postItems = postItems.filter(i => (i.description || '').toLowerCase().includes(fDesc));
+            if (fBrand) postItems = filterSearchMatch(postItems, 'brand', fBrand);
+            if (fModel) postItems = filterSearchMatch(postItems, 'model', fModel);
+            if (fDesc) postItems = filterSearchMatch(postItems, 'description', fDesc);
             if (fSource) postItems = postItems.filter(i => i.source === fSource);
             if (fProfile) postItems = postItems.filter(i => (i.profitProfile || 'Standard') === fProfile);
 
@@ -2266,7 +2283,7 @@
                 badgesHTML += '</div>';
 
                 const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition";
+                tr.className = "hover:bg-gray-50 dark:hover:bg-gray-750 transition";
                 tr.innerHTML = `
                     <td class="p-4 align-top">
                         <div class="font-bold text-primary dark:text-indigo-300">${bidder.name}</div>
@@ -2760,23 +2777,35 @@
                 const unshipped = items.filter(i => i.shippingStatus !== 'Shipped');
                 const shipped = items.filter(i => i.shippingStatus === 'Shipped');
                 const unpaid = unshipped.filter(i => i.paymentStatus !== 'Paid');
+                const paid = unshipped.filter(i => i.paymentStatus === 'Paid');
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 
                 if (filter === 'all' && unshipped.length === 0) return;
                 if (filter === 'unpaid' && (unshipped.length === 0 || unpaid.length === 0)) return;
-                if (filter === 'ready' && (unshipped.length === 0 || shippingFee <= 0)) return;
+                
+                // Ready to Pack: items are paid for and have a shipping fee entered
+                if (filter === 'pack' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee <= 0)) return;
+
+                // Ready to Ship: items are paid but have no shipping fees entered
+                if (filter === 'ready' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee > 0)) return;
+                
                 if (filter === 'shipped' && (shipped.length === 0 || unshipped.length > 0)) return; 
 
                 count++;
                 
                 const isActive = window.currentOBBidder === bidder.id;
-                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700';
+                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-indigo-300';
                 
                 let badge = '';
-                if (unpaid.length > 0) badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">Needs Pay</span>`;
-                else if (shippingFee > 0 && unshipped.length > 0) badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Ready</span>`;
-                else if (unshipped.length > 0) badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">Open Box</span>`;
-                else badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-700">Shipped</span>`;
+                if (unshipped.length === 0 && shipped.length > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-700">Shipped</span>`;
+                } else if (unpaid.length > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">Needs Pay</span>`;
+                } else if (shippingFee > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">Ready to Pack</span>`;
+                } else {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Ready to Ship</span>`;
+                }
 
                 const totalDue = unpaid.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0) + shippingFee;
 
