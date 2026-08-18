@@ -443,7 +443,7 @@
                         <table class="w-full text-left text-sm whitespace-nowrap">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 <tr>
-                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)"></th>
+                                    <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)" title="Select All"></th>
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-28">Photo</th>
                                     <th class="p-3 w-28">Type</th>
@@ -467,41 +467,45 @@
 
             <!-- Bidders Directory View -->
             <div id="view-bidders" class="view">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold">Bidders Directory</h2>
-                    <button onclick="window.toggleBidderForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-user-plus mr-2"></i> Add Bidder</button>
-                </div>
+                
+                <!-- STICKY FEATURES HEADER -->
+                <div class="sticky top-0 -mx-8 px-8 -mt-8 pt-8 z-30 bg-gray-50 dark:bg-gray-900 pb-4 shadow-sm border-b border-gray-200 dark:border-gray-700 mb-6 space-y-3">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Bidders Directory</h2>
+                        <button onclick="window.toggleBidderForm()" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition shadow-sm"><i class="fas fa-user-plus mr-2"></i> Add Bidder</button>
+                    </div>
 
-                <!-- Add/Edit Bidder Form -->
-                <div id="bidder-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6 border-l-4 border-primary">
-                    <h3 class="font-bold text-lg mb-4" id="bidder-form-title">Add New Bidder</h3>
-                    <input type="hidden" id="edit-bidder-id">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <div>
-                            <label class="block text-sm text-gray-500 mb-1">Name <span class="text-red-500">*</span></label>
-                            <input type="text" id="bidder-name" placeholder="John Doe" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-500 mb-1">Facebook Profile (Optional)</label>
-                            <input type="url" id="bidder-fb" placeholder="https://facebook.com/..." class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm text-gray-500 mb-1">Address / Shipping Info (Optional)</label>
-                            <textarea id="bidder-address" rows="2" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"></textarea>
-                        </div>
-                        <div class="md:col-span-2 flex flex-wrap items-center gap-6 mt-2 mb-2">
-                            <label class="flex items-center cursor-pointer">
-                                <input type="checkbox" id="bidder-group-chat" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                                <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">In "Auction Alert" Group</span>
-                            </label>
-                            <label class="flex items-center cursor-pointer">
-                                <input type="checkbox" id="bidder-sticker" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
-                                <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">Company Sticker Sent</span>
-                            </label>
-                        </div>
-                        <div class="md:col-span-2 flex gap-2">
-                            <button onclick="window.saveBidder()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save Bidder</button>
-                            <button onclick="window.toggleBidderForm()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 w-full font-bold transition">Cancel</button>
+                    <!-- Add/Edit Bidder Form -->
+                    <div id="bidder-form-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 border-l-4 border-primary">
+                        <h3 class="font-bold text-lg mb-4" id="bidder-form-title">Add New Bidder</h3>
+                        <input type="hidden" id="edit-bidder-id">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">Name <span class="text-red-500">*</span></label>
+                                <input type="text" id="bidder-name" placeholder="John Doe" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-500 mb-1">Facebook Profile (Optional)</label>
+                                <input type="url" id="bidder-fb" placeholder="https://facebook.com/..." class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm text-gray-500 mb-1">Address / Shipping Info (Optional)</label>
+                                <textarea id="bidder-address" rows="2" class="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"></textarea>
+                            </div>
+                            <div class="md:col-span-2 flex flex-wrap items-center gap-6 mt-2 mb-2">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="bidder-group-chat" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                                    <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">In "Auction Alert" Group</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="bidder-sticker" class="w-4 h-4 text-primary rounded focus:ring-primary mr-2 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600">
+                                    <span class="text-sm text-gray-700 dark:text-gray-300 font-medium">Company Sticker Sent</span>
+                                </label>
+                            </div>
+                            <div class="md:col-span-2 flex gap-2">
+                                <button onclick="window.saveBidder()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 w-full font-bold transition"><i class="fas fa-save mr-2"></i> Save Bidder</button>
+                                <button onclick="window.toggleBidderForm()" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 w-full font-bold transition">Cancel</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -588,8 +592,38 @@
 
             <!-- Open Box View -->
             <div id="view-open-box" class="view h-full flex-col">
-                <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                    <h2 class="text-2xl font-bold">Open Box Management</h2>
+                
+                <!-- Open Box Filter Toolbar -->
+                <div class="sticky top-0 -mx-8 px-8 -mt-8 pt-8 z-30 bg-gray-50 dark:bg-gray-900 pb-4 shadow-sm border-b border-gray-200 dark:border-gray-700 mb-6 space-y-3">
+                    <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-2">
+                        <h2 class="text-2xl font-bold">Open Box Management</h2>
+                    </div>
+                    <div class="bg-gray-100/70 dark:bg-gray-800/70 rounded-lg border border-gray-200 dark:border-gray-700 p-3 flex flex-col justify-center">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <h3 class="font-bold text-xs text-gray-600 dark:text-gray-400 uppercase w-full md:w-auto md:mr-2"><i class="fas fa-filter mr-1"></i>Filter</h3>
+                            
+                            <select id="open-box-bidder-filter" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition min-w-[150px]">
+                                <option value="">-- All Bidders --</option>
+                            </select>
+                            <select id="filter-ob-invoice" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Invoice Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="sent">Sent</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                            <select id="filter-ob-alert" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Auction Alert</option>
+                                <option value="yes">In Group</option>
+                                <option value="no">Not in Group</option>
+                            </select>
+                            <select id="filter-ob-sticker" onchange="window.renderOpenBox()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 focus:border-primary outline-none transition w-32">
+                                <option value="">Sticker Sent</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                            </select>
+                            <button onclick="window.clearOpenBoxFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="flex flex-col md:flex-row gap-6 flex-1 min-h-[calc(100vh-14rem)] h-[calc(100vh-14rem)]">
@@ -1693,6 +1727,10 @@
             window.renderItemsTable();
         }
 
+        function filterSearchMatch(items, field, query) {
+            return items.filter(i => (i[field] || '').toLowerCase().includes(query));
+        }
+
         window.renderItemsTable = function() {
             const tbody = document.getElementById('items-table-body');
             if(!tbody) return;
@@ -2095,15 +2133,23 @@
         // =========================================================================
         window.populateBidderFilters = function() {
             const liveFilter = document.getElementById('live-sale-bidder-filter');
+            const openBoxFilter = document.getElementById('open-box-bidder-filter');
+            
             const liveVal = liveFilter ? liveFilter.value : '';
+            const obVal = openBoxFilter ? openBoxFilter.value : '';
+
             let optionsLive = '<option value="">-- All Bidders / Available --</option>';
+            let optionsOb = '<option value="">-- All Bidders --</option>';
+            
             const sortedBidders = [...(window.appState.bidders || [])].sort((a,b) => a.name.localeCompare(b.name));
             
             sortedBidders.forEach(b => {
                 optionsLive += `<option value="${b.id}">${b.name}</option>`;
+                optionsOb += `<option value="${b.id}">${b.name}</option>`;
             });
 
             if(liveFilter) { liveFilter.innerHTML = optionsLive; liveFilter.value = liveVal; }
+            if(openBoxFilter) { openBoxFilter.innerHTML = optionsOb; openBoxFilter.value = obVal; }
         }
 
         // =========================================================================
@@ -2716,6 +2762,14 @@
             }
         }
 
+        window.clearOpenBoxFilters = function() {
+            if(document.getElementById('open-box-bidder-filter')) document.getElementById('open-box-bidder-filter').value = '';
+            if(document.getElementById('filter-ob-invoice')) document.getElementById('filter-ob-invoice').value = '';
+            if(document.getElementById('filter-ob-alert')) document.getElementById('filter-ob-alert').value = '';
+            if(document.getElementById('filter-ob-sticker')) document.getElementById('filter-ob-sticker').value = '';
+            window.renderOpenBox();
+        }
+
         window.renderOpenBox = function() {
             window.renderOpenBoxList();
             window.renderOBDetails();
@@ -2730,6 +2784,21 @@
             
             let allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold');
             
+            // Supplemental filters from dropdowns
+            const invFilter = document.getElementById('filter-ob-invoice')?.value;
+            const alertFilter = document.getElementById('filter-ob-alert')?.value;
+            const stickerFilter = document.getElementById('filter-ob-sticker')?.value;
+            const bidderFilter = document.getElementById('open-box-bidder-filter')?.value;
+
+            if (bidderFilter) {
+                allSoldItems = allSoldItems.filter(i => i.winnerId === bidderFilter);
+            }
+
+            if (allSoldItems.length === 0) {
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No open boxes currently match your view.</div>`;
+                return;
+            }
+
             const grouped = {};
             allSoldItems.forEach(item => {
                 if(!item.winnerId) return;
@@ -2751,19 +2820,30 @@
                 const unshipped = items.filter(i => i.shippingStatus !== 'Shipped');
                 const shipped = items.filter(i => i.shippingStatus === 'Shipped');
                 const unpaid = unshipped.filter(i => i.paymentStatus !== 'Paid');
+                const paid = unshipped.filter(i => i.paymentStatus === 'Paid');
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
                 
-                // Filtering Logic
+                // Supplemental filters
+                if (alertFilter === 'yes' && !bidder.inGroupChat) return;
+                if (alertFilter === 'no' && bidder.inGroupChat) return;
+                if (stickerFilter === 'yes' && !bidder.stickerSent) return;
+                if (stickerFilter === 'no' && bidder.stickerSent) return;
+
+                const invoiceStatus = calculateInvoiceStatus(unpaid);
+                if (invFilter === 'pending' && (unpaid.length === 0 || invoiceStatus !== null)) return;
+                if (invFilter === 'sent' && (unpaid.length === 0 || invoiceStatus === null)) return;
+                if (invFilter === 'paid' && unpaid.length > 0) return;
+                
+                // Primary Box Workflow Filters
                 if (filter === 'all' && unshipped.length === 0) return;
                 if (filter === 'unpaid' && (unshipped.length === 0 || unpaid.length === 0)) return;
                 
-                // Ready to Pack: items are paid for AND shipping fee IS entered
+                // Ready to Pack: items are paid for and have a shipping fee entered
                 if (filter === 'pack' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee <= 0)) return;
 
-                // Ready to Ship: items are paid for AND NO shipping fee entered
+                // Ready to Ship: items are paid but have no shipping fees entered
                 if (filter === 'ready' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee > 0)) return;
                 
-                // Shipped History
                 if (filter === 'shipped' && (shipped.length === 0 || unshipped.length > 0)) return; 
 
                 count++;
@@ -2799,7 +2879,7 @@
             });
 
             if (count === 0) {
-                container.innerHTML = `<div class="text-center p-8 text-sm text-gray-400 italic">No boxes found matching this filter.</div>`;
+                container.innerHTML = `<div class="text-center p-8 text-sm text-gray-400 italic">No boxes found matching criteria.</div>`;
             } else {
                 container.innerHTML = html;
             }
@@ -2925,7 +3005,7 @@
                 
                 <div class="flex-1 overflow-y-auto p-5 bg-white dark:bg-gray-800">
                     ${buildSection(unpaidItems, "Awaiting Payment", "bg-red-50 dark:bg-red-900/20")}
-                    ${buildSection(paidItems, "Paid & Ready to Pack", "bg-green-50 dark:bg-green-900/20")}
+                    ${buildSection(paidItems, "Paid Items", "bg-green-50 dark:bg-green-900/20")}
                     ${buildSection(shippedItems, "Shipped History", "bg-gray-50 dark:bg-gray-700/50")}
                     ${allItems.length === 0 ? '<div class="text-center py-10 text-gray-400 italic">No items found for this bidder.</div>' : ''}
                 </div>
@@ -2960,20 +3040,14 @@
 
         window.markBoxPaid = async function(bidderId) {
             const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped' && i.paymentStatus !== 'Paid');
-            const bidder = window.appState.bidders.find(b => b.id === bidderId);
             
-            if (items.length === 0 && (!bidder || !bidder.shippingFee)) return;
+            if (items.length === 0) return;
             
             const savePromises = [];
             items.forEach(item => {
                 item.paymentStatus = 'Paid';
                 savePromises.push(saveItemToFirestore(item));
             });
-
-            if (bidder && bidder.shippingFee > 0) {
-                bidder.shippingFee = 0;
-                savePromises.push(window.saveStateToFirebase());
-            }
 
             await Promise.all(savePromises);
             window.renderOpenBoxList();
@@ -2982,7 +3056,7 @@
         }
 
         window.shipBox = async function(bidderId) {
-            if(confirm("Mark all unshipped items in this box as Shipped? They will be moved to the 'Shipped' filter tab.")) {
+            if(confirm("Mark all unshipped items in this box as Shipped? They will be moved to the 'Shipped' filter.")) {
                 const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
                 const savePromises = [];
                 items.forEach(item => {
