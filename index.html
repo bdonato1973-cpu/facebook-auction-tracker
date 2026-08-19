@@ -121,7 +121,7 @@
             <!-- Dashboard View -->
             <div id="view-dashboard" class="view active">
                 <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <p class="text-gray-500 dark:text-gray-400 text-sm">Active Posts</p>
                         <p class="text-3xl font-bold mt-1" id="dash-active-posts">0</p>
@@ -137,6 +137,10 @@
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <p class="text-gray-500 dark:text-gray-400 text-sm">Pending Shipment</p>
                         <p class="text-3xl font-bold mt-1 text-orange-500 dark:text-orange-400" id="dash-pending">0</p>
+                    </div>
+                    <div class="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl shadow-sm border border-red-100 dark:border-red-800">
+                        <p class="text-red-600 dark:text-red-400 text-sm font-bold">Stale Boxes (>30d)</p>
+                        <p class="text-3xl font-bold mt-1 text-red-600 dark:text-red-400" id="dash-aged-boxes">0</p>
                     </div>
                 </div>
             </div>
@@ -1068,6 +1072,29 @@
 
             const pendingItems = items.filter(i => i.status === 'Sold' && i.shippingStatus !== 'Shipped');
             if (pendingEl) pendingEl.innerText = pendingItems.length;
+
+            // New Logic for Aged Boxes
+            const agedBoxesEl = document.getElementById('dash-aged-boxes');
+            if (agedBoxesEl) {
+                let agedCount = 0;
+                const openBoxesMap = {};
+                pendingItems.forEach(i => {
+                    if(i.winnerId) {
+                        if(!openBoxesMap[i.winnerId]) openBoxesMap[i.winnerId] = [];
+                        openBoxesMap[i.winnerId].push(i);
+                    }
+                });
+                const now = new Date().getTime();
+                for (const bidderId in openBoxesMap) {
+                    const boxItems = openBoxesMap[bidderId];
+                    const latestTime = Math.max(...boxItems.map(i => new Date(i.soldAt || i.createdAt).getTime()));
+                    const daysOpen = Math.floor((now - latestTime) / (1000 * 60 * 60 * 24));
+                    if (daysOpen > 30) {
+                        agedCount++;
+                    }
+                }
+                agedBoxesEl.innerText = agedCount;
+            }
         }
 
         // =========================================================================
@@ -1789,10 +1816,10 @@
                         </select>
                     </td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
-                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
@@ -2302,7 +2329,12 @@
                 let badgesHTML = '<div class="mt-1 flex flex-wrap gap-1">';
                 if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
                 if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
-                if (boxStats.hasBox) badgesHTML += `<span class="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-box-open mr-1"></i> Box: ${boxStats.daysOpen}d</span>`;
+                
+                if (boxStats.hasBox) {
+                    const boxBadgeColor = boxStats.daysOpen > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400';
+                    badgesHTML += `<span class="${boxBadgeColor} text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fas fa-box-open mr-1"></i> Box: ${boxStats.daysOpen}d</span>`;
+                }
+
                 badgesHTML += '</div>';
 
                 const tr = document.createElement('tr');
@@ -2851,10 +2883,16 @@
                 const unpaidTotal = unpaid.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
                 const totalDue = unpaid.length > 0 ? (unpaidTotal + shippingFee) : 0;
 
+                const boxStats = window.getOpenBoxStats(bidder.id, window.appState.items);
+                let ageIcon = '';
+                if (boxStats.hasBox && boxStats.daysOpen > 30) {
+                    ageIcon = `<i class="fas fa-exclamation-circle text-red-500 ml-1" title="Stale Box (>30d)"></i>`;
+                }
+
                 html += `
                     <div onclick="window.selectOBBidder('${bidder.id}')" class="cursor-pointer p-3 rounded-lg border transition ${activeClasses} flex justify-between items-center shadow-sm">
                         <div class="overflow-hidden pr-2">
-                            <h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 truncate">${bidder.name}</h4>
+                            <h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 truncate">${bidder.name} ${ageIcon}</h4>
                             <div class="flex items-center gap-2 mt-1">
                                 ${badge}
                                 <span class="text-xs text-gray-500 font-medium">$${totalDue.toFixed(2)} due</span>
@@ -2921,6 +2959,13 @@
             let badgesHTML = '';
             if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
             if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
+            
+            const boxStats = window.getOpenBoxStats(bidderId, window.appState.items);
+            if (boxStats.hasBox) {
+                const boxBadgeColor = boxStats.daysOpen > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400';
+                badgesHTML += `<span class="${boxBadgeColor} text-[10px] px-2 py-0.5 rounded font-bold"><i class="far fa-clock mr-1"></i> Stale Box: ${boxStats.daysOpen}d</span>`;
+            }
+            
             if (invoiceBadge) badgesHTML += invoiceBadge;
 
             const renderItemRow = (item, isShipped) => {
