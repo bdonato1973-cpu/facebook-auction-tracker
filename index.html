@@ -182,8 +182,8 @@
                         <h2 class="text-2xl font-bold">Master Inventory</h2>
                         <div class="flex gap-2">
                             <span class="text-xs text-gray-500 self-center mr-2 hidden md:inline" id="inventory-compression-status">Images auto-compress</span>
-                            <button onclick="window.addSingleItem('inventory')" class="bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-bold shadow-sm">
-                                <i class="fas fa-plus mr-1"></i> Add Blank
+                            <button onclick="window.addBlankItems('inventory')" class="bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-bold shadow-sm">
+                                <i class="fas fa-plus mr-1"></i> Add Blanks
                             </button>
                             <div>
                                 <input type="file" id="inventory-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event, 'inventory')">
@@ -360,8 +360,11 @@
                             </div>
                             <div class="flex gap-2">
                                 <span class="text-xs text-gray-500 self-center mr-2 hidden md:inline" id="post-compression-status">Images auto-compress</span>
-                                <button onclick="window.addSingleItem()" class="bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-bold shadow-sm">
-                                    <i class="fas fa-plus mr-1"></i> Add Blank
+                                <button onclick="window.addBlankItems()" class="bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-bold shadow-sm">
+                                    <i class="fas fa-plus mr-1"></i> Add Blanks
+                                </button>
+                                <button onclick="window.addJammerCase()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded transition text-sm font-bold shadow-sm hidden md:inline-block">
+                                    <i class="fas fa-th mr-1"></i> Jammer Case
                                 </button>
                                 <div>
                                     <input type="file" id="post-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event)">
@@ -1674,13 +1677,13 @@
                         ${statusBadge}
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Ben</option>
                             <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
                         </select>
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'source', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'source', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Benjamin" ${item.source === 'Benjamin' || !item.source ? 'selected' : ''}>Benjamin</option>
                             <option value="Partner" ${item.source === 'Partner' ? 'selected' : ''}>Partner</option>
                         </select>
@@ -1715,7 +1718,7 @@
 
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
-                if (item) {
+                if (item && item.status !== 'Sold') {
                     if (bType) item.type = bType;
                     if (bProfile) item.profitProfile = bProfile;
                     if (bSource) item.source = bSource;
@@ -1731,7 +1734,6 @@
             if (changesMade) {
                 await Promise.all(savePromises);
                 window.renderInventoryTable();
-                window.updateDashboardStats();
                 
                 document.getElementById('inv-batch-type').value = '';
                 document.getElementById('inv-batch-profile').value = '';
@@ -1741,7 +1743,7 @@
                 document.getElementById('inv-batch-desc').value = '';
                 document.getElementById('inv-batch-price').value = '';
                 
-                alert(`Successfully updated selected items!`);
+                alert(`Successfully updated unsold selected items!`);
             }
         }
 
@@ -1858,12 +1860,107 @@
             await saveItemToFirestore(newItem); 
         }
 
-        window.addSingleItem = async function(targetPostId) {
+        window.addBlankItems = async function(targetPostId) {
             const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
-            await addSingleItemInternal(null, finalTargetId);
+            const qtyStr = prompt("How many blank items would you like to create?", "1");
+            if (!qtyStr) return;
+            const qty = parseInt(qtyStr, 10);
+            if (isNaN(qty) || qty <= 0) return;
+
+            const parentPost = window.appState.posts.find(p => p.id === finalTargetId);
+            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
+            const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
+
+            let nextNum = finalTargetId === 'inventory' ? null : getNextItemNumberForPost(finalTargetId);
+            
+            const savePromises = [];
+            for (let i = 0; i < qty; i++) {
+                const newItem = {
+                    id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000) + '_' + i,
+                    postId: finalTargetId,
+                    itemNumber: nextNum !== null ? nextNum++ : null,
+                    type: inheritedType,
+                    profitProfile: inheritedProfile,
+                    source: 'Benjamin',
+                    brand: '', model: '', description: '', price: '', quantity: 1,
+                    photo: null,
+                    status: 'Available',
+                    paymentStatus: 'Unpaid',
+                    shippingStatus: 'Unshipped',
+                    createdAt: new Date().toISOString()
+                };
+                window.appState.items.push(newItem);
+                savePromises.push(saveItemToFirestore(newItem));
+            }
+
+            await Promise.all(savePromises);
+            
             if (finalTargetId === 'inventory') window.renderInventoryTable();
             else window.renderItemsTable();
+            
             window.updateDashboardStats();
+        }
+
+        window.addJammerCase = async function() {
+            if (!currentActivePostId) return;
+            
+            const qtyStr = prompt("How many Jammer Cases (24 slots each) would you like to generate?", "1");
+            if (!qtyStr) return;
+            const numCases = parseInt(qtyStr, 10);
+            if (isNaN(numCases) || numCases <= 0) return;
+
+            let startIdx = 1;
+            const startStr = prompt("What should the starting case be numbered? (e.g., enter '1' for Case 1, '3' for Case 3)", "1");
+            if (!startStr) return;
+            startIdx = parseInt(startStr, 10);
+            if (isNaN(startIdx)) startIdx = 1;
+
+            const cols = ['A', 'B', 'C'];
+            const rows = [1, 2, 3, 4, 5, 6, 7, 8];
+            
+            const parentPost = window.appState.posts.find(p => p.id === currentActivePostId);
+            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
+            const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
+
+            let nextNum = getNextItemNumberForPost(currentActivePostId);
+            
+            const savePromises = [];
+            
+            for (let i = 0; i < numCases; i++) {
+                const currentCaseNum = startIdx + i;
+                const brandName = `Jammer Case ${currentCaseNum}`;
+                
+                for (let r of rows) {
+                    for (let c of cols) {
+                        const slot = `${c}${r}`;
+                        const newItem = {
+                            id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 10000) + '_' + currentCaseNum + '_' + slot,
+                            postId: currentActivePostId,
+                            itemNumber: nextNum++,
+                            type: inheritedType,
+                            profitProfile: inheritedProfile,
+                            source: 'Benjamin',
+                            brand: brandName, 
+                            model: `Slot ${slot}`, 
+                            description: '', 
+                            price: '', 
+                            quantity: 1,
+                            photo: null,
+                            status: 'Available',
+                            paymentStatus: 'Unpaid',
+                            shippingStatus: 'Unshipped',
+                            createdAt: new Date().toISOString()
+                        };
+                        window.appState.items.push(newItem);
+                        savePromises.push(saveItemToFirestore(newItem));
+                    }
+                }
+            }
+
+            await Promise.all(savePromises);
+            window.renderItemsTable();
+            window.updateDashboardStats();
+            alert(`${numCases} Jammer Case(s) created! ${numCases * 24} total slots added.`);
         }
 
         window.updateItemField = async function(itemId, field, value) {
@@ -2961,13 +3058,6 @@
             let badgesHTML = '';
             if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
             if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
-            
-            const boxStats = window.getOpenBoxStats(bidderId, window.appState.items);
-            if (boxStats.hasBox) {
-                const boxBadgeColor = boxStats.daysOpen > 30 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400';
-                badgesHTML += `<span class="${boxBadgeColor} text-[10px] px-2 py-0.5 rounded font-bold"><i class="far fa-clock mr-1"></i> Stale Box: ${boxStats.daysOpen}d</span>`;
-            }
-            
             if (invoiceBadge) badgesHTML += invoiceBadge;
 
             const renderItemRow = (item, isShipped) => {
