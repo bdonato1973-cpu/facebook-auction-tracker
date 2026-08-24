@@ -364,7 +364,7 @@
                                     <i class="fas fa-plus mr-1"></i> Add Blanks
                                 </button>
                                 <button onclick="window.addJammerCase()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded transition text-sm font-bold shadow-sm hidden md:inline-block">
-                                    <i class="fas fa-th mr-1"></i> Jammer Case
+                                    <i class="fas fa-th mr-1"></i> Jammer Cases
                                 </button>
                                 <div>
                                     <input type="file" id="post-image-upload" accept="image/*" multiple class="hidden" onchange="window.handleImageUpload(event)">
@@ -1801,28 +1801,28 @@
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Auction" ${item.type === 'Auction' ? 'selected' : ''}>Auction</option>
                             <option value="Sale" ${item.type === 'Sale' ? 'selected' : ''}>Sale</option>
                         </select>
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'profitProfile', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Standard" ${item.profitProfile === 'Standard' || !item.profitProfile ? 'selected' : ''}>100% Ben</option>
                             <option value="Consignment" ${item.profitProfile === 'Consignment' ? 'selected' : ''}>50/50 Consign</option>
                         </select>
                     </td>
                     <td class="p-2">
-                        <select onchange="window.updateItemField('${item.id}', 'source', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
+                        <select onchange="window.updateItemField('${item.id}', 'source', this.value);" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}>
                             <option value="Benjamin" ${item.source === 'Benjamin' || !item.source ? 'selected' : ''}>Benjamin</option>
                             <option value="Partner" ${item.source === 'Partner' ? 'selected' : ''}>Partner</option>
                         </select>
                     </td>
-                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
-                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
+                    <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" min="1" value="${item.quantity || 1}" onchange="window.updateItemField('${item.id}', 'quantity', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
+                    <td class="p-2"><input type="number" placeholder="${pricePlaceholder}" value="${item.price || ''}" onchange="window.updateItemField('${item.id}', 'price', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors" ${isSold ? 'disabled' : ''}></td>
                     <td class="p-3">
                         <button onclick="window.deleteItem('${item.id}')" class="text-red-400 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                     </td>
@@ -1860,107 +1860,12 @@
             await saveItemToFirestore(newItem); 
         }
 
-        window.addBlankItems = async function(targetPostId) {
+        window.addSingleItem = async function(targetPostId) {
             const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
-            const qtyStr = prompt("How many blank items would you like to create?", "1");
-            if (!qtyStr) return;
-            const qty = parseInt(qtyStr, 10);
-            if (isNaN(qty) || qty <= 0) return;
-
-            const parentPost = window.appState.posts.find(p => p.id === finalTargetId);
-            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
-            const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
-
-            let nextNum = finalTargetId === 'inventory' ? null : getNextItemNumberForPost(finalTargetId);
-            
-            const savePromises = [];
-            for (let i = 0; i < qty; i++) {
-                const newItem = {
-                    id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000) + '_' + i,
-                    postId: finalTargetId,
-                    itemNumber: nextNum !== null ? nextNum++ : null,
-                    type: inheritedType,
-                    profitProfile: inheritedProfile,
-                    source: 'Benjamin',
-                    brand: '', model: '', description: '', price: '', quantity: 1,
-                    photo: null,
-                    status: 'Available',
-                    paymentStatus: 'Unpaid',
-                    shippingStatus: 'Unshipped',
-                    createdAt: new Date().toISOString()
-                };
-                window.appState.items.push(newItem);
-                savePromises.push(saveItemToFirestore(newItem));
-            }
-
-            await Promise.all(savePromises);
-            
+            await addSingleItemInternal(null, finalTargetId);
             if (finalTargetId === 'inventory') window.renderInventoryTable();
             else window.renderItemsTable();
-            
             window.updateDashboardStats();
-        }
-
-        window.addJammerCase = async function() {
-            if (!currentActivePostId) return;
-            
-            const qtyStr = prompt("How many Jammer Cases (24 slots each) would you like to generate?", "1");
-            if (!qtyStr) return;
-            const numCases = parseInt(qtyStr, 10);
-            if (isNaN(numCases) || numCases <= 0) return;
-
-            let startIdx = 1;
-            const startStr = prompt("What should the starting case be numbered? (e.g., enter '1' for Case 1, '3' for Case 3)", "1");
-            if (!startStr) return;
-            startIdx = parseInt(startStr, 10);
-            if (isNaN(startIdx)) startIdx = 1;
-
-            const cols = ['A', 'B', 'C'];
-            const rows = [1, 2, 3, 4, 5, 6, 7, 8];
-            
-            const parentPost = window.appState.posts.find(p => p.id === currentActivePostId);
-            const inheritedType = parentPost ? (parentPost.type || 'Auction') : 'Sale';
-            const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
-
-            let nextNum = getNextItemNumberForPost(currentActivePostId);
-            
-            const savePromises = [];
-            
-            for (let i = 0; i < numCases; i++) {
-                const currentCaseNum = startIdx + i;
-                const brandName = `Jammer Case ${currentCaseNum}`;
-                
-                for (let r of rows) {
-                    for (let c of cols) {
-                        const slot = `${c}${r}`;
-                        const newItem = {
-                            id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 10000) + '_' + currentCaseNum + '_' + slot,
-                            postId: currentActivePostId,
-                            itemNumber: nextNum++,
-                            type: inheritedType,
-                            profitProfile: inheritedProfile,
-                            source: 'Benjamin',
-                            brand: brandName, 
-                            model: `Slot ${slot}`, 
-                            description: '', 
-                            price: '', 
-                            quantity: 1,
-                            photo: null,
-                            status: 'Available',
-                            paymentStatus: 'Unpaid',
-                            shippingStatus: 'Unshipped',
-                            createdAt: new Date().toISOString()
-                        };
-                        window.appState.items.push(newItem);
-                        savePromises.push(saveItemToFirestore(newItem));
-                    }
-                }
-            }
-
-            await Promise.all(savePromises);
-            window.renderItemsTable();
-            window.updateDashboardStats();
-            alert(`${numCases} Jammer Case(s) created! ${numCases * 24} total slots added.`);
         }
 
         window.updateItemField = async function(itemId, field, value) {
@@ -2137,7 +2042,6 @@
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
             const targetPostId = document.getElementById('inventory-assign-post').value;
-            const bProfile = document.getElementById('inventory-batch-profile')?.value;
             if (!targetPostId) return alert("Please select a target post.");
 
             let changesMade = false;
@@ -2182,8 +2086,8 @@
                     masterItemId: masterItem.id,
                     postId: targetPostId,
                     itemNumber: nextNum,
-                    type: parentPost ? (parentPost.type || 'Auction') : 'Sale',
-                    profitProfile: bProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : masterItem.profitProfile) || 'Standard',
+                    type: masterItem.type || (parentPost ? (parentPost.type || 'Auction') : 'Sale'),
+                    profitProfile: masterItem.profitProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : 'Standard'),
                     source: masterItem.source || 'Benjamin',
                     brand: masterItem.brand || '',
                     model: masterItem.model || '',
@@ -2210,7 +2114,6 @@
                 window.renderPosts();
                 window.updateDashboardStats();
                 document.getElementById('inventory-assign-post').value = '';
-                if(document.getElementById('inventory-batch-profile')) document.getElementById('inventory-batch-profile').value = '';
                 alert(`Successfully assigned item(s) to post! Master inventory quantity updated.`);
             }
         }
