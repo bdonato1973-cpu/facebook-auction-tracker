@@ -157,7 +157,7 @@
                             <tr>
                                 <th class="p-3 w-16">Item #</th>
                                 <th class="p-3 w-28">Photo</th>
-                                <th class="p-3">Brand / Model</th>
+                                <th class="p-3">Category / Brand / Model</th>
                                 <th class="p-3">Status</th>
                                 <th class="p-3">Source</th>
                                 <th class="p-3">Location Context</th>
@@ -209,8 +209,9 @@
                                     <option value="Standard">100% Ben</option>
                                     <option value="Consignment">50/50 Consign</option>
                                 </select>
-                                <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
-                                <input type="text" id="filter-inv-model" placeholder="Model" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-category" placeholder="Category" oninput="window.renderInventoryTable()" list="category-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-model" placeholder="Model" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
                                 <input type="text" id="filter-inv-desc" placeholder="Desc" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[120px] focus:border-primary outline-none transition">
                                 <button onclick="window.clearInventoryFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
                             </div>
@@ -245,14 +246,15 @@
                                 <option value="Standard">100% Ben</option>
                                 <option value="Consignment">50/50 Consign</option>
                             </select>
-                            <select id="inv-batch-source" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition">
+                            <select id="inv-batch-source" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
                                 <option value="">- Source -</option>
                                 <option value="Benjamin">Benjamin</option>
                                 <option value="Partner">Partner</option>
                             </select>
-                            <input type="text" id="inv-batch-brand" list="brand-list" placeholder="Brand" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
-                            <input type="text" id="inv-batch-model" placeholder="Model" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
-                            <input type="text" id="inv-batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[110px]">
+                            <input type="text" id="inv-batch-category" list="category-list" placeholder="Category" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                            <input type="text" id="inv-batch-brand" list="brand-list" placeholder="Brand" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                            <input type="text" id="inv-batch-model" placeholder="Model" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                            <input type="text" id="inv-batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[100px]">
                             <input type="number" id="inv-batch-price" placeholder="Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
                             
                             <div class="flex gap-2 ml-auto">
@@ -272,15 +274,16 @@
                                 <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)" title="Select All"></th>
                                 <th class="p-3 w-28">Photo</th>
                                 <th class="p-3 w-24">Status</th>
-                                <th class="p-3 w-32">Profile</th>
-                                <th class="p-3 w-32">Source</th>
+                                <th class="p-3 w-28">Profile</th>
+                                <th class="p-3 w-28">Source</th>
+                                <th class="p-3">Category</th>
                                 <th class="p-3">Brand</th>
                                 <th class="p-3 cursor-pointer hover:text-primary transition" onclick="window.toggleInventorySort('model')" title="Click to sort by Model">
                                     Model <i id="sort-icon-model" class="fas fa-sort text-gray-400 ml-1"></i>
                                 </th>
                                 <th class="p-3">Description</th>
-                                <th class="p-3 w-20">Qty</th>
-                                <th class="p-3 w-28">Price</th>
+                                <th class="p-3 w-16">Qty</th>
+                                <th class="p-3 w-24">Price</th>
                                 <th class="p-3 w-16">Actions</th>
                             </tr>
                         </thead>
@@ -390,9 +393,10 @@
                                         <option value="Standard">100% Ben</option>
                                         <option value="Consignment">50/50 Consign</option>
                                     </select>
-                                    <input type="text" id="filter-post-brand" placeholder="Brand" oninput="window.renderItemsTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
-                                    <input type="text" id="filter-post-model" placeholder="Model" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
-                                    <input type="text" id="filter-post-desc" placeholder="Desc" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[120px] focus:border-primary outline-none transition">
+                                    <input type="text" id="filter-post-category" placeholder="Category" oninput="window.renderItemsTable()" list="category-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                    <input type="text" id="filter-post-brand" placeholder="Brand" oninput="window.renderItemsTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                    <input type="text" id="filter-post-model" placeholder="Model" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                    <input type="text" id="filter-post-desc" placeholder="Desc" oninput="window.renderItemsTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[110px] focus:border-primary outline-none transition">
                                     <button onclick="window.clearPostFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
                                 </div>
                             </div>
@@ -426,14 +430,15 @@
                                     <option value="Standard">100% Ben</option>
                                     <option value="Consignment">50/50 Consign</option>
                                 </select>
-                                <select id="batch-source" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition">
+                                <select id="batch-source" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-24 outline-none transition">
                                     <option value="">- Source -</option>
                                     <option value="Benjamin">Benjamin</option>
                                     <option value="Partner">Partner</option>
                                 </select>
-                                <input type="text" id="batch-brand" list="brand-list" placeholder="Brand" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
-                                <input type="text" id="batch-model" placeholder="Model" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px]">
-                                <input type="text" id="batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[110px]">
+                                <input type="text" id="batch-category" list="category-list" placeholder="Category" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                                <input type="text" id="batch-brand" list="brand-list" placeholder="Brand" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                                <input type="text" id="batch-model" placeholder="Model" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[80px]">
+                                <input type="text" id="batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[100px]">
                                 <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
                                 
                                 <div class="flex gap-2 ml-auto">
@@ -453,14 +458,15 @@
                                     <th class="p-3 w-10"><input type="checkbox" id="select-all-post-items" onchange="window.toggleSelectAll('.post-item-checkbox', this.checked)" title="Select All"></th>
                                     <th class="p-3 w-16">Item #</th>
                                     <th class="p-3 w-28">Photo</th>
-                                    <th class="p-3 w-28">Type</th>
-                                    <th class="p-3 w-32">Profile</th>
-                                    <th class="p-3 w-32">Source</th>
+                                    <th class="p-3 w-24">Type</th>
+                                    <th class="p-3 w-28">Profile</th>
+                                    <th class="p-3 w-28">Source</th>
+                                    <th class="p-3">Category</th>
                                     <th class="p-3">Brand</th>
                                     <th class="p-3">Model</th>
                                     <th class="p-3">Description</th>
-                                    <th class="p-3 w-20">Qty</th>
-                                    <th class="p-3 w-28">Bid / Price</th>
+                                    <th class="p-3 w-16">Qty</th>
+                                    <th class="p-3 w-24">Bid / Price</th>
                                     <th class="p-3 w-16">Actions</th>
                                 </tr>
                             </thead>
@@ -879,6 +885,25 @@
                 <option value="Johnny Lightning"></option>
             </datalist>
 
+            <!-- Predefined Category List for Autocomplete -->
+            <datalist id="category-list">
+                <option value="Trucks"></option>
+                <option value="Planes"></option>
+                <option value="Boats"></option>
+                <option value="Utility"></option>
+                <option value="Porsche"></option>
+                <option value="Batman"></option>
+                <option value="Euro"></option>
+                <option value="Muscle"></option>
+                <option value="JDM"></option>
+                <option value="Fantasy"></option>
+                <option value="MOPAR"></option>
+                <option value="Chevy"></option>
+                <option value="Ford"></option>
+                <option value="Icons"></option>
+                <option value="Motorcycles"></option>
+            </datalist>
+
         </main>
     </div>
 
@@ -1125,7 +1150,7 @@
             tbody.innerHTML = '';
             
             const results = (window.appState.items || []).filter(item => {
-                const searchStr = `${item.itemNumber || ''} ${item.brand || ''} ${item.model || ''} ${item.description || ''}`.toLowerCase();
+                const searchStr = `${item.itemNumber || ''} ${item.category || ''} ${item.brand || ''} ${item.model || ''} ${item.description || ''}`.toLowerCase();
                 return searchStr.includes(query);
             });
             
@@ -1160,7 +1185,7 @@
                         ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
                     </td>
                     <td class="p-3">
-                        <div class="font-bold text-gray-800 dark:text-gray-200">${item.brand || 'Unbranded'} ${item.model || ''}</div>
+                        <div class="font-bold text-gray-800 dark:text-gray-200">${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</div>
                         <div class="text-xs text-gray-500 truncate max-w-[250px]" title="${item.description || ''}">${item.description || 'No description'}</div>
                     </td>
                     <td class="p-3">
@@ -1293,6 +1318,7 @@
                 const item = window.appState.items.find(i => i.id === cb.value);
                 if (item) {
                     exportList.push({
+                        Category: item.category || "",
                         Brand: item.brand || "",
                         Model: item.model || "",
                         Description: item.description || ""
@@ -1585,6 +1611,7 @@
 
         // --- MASTER INVENTORY RENDERING & FILTERS ---
         window.clearInventoryFilters = function() {
+            if(document.getElementById('filter-inv-category')) document.getElementById('filter-inv-category').value = '';
             if(document.getElementById('filter-inv-brand')) document.getElementById('filter-inv-brand').value = '';
             if(document.getElementById('filter-inv-model')) document.getElementById('filter-inv-model').value = '';
             if(document.getElementById('filter-inv-desc')) document.getElementById('filter-inv-desc').value = '';
@@ -1617,12 +1644,14 @@
 
             let invItems = (window.appState.items || []).filter(item => item.postId === 'inventory');
 
+            const fCategory = (document.getElementById('filter-inv-category')?.value || '').toLowerCase().trim();
             const fBrand = (document.getElementById('filter-inv-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-inv-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-inv-desc')?.value || '').toLowerCase().trim();
             const fSource = document.getElementById('filter-inv-source')?.value || '';
             const fProfile = document.getElementById('filter-inv-profile')?.value || '';
 
+            if (fCategory) invItems = filterSearchMatch(invItems, 'category', fCategory);
             if (fBrand) invItems = filterSearchMatch(invItems, 'brand', fBrand);
             if (fModel) invItems = filterSearchMatch(invItems, 'model', fModel);
             if (fDesc) invItems = filterSearchMatch(invItems, 'description', fDesc);
@@ -1640,7 +1669,7 @@
             }
 
             if (invItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500">No items found matching your filters in Master Inventory.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500">No items found matching your filters in Master Inventory.</td></tr>`;
                 return;
             }
 
@@ -1680,6 +1709,7 @@
                             <option value="Partner" ${item.source === 'Partner' ? 'selected' : ''}>Partner</option>
                         </select>
                     </td>
+                    <td class="p-2"><input type="text" list="category-list" value="${item.category || ''}" onchange="window.updateItemField('${item.id}', 'category', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
@@ -1700,6 +1730,7 @@
             const bType = document.getElementById('inv-batch-type').value;
             const bProfile = document.getElementById('inv-batch-profile').value;
             const bSource = document.getElementById('inv-batch-source').value;
+            const bCategory = document.getElementById('inv-batch-category').value.trim();
             const bBrand = document.getElementById('inv-batch-brand').value.trim();
             const bModel = document.getElementById('inv-batch-model').value.trim();
             const bDesc = document.getElementById('inv-batch-desc').value.trim();
@@ -1711,6 +1742,7 @@
                     if (bType) item.type = bType;
                     if (bProfile) item.profitProfile = bProfile;
                     if (bSource) item.source = bSource;
+                    if (bCategory) item.category = bCategory;
                     if (bBrand) item.brand = bBrand;
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
@@ -1725,6 +1757,7 @@
             document.getElementById('inv-batch-type').value = '';
             document.getElementById('inv-batch-profile').value = '';
             document.getElementById('inv-batch-source').value = '';
+            document.getElementById('inv-batch-category').value = '';
             document.getElementById('inv-batch-brand').value = '';
             document.getElementById('inv-batch-model').value = '';
             document.getElementById('inv-batch-desc').value = '';
@@ -1735,6 +1768,7 @@
 
         // --- POST ITEMS RENDERING & FILTERS ---
         window.clearPostFilters = function() {
+            if(document.getElementById('filter-post-category')) document.getElementById('filter-post-category').value = '';
             if(document.getElementById('filter-post-brand')) document.getElementById('filter-post-brand').value = '';
             if(document.getElementById('filter-post-model')) document.getElementById('filter-post-model').value = '';
             if(document.getElementById('filter-post-desc')) document.getElementById('filter-post-desc').value = '';
@@ -1756,12 +1790,14 @@
             let postItems = (window.appState.items || []).filter(item => item.postId === currentActivePostId)
                                 .sort((a, b) => a.itemNumber - b.itemNumber);
 
+            const fCategory = (document.getElementById('filter-post-category')?.value || '').toLowerCase().trim();
             const fBrand = (document.getElementById('filter-post-brand')?.value || '').toLowerCase().trim();
             const fModel = (document.getElementById('filter-post-model')?.value || '').toLowerCase().trim();
             const fDesc = (document.getElementById('filter-post-desc')?.value || '').toLowerCase().trim();
             const fSource = document.getElementById('filter-post-source')?.value || '';
             const fProfile = document.getElementById('filter-post-profile')?.value || '';
 
+            if (fCategory) postItems = filterSearchMatch(postItems, 'category', fCategory);
             if (fBrand) postItems = filterSearchMatch(postItems, 'brand', fBrand);
             if (fModel) postItems = filterSearchMatch(postItems, 'model', fModel);
             if (fDesc) postItems = filterSearchMatch(postItems, 'description', fDesc);
@@ -1769,7 +1805,7 @@
             if (fProfile) postItems = postItems.filter(i => (i.profitProfile || 'Standard') === fProfile);
 
             if (postItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="13" class="p-6 text-center text-gray-500">No items found in this post.</td></tr>`;
                 return;
             }
 
@@ -1804,6 +1840,7 @@
                             <option value="Partner" ${item.source === 'Partner' ? 'selected' : ''}>Partner</option>
                         </select>
                     </td>
+                    <td class="p-2"><input type="text" list="category-list" value="${item.category || ''}" onchange="window.updateItemField('${item.id}', 'category', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" list="brand-list" value="${item.brand || ''}" onchange="window.updateItemField('${item.id}', 'brand', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.model || ''}" onchange="window.updateItemField('${item.id}', 'model', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
                     <td class="p-2"><input type="text" value="${item.description || ''}" onchange="window.updateItemField('${item.id}', 'description', this.value)" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors"></td>
@@ -1835,6 +1872,7 @@
                 type: inheritedType,
                 profitProfile: inheritedProfile,
                 source: 'Benjamin',
+                category: '',
                 brand: '', model: '', description: '', price: '', quantity: 1,
                 photo: photoBase64,
                 status: 'Available',
@@ -1867,6 +1905,7 @@
                     type: inheritedType,
                     profitProfile: inheritedProfile,
                     source: 'Benjamin',
+                    category: '',
                     brand: '', model: '', description: '', price: '', quantity: 1,
                     photo: null,
                     status: 'Available',
@@ -1921,6 +1960,7 @@
                             type: inheritedType,
                             profitProfile: inheritedProfile,
                             source: 'Benjamin',
+                            category: '',
                             brand: brandName, 
                             model: `Slot ${slot}`, 
                             description: '', 
@@ -2005,6 +2045,7 @@
             const bType = document.getElementById('batch-type').value;
             const bProfile = document.getElementById('batch-profit-profile').value;
             const bSource = document.getElementById('batch-source').value;
+            const bCategory = document.getElementById('batch-category').value.trim();
             const bBrand = document.getElementById('batch-brand').value.trim();
             const bModel = document.getElementById('batch-model').value.trim();
             const bDesc = document.getElementById('batch-desc').value.trim();
@@ -2016,6 +2057,7 @@
                     if (bType) item.type = bType;
                     if (bProfile) item.profitProfile = bProfile;
                     if (bSource) item.source = bSource;
+                    if (bCategory) item.category = bCategory;
                     if (bBrand) item.brand = bBrand;
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
@@ -2030,6 +2072,7 @@
             document.getElementById('batch-type').value = '';
             document.getElementById('batch-profit-profile').value = '';
             document.getElementById('batch-source').value = '';
+            document.getElementById('batch-category').value = '';
             document.getElementById('batch-brand').value = '';
             document.getElementById('batch-model').value = '';
             document.getElementById('batch-desc').value = '';
@@ -2146,8 +2189,9 @@
                     postId: targetPostId,
                     itemNumber: nextNum,
                     type: masterItem.type || (parentPost ? (parentPost.type || 'Auction') : 'Sale'),
-                    profitProfile: masterItem.profitProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : 'Standard'),
+                    profitProfile: bProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : masterItem.profitProfile) || 'Standard',
                     source: masterItem.source || 'Benjamin',
+                    category: masterItem.category || '',
                     brand: masterItem.brand || '',
                     model: masterItem.model || '',
                     description: masterItem.description || '',
@@ -2208,6 +2252,7 @@
                         type: inheritedType,
                         profitProfile: inheritedProfile,
                         source: 'Benjamin',
+                        category: '',
                         brand: '', model: '', description: '', price: '', quantity: 1,
                         photo: base64data,
                         status: 'Available',
@@ -2218,14 +2263,14 @@
                     window.appState.items.push(newItem);
                     saveItemToFirestore(newItem); 
                     
-                    if (finalTargetId === 'inventory') window.renderInventoryTable();
-                    else window.renderItemsTable();
-                    window.updateDashboardStats();
-                    
                 } catch (error) {
                     console.error("Compression error on file " + i, error);
                 }
             }
+            
+            if (finalTargetId === 'inventory') window.renderInventoryTable();
+            else window.renderItemsTable();
+            window.updateDashboardStats();
             
             event.target.value = '';
             
@@ -2744,7 +2789,7 @@
                                     <button onclick="window.returnToInventory('${item.id}')" class="text-gray-400 hover:text-orange-500 transition" title="Return to Master Inventory"><i class="fas fa-level-up-alt"></i></button>
                                 </div>
                             </div>
-                            <p class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate mt-0.5" title="${item.brand} ${item.model}">${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                            <p class="text-sm font-bold text-gray-800 dark:text-gray-200 truncate mt-0.5" title="${item.brand} ${item.model}">${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate" title="${item.description}">${item.description || 'No description'}</p>
                         </div>
                     </div>
@@ -3037,13 +3082,6 @@
             let badgesHTML = '';
             if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
             if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
-            
-            const boxStats = window.getOpenBoxStats(bidderId, window.appState.items);
-            if (boxStats.hasBox && boxStats.daysOpen > 30) {
-                const boxBadgeColor = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
-                badgesHTML += `<span class="${boxBadgeColor} text-[10px] px-2 py-0.5 rounded font-bold"><i class="far fa-clock mr-1"></i> Stale Box: ${boxStats.daysOpen}d</span>`;
-            }
-            
             if (invoiceBadge) badgesHTML += invoiceBadge;
 
             const renderItemRow = (item, isShipped) => {
@@ -3065,7 +3103,7 @@
                         <div class="flex items-center gap-3">
                             ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
                             <div>
-                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">$${(parseFloat(item.price)||0).toFixed(2)}</p>
                             </div>
                         </div>
@@ -3264,7 +3302,7 @@
                     rows += `
                         <tr style="border-bottom: 1px dotted #ccc;">
                             <td style="padding: 2px 4px; width: 45px; vertical-align: top;">#${item.itemNumber || '-'}</td>
-                            <td style="padding: 2px 4px; vertical-align: top;">${item.brand || ''} ${item.model || ''}</td>
+                            <td style="padding: 2px 4px; vertical-align: top;">${item.category ? `[${item.category}] ` : ''}${item.brand || ''} ${item.model || ''}</td>
                             <td style="padding: 2px 4px; text-align: right; width: 60px; vertical-align: top;">$${price.toFixed(2)}</td>
                         </tr>
                     `;
