@@ -209,9 +209,9 @@
                                     <option value="Standard">100% Ben</option>
                                     <option value="Consignment">50/50 Consign</option>
                                 </select>
-                                <input type="text" id="filter-inv-category" placeholder="Category" oninput="window.renderInventoryTable()" list="category-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
-                                <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
-                                <input type="text" id="filter-inv-model" placeholder="Model" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[90px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-category" placeholder="Category" oninput="window.renderInventoryTable()" list="category-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-brand" placeholder="Brand" oninput="window.renderInventoryTable()" list="brand-list" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
+                                <input type="text" id="filter-inv-model" placeholder="Model" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-1 min-w-[100px] focus:border-primary outline-none transition">
                                 <input type="text" id="filter-inv-desc" placeholder="Desc" oninput="window.renderInventoryTable()" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[120px] focus:border-primary outline-none transition">
                                 <button onclick="window.clearInventoryFilters()" class="bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-800 dark:text-gray-200 px-3 py-1.5 rounded font-bold transition text-sm shadow-sm">Clear</button>
                             </div>
@@ -274,8 +274,8 @@
                                 <th class="p-3 w-10"><input type="checkbox" id="select-all-inventory" onchange="window.toggleSelectAll('.inventory-checkbox', this.checked)" title="Select All"></th>
                                 <th class="p-3 w-28">Photo</th>
                                 <th class="p-3 w-24">Status</th>
-                                <th class="p-3 w-28">Profile</th>
-                                <th class="p-3 w-28">Source</th>
+                                <th class="p-3 w-32">Profile</th>
+                                <th class="p-3 w-32">Source</th>
                                 <th class="p-3">Category</th>
                                 <th class="p-3">Brand</th>
                                 <th class="p-3 cursor-pointer hover:text-primary transition" onclick="window.toggleInventorySort('model')" title="Click to sort by Model">
@@ -902,7 +902,6 @@
                 <option value="Ford"></option>
                 <option value="Icons"></option>
                 <option value="Motorcycles"></option>
-                <option value="Supercar"></option>
             </datalist>
 
         </main>
@@ -1173,9 +1172,14 @@
                     actionBtn = `<button onclick="window.goToItem('${item.postId}', '${item.id}')" class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 px-3 py-1.5 rounded text-xs font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-crosshairs mr-1"></i>Find in Post</button>`;
                 }
                 
-                if (item.status === 'Sold' && item.shippingStatus !== 'Shipped') {
-                    locationName += ' <span class="mx-2 text-gray-300">|</span> <i class="fas fa-box-open text-orange-400 mr-1"></i> Open Box';
-                    actionBtn += ` <button onclick="window.switchTab('open-box')" class="bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300 px-3 py-1.5 rounded text-xs font-bold ml-2 transition shadow-sm mt-1 whitespace-nowrap">Go to Open Box</button>`;
+                if (item.status === 'Sold' && item.winnerId) {
+                    const isShipped = item.shippingStatus === 'Shipped';
+                    const boxIconColor = isShipped ? 'text-gray-400' : 'text-orange-400';
+                    const boxBgColor = isShipped ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' : 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300';
+                    const boxText = isShipped ? 'Shipped Box' : 'Open Box';
+                    
+                    locationName += ` <span class="mx-2 text-gray-300">|</span> <i class="fas fa-box-open ${boxIconColor} mr-1"></i> ${boxText}`;
+                    actionBtn += ` <button onclick="window.goToOpenBoxForBidder('${item.winnerId}', '${item.id}')" class="${boxBgColor} px-3 py-1.5 rounded text-xs font-bold ml-2 transition shadow-sm mt-1 whitespace-nowrap">Go to Box</button>`;
                 }
                 
                 const tr = document.createElement('tr');
@@ -1219,6 +1223,37 @@
                             row.classList.remove('highlight-row');
                         }, 3000);
                     }
+                }
+            }, 100);
+        }
+
+        window.goToOpenBoxForBidder = function(bidderId, itemId) {
+            window.switchTab('open-box');
+            
+            if(document.getElementById('open-box-bidder-filter')) document.getElementById('open-box-bidder-filter').value = '';
+            if(document.getElementById('filter-ob-invoice')) document.getElementById('filter-ob-invoice').value = '';
+            if(document.getElementById('filter-ob-alert')) document.getElementById('filter-ob-alert').value = '';
+            if(document.getElementById('filter-ob-sticker')) document.getElementById('filter-ob-sticker').value = '';
+
+            const bidderItems = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold');
+            const unshipped = bidderItems.filter(i => i.shippingStatus !== 'Shipped');
+            
+            if (unshipped.length > 0) {
+                window.setOBFilter('all');
+            } else {
+                window.setOBFilter('shipped');
+            }
+
+            window.selectOBBidder(bidderId);
+
+            setTimeout(() => {
+                const itemRow = document.getElementById('ob-item-row-' + itemId);
+                if (itemRow) {
+                    itemRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    itemRow.classList.add('highlight-row');
+                    setTimeout(() => {
+                        itemRow.classList.remove('highlight-row');
+                    }, 3000);
                 }
             }, 100);
         }
@@ -2190,7 +2225,7 @@
                     postId: targetPostId,
                     itemNumber: nextNum,
                     type: masterItem.type || (parentPost ? (parentPost.type || 'Auction') : 'Sale'),
-                    profitProfile: bProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : masterItem.profitProfile) || 'Standard',
+                    profitProfile: masterItem.profitProfile || (parentPost && parentPost.profitProfile ? parentPost.profitProfile : 'Standard'),
                     source: masterItem.source || 'Benjamin',
                     category: masterItem.category || '',
                     brand: masterItem.brand || '',
@@ -3100,11 +3135,11 @@
                 }
 
                 return `
-                    <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group">
+                    <div id="ob-item-row-${item.id}" class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group">
                         <div class="flex items-center gap-3">
                             ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
                             <div>
-                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.brand || 'Unbranded'} ${item.model || ''}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">$${(parseFloat(item.price)||0).toFixed(2)}</p>
                             </div>
                         </div>
@@ -3201,9 +3236,7 @@
             const item = window.appState.items.find(i => i.id === itemId);
             if (item) {
                 item.paymentStatus = item.paymentStatus === 'Paid' ? 'Unpaid' : 'Paid';
-                await saveItemToFirestore(item);
-                window.renderOpenBoxList();
-                window.renderOBDetails();
+                saveItemToFirestore(item);
             }
         }
 
@@ -3216,10 +3249,6 @@
                 item.paymentStatus = 'Paid';
                 saveItemToFirestore(item);
             });
-
-            window.renderOpenBoxList();
-            window.renderOBDetails();
-            window.renderBiddersTable();
         }
 
         window.shipBox = async function(bidderId) {
@@ -3237,8 +3266,6 @@
                 
                 window.renderOpenBoxList();
                 window.renderOBDetails();
-                window.updateDashboardStats();
-                window.renderBiddersTable();
             }
         }
 
@@ -3250,11 +3277,6 @@
                     item.shippingStatus = 'Unshipped';
                     saveItemToFirestore(item);
                 });
-
-                window.renderOpenBoxList();
-                window.renderOBDetails();
-                window.updateDashboardStats();
-                window.renderBiddersTable();
             }
         }
 
