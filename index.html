@@ -261,6 +261,7 @@
                                 <button onclick="window.applyInventoryBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
                                 <button onclick="window.evaluateSelectedPrices('inventory')" class="btn-ai-eval bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded font-bold transition text-sm shadow-sm flex items-center"><i class="fas fa-robot mr-1"></i> AI Evaluator</button>
                                 <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
+                                <button onclick="window.deleteSelectedInventoryItems()" class="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 font-bold transition text-sm shadow-sm"><i class="fas fa-trash-alt md:mr-1"></i><span class="hidden md:inline">Delete</span></button>
                             </div>
                         </div>
                     </div>
@@ -363,6 +364,9 @@
                             </div>
                             <div class="flex gap-2">
                                 <span class="text-xs text-gray-500 self-center mr-2 hidden md:inline" id="post-compression-status">Images auto-compress</span>
+                                <button onclick="window.deleteAllItemsInPost()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded transition text-sm font-bold shadow-sm hidden md:inline-block">
+                                    <i class="fas fa-bomb mr-1"></i> Purge Items
+                                </button>
                                 <button onclick="window.addBlankItems()" class="bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-bold shadow-sm">
                                     <i class="fas fa-plus mr-1"></i> Add Blanks
                                 </button>
@@ -445,6 +449,7 @@
                                     <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
                                     <button onclick="window.evaluateSelectedPrices('post')" class="btn-ai-eval bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded font-bold transition text-sm shadow-sm flex items-center"><i class="fas fa-robot mr-1"></i> AI Evaluator</button>
                                     <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
+                                    <button onclick="window.deleteSelectedPostItems()" class="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 font-bold transition text-sm shadow-sm"><i class="fas fa-trash-alt md:mr-1"></i><span class="hidden md:inline">Delete</span></button>
                                 </div>
                             </div>
                         </div>
@@ -881,6 +886,9 @@
                 </div>
             </div>
 
+            <!-- Single Image Replacement Input -->
+            <input type="file" id="replace-image-upload" accept="image/*" class="hidden" onchange="window.handleReplaceImage(event)">
+
             <!-- Predefined Brand List for Autocomplete -->
             <datalist id="brand-list">
                 <option value="Hot Wheels"></option>
@@ -965,6 +973,7 @@
         window.currentOBBidder = null;
         
         window.itemsUnsubscribe = null;
+        window.itemToReplaceImage = null;
 
         const authScreen = document.getElementById('auth-screen');
         const appLayout = document.getElementById('app-layout');
@@ -1204,7 +1213,12 @@
                 tr.innerHTML = `
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber || '-'}</td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                        <div class="relative inline-block w-24 h-24 group">
+                            ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                            <button onclick="window.triggerReplaceImage('${item.id}')" class="absolute bottom-1 right-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-7 h-7 rounded-full shadow border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:text-primary dark:hover:text-indigo-400 transition opacity-0 group-hover:opacity-100" title="Change Photo">
+                                <i class="fas fa-camera text-[12px]"></i>
+                            </button>
+                        </div>
                     </td>
                     <td class="p-3">
                         <div class="font-bold text-gray-800 dark:text-gray-200">${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</div>
@@ -1319,6 +1333,48 @@
             window.renderBiddersTable();
             alert("Invoice marked as sent! Tracking 5-day countdown.");
             window.closeInvoiceModal();
+        }
+
+        // --- NEW BATCH/POST DELETION LOGICS ---
+
+        window.deleteAllItemsInPost = async function() {
+            if(!currentActivePostId) return;
+            
+            const itemsToDelete = window.appState.items.filter(i => i.postId === currentActivePostId);
+            if(itemsToDelete.length === 0) return alert("No items to delete in this post.");
+            
+            if(confirm(`Are you sure you want to permanently delete ALL ${itemsToDelete.length} items in this post?`)) {
+                itemsToDelete.forEach(item => {
+                    deleteItemFromFirestore(item.id);
+                });
+                window.appState.items = window.appState.items.filter(i => i.postId !== currentActivePostId);
+                window.renderItemsTable();
+                window.updateDashboardStats();
+                alert("All items in this post have been purged.");
+            }
+        }
+
+        window.deletePost = async function(postId) {
+            if(confirm("Are you sure you want to completely delete this post AND all items inside it? This cannot be undone.")) {
+                const itemsToDelete = window.appState.items.filter(i => i.postId === postId);
+                
+                // Delete items from DB
+                itemsToDelete.forEach(item => {
+                    deleteItemFromFirestore(item.id);
+                });
+                
+                // Remove items from local state
+                window.appState.items = window.appState.items.filter(i => i.postId !== postId);
+                
+                // Remove post from local state and DB
+                window.appState.posts = window.appState.posts.filter(p => p.id !== postId);
+                await window.saveStateToFirebase();
+                
+                window.renderPosts();
+                window.updateDashboardStats();
+                window.populatePostSelectors();
+                window.renderReports();
+            }
         }
 
         window.deleteSelectedInventoryItems = async function() {
@@ -1707,11 +1763,14 @@
                         ${post.fbUrl ? `<a href="${post.fbUrl}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 inline-block"><i class="fab fa-facebook mr-1"></i> View FB Post</a>` : ''}
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="window.editPost('${post.id}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-4 py-2 rounded transition text-sm">
+                        <button onclick="window.editPost('${post.id}')" class="bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 px-4 py-2 rounded transition text-sm font-bold shadow-sm">
                             <i class="fas fa-edit"></i> Edit
                         </button>
                         <button onclick="window.openItemManager('${post.id}')" class="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded transition font-bold text-sm shadow-sm">
                             <i class="fas fa-list-check mr-2"></i> Manage Items
+                        </button>
+                        <button onclick="window.deletePost('${post.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400 px-4 py-2 rounded transition text-sm font-bold shadow-sm">
+                            <i class="fas fa-trash-alt"></i> Delete
                         </button>
                     </div>
                 `;
@@ -1856,7 +1915,12 @@
                 tr.innerHTML = `
                     <td class="p-3"><input type="checkbox" class="inventory-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                        <div class="relative inline-block w-24 h-24 group">
+                            ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 mx-auto"><i class="fas fa-image fa-2x"></i></div>`}
+                            <button onclick="window.triggerReplaceImage('${item.id}')" class="absolute bottom-1 right-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-7 h-7 rounded-full shadow border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:text-primary dark:hover:text-indigo-400 transition opacity-0 group-hover:opacity-100" title="Change Photo">
+                                <i class="fas fa-camera text-[12px]"></i>
+                            </button>
+                        </div>
                     </td>
                     <td class="p-3">
                         ${statusBadge}
@@ -1985,7 +2049,12 @@
                     <td class="p-3"><input type="checkbox" class="post-item-checkbox w-4 h-4" value="${item.id}"></td>
                     <td class="p-3 font-bold text-primary dark:text-indigo-300">#${item.itemNumber}</td>
                     <td class="p-3 text-center">
-                        ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image fa-2x"></i></div>`}
+                        <div class="relative inline-block w-24 h-24 group">
+                            ${item.photo ? `<img src="${item.photo}" onclick="window.openImageModal('${item.photo}')" class="w-24 h-24 object-cover rounded shadow-sm border border-gray-200 cursor-pointer hover:opacity-80 hover:shadow-md transition mx-auto" title="Click to enlarge">` : `<div class="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400"><i class="fas fa-image fa-2x"></i></div>`}
+                            <button onclick="window.triggerReplaceImage('${item.id}')" class="absolute bottom-1 right-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 w-7 h-7 rounded-full shadow border border-gray-300 dark:border-gray-600 flex items-center justify-center hover:text-primary dark:hover:text-indigo-400 transition opacity-0 group-hover:opacity-100" title="Change Photo">
+                                <i class="fas fa-camera text-[12px]"></i>
+                            </button>
+                        </div>
                     </td>
                     <td class="p-2">
                         <select onchange="window.updateItemField('${item.id}', 'type', this.value); window.renderItemsTable();" class="w-full p-1 border border-transparent focus:border-gray-300 dark:focus:border-gray-500 bg-transparent focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-gray-100 rounded text-sm transition-colors">
@@ -2438,6 +2507,58 @@
             
             statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
             setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
+        }
+
+        window.triggerReplaceImage = function(itemId) {
+            window.itemToReplaceImage = itemId;
+            document.getElementById('replace-image-upload').click();
+        }
+
+        window.handleReplaceImage = async function(event) {
+            if (!window.itemToReplaceImage) return;
+            const file = event.target.files[0];
+            if (!file) {
+                window.itemToReplaceImage = null;
+                return;
+            }
+
+            const item = window.appState.items.find(i => i.id === window.itemToReplaceImage);
+            if (!item) {
+                window.itemToReplaceImage = null;
+                return;
+            }
+
+            try {
+                const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+                const compressedFile = await imageCompression(file, options);
+                const base64data = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(compressedFile);
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                });
+
+                item.photo = base64data;
+                saveItemToFirestore(item);
+                
+                if (item.postId === 'inventory') {
+                    window.renderInventoryTable();
+                } else {
+                    window.renderItemsTable();
+                }
+                
+                if (document.getElementById('view-search').classList.contains('active')) {
+                    const query = document.getElementById('global-search').value;
+                    if(query) window.executeSearch(query);
+                }
+
+            } catch (error) {
+                console.error("Compression error:", error);
+                alert("Failed to process image.");
+            }
+
+            event.target.value = '';
+            window.itemToReplaceImage = null;
         }
 
         // =========================================================================
@@ -3263,7 +3384,9 @@
                 return `
                     <div id="ob-item-row-${item.id}" class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group">
                         <div class="flex items-center gap-3">
-                            ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
+                            <div class="relative inline-block w-10 h-10 group/img">
+                                ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
+                            </div>
                             <div>
                                 <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">$${(parseFloat(item.price)||0).toFixed(2)}</p>
