@@ -30,7 +30,7 @@
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
         
         /* Highlight Text Selection */
-        ::selection { background-color: #c7d2fe; color: #1e1b4b; }
+        ::-selection { background-color: #c7d2fe; color: #1e1b4b; }
         .dark ::selection { background-color: #3730a3; color: #e0e7ff; }
 
         /* Item Highlight Animation */
@@ -445,7 +445,17 @@
                                 <input type="text" id="batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[100px]">
                                 <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
                                 
+                                <!-- NEW BUNDLE PRICING SELECTOR -->
+                                <select id="batch-bundle-tier" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition font-bold text-indigo-600 dark:text-indigo-400">
+                                    <option value="">- Bundles -</option>
+                                    <option value="tier_1">$5ea / 3 for $12</option>
+                                    <option value="tier_2">$4ea / 5 for $15</option>
+                                    <option value="tier_3">$3ea / 9 for $18</option>
+                                </select>
+
                                 <div class="flex gap-2 ml-auto">
+                                    <!-- NEW CALCULATE BUNDLES BUTTON -->
+                                    <button onclick="window.applyBundlePricing()" class="bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-800 font-bold transition text-sm shadow-sm">Calc Bundles</button>
                                     <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
                                     <button onclick="window.evaluateSelectedPrices('post')" class="btn-ai-eval bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded font-bold transition text-sm shadow-sm flex items-center"><i class="fas fa-robot mr-1"></i> AI Evaluator</button>
                                     <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
@@ -2316,6 +2326,59 @@
             alert(`Successfully updated selected items!`);
         }
 
+        window.applyBundlePricing = async function() {
+            const tierId = document.getElementById('batch-bundle-tier').value;
+            if (!tierId) return alert("Please select a bundle pricing tier from the dropdown.");
+
+            const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
+            if (checkboxes.length === 0) return alert("Select the sold items you want to apply bundle pricing to.");
+
+            const tiers = {
+                "tier_1": { basePrice: 5, threshold: 3, proRataPrice: 4 },
+                "tier_2": { basePrice: 4, threshold: 5, proRataPrice: 3 },
+                "tier_3": { basePrice: 3, threshold: 9, proRataPrice: 2 }
+            };
+            const selectedTier = tiers[tierId];
+
+            // Group selected items by the buyer who won them
+            const itemsByBidder = {};
+            const selectedItems = [];
+
+            checkboxes.forEach(cb => {
+                const item = window.appState.items.find(i => i.id === cb.value);
+                if (item && item.status === 'Sold' && item.winnerId) {
+                    if (!itemsByBidder[item.winnerId]) itemsByBidder[item.winnerId] = [];
+                    itemsByBidder[item.winnerId].push(item);
+                    selectedItems.push(item);
+                }
+            });
+
+            if (selectedItems.length === 0) {
+                return alert("Bundle pricing can only be applied to items that are marked as 'Sold' to a specific buyer.");
+            }
+
+            let updatedCount = 0;
+
+            // Apply the pricing logic to each buyer's stack of items
+            for (const [bidderId, items] of Object.entries(itemsByBidder)) {
+                const quantity = items.length;
+                const finalPricePerCar = quantity >= selectedTier.threshold 
+                    ? selectedTier.proRataPrice 
+                    : selectedTier.basePrice;
+
+                items.forEach(item => {
+                    item.price = finalPricePerCar;
+                    saveItemToFirestore(item);
+                    updatedCount++;
+                });
+            }
+
+            window.renderItemsTable();
+            window.updateDashboardStats();
+            document.getElementById('batch-bundle-tier').value = '';
+            alert(`Successfully applied Pro-Rata Bundle Pricing to ${updatedCount} items!`);
+        };
+
         window.moveSelectedItems = async function() {
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
@@ -3752,10 +3815,12 @@
                         sCut = price / 2;
                         pCut = price / 2;
                     } else {
-                        pCut = price;
+                        sCut = price; // Fixed: You keep 100% of revenue for items under $3
+                        pCut = 0;
                     }
                 } else {
                     sCut = price;
+                    pCut = 0;
                 }
 
                 sellerTotal += sCut;
