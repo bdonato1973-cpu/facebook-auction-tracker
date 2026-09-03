@@ -30,7 +30,7 @@
         .dark ::-webkit-scrollbar-thumb { background: #475569; }
         
         /* Highlight Text Selection */
-        ::-selection { background-color: #c7d2fe; color: #1e1b4b; }
+        ::selection { background-color: #c7d2fe; color: #1e1b4b; }
         .dark ::selection { background-color: #3730a3; color: #e0e7ff; }
 
         /* Item Highlight Animation */
@@ -445,17 +445,7 @@
                                 <input type="text" id="batch-desc" placeholder="Desc" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 flex-2 min-w-[100px]">
                                 <input type="number" id="batch-price" placeholder="Bid/Price ($)" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-20">
                                 
-                                <!-- NEW BUNDLE PRICING SELECTOR -->
-                                <select id="batch-bundle-tier" class="p-1.5 text-sm border rounded dark:bg-gray-700 dark:border-gray-600 w-28 outline-none transition font-bold text-indigo-600 dark:text-indigo-400">
-                                    <option value="">- Bundles -</option>
-                                    <option value="tier_1">$5ea / 3 for $12</option>
-                                    <option value="tier_2">$4ea / 5 for $15</option>
-                                    <option value="tier_3">$3ea / 9 for $18</option>
-                                </select>
-
                                 <div class="flex gap-2 ml-auto">
-                                    <!-- NEW CALCULATE BUNDLES BUTTON -->
-                                    <button onclick="window.applyBundlePricing()" class="bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-800 font-bold transition text-sm shadow-sm">Calc Bundles</button>
                                     <button onclick="window.applyBatchEdits()" class="bg-primary text-white px-3 py-1.5 rounded hover:bg-indigo-700 font-bold transition text-sm shadow-sm">Apply</button>
                                     <button onclick="window.evaluateSelectedPrices('post')" class="btn-ai-eval bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded font-bold transition text-sm shadow-sm flex items-center"><i class="fas fa-robot mr-1"></i> AI Evaluator</button>
                                     <button onclick="window.exportSelectedItems()" class="bg-teal-500 text-white px-3 py-1.5 rounded hover:bg-teal-600 font-bold transition text-sm shadow-sm"><i class="fas fa-file-export md:mr-1"></i><span class="hidden md:inline">Export</span></button>
@@ -930,9 +920,7 @@
                 <option value="MOPAR"></option>
                 <option value="Chevy"></option>
                 <option value="Ford"></option>
-                <option value="Supercar"></option>
                 <option value="Icons"></option>
-                <option value="Racing"></option>
                 <option value="Motorcycles"></option>
             </datalist>
 
@@ -943,7 +931,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // =========================================================================
         // 1. FIREBASE CONFIGURATION (Replace with your actual keys)
@@ -1328,19 +1316,20 @@
         }
 
         window.markInvoiceSent = async function(bidderId) {
+            if (!currentUser) return;
             const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.paymentStatus === 'Unpaid' && i.status === 'Sold');
             if(items.length === 0) return;
             
             const now = new Date().toISOString();
+            const batch = writeBatch(db);
             
             items.forEach(item => {
                 item.invoiceSentAt = now;
-                saveItemToFirestore(item);
+                const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                batch.set(docRef, item);
             });
             
-            window.renderOpenBoxList();
-            window.renderOBDetails();
-            window.renderBiddersTable();
+            await batch.commit();
             alert("Invoice marked as sent! Tracking 5-day countdown.");
             window.closeInvoiceModal();
         }
@@ -1348,35 +1337,34 @@
         // --- NEW BATCH/POST DELETION LOGICS ---
 
         window.deleteAllItemsInPost = async function() {
-            if(!currentActivePostId) return;
+            if(!currentActivePostId || !currentUser) return;
             
             const itemsToDelete = window.appState.items.filter(i => i.postId === currentActivePostId);
             if(itemsToDelete.length === 0) return alert("No items to delete in this post.");
             
             if(confirm(`Are you sure you want to permanently delete ALL ${itemsToDelete.length} items in this post?`)) {
+                const batch = writeBatch(db);
                 itemsToDelete.forEach(item => {
-                    deleteItemFromFirestore(item.id);
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.delete(docRef);
                 });
-                window.appState.items = window.appState.items.filter(i => i.postId !== currentActivePostId);
-                window.renderItemsTable();
-                window.updateDashboardStats();
+                await batch.commit();
                 alert("All items in this post have been purged.");
             }
         }
 
         window.deletePost = async function(postId) {
+            if(!currentUser) return;
             if(confirm("Are you sure you want to completely delete this post AND all items inside it? This cannot be undone.")) {
                 const itemsToDelete = window.appState.items.filter(i => i.postId === postId);
+                const batch = writeBatch(db);
                 
-                // Delete items from DB
                 itemsToDelete.forEach(item => {
-                    deleteItemFromFirestore(item.id);
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.delete(docRef);
                 });
+                await batch.commit();
                 
-                // Remove items from local state
-                window.appState.items = window.appState.items.filter(i => i.postId !== postId);
-                
-                // Remove post from local state and DB
                 window.appState.posts = window.appState.posts.filter(p => p.id !== postId);
                 await window.saveStateToFirebase();
                 
@@ -1388,35 +1376,35 @@
         }
 
         window.deleteSelectedInventoryItems = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item to delete.");
 
             if(confirm(`Are you sure you want to permanently delete ${checkboxes.length} item(s)?`)) {
+                const batch = writeBatch(db);
                 checkboxes.forEach(cb => {
                     const itemId = cb.value;
-                    window.appState.items = window.appState.items.filter(i => i.id !== itemId);
-                    deleteItemFromFirestore(itemId);
+                    const docRef = doc(db, "users", currentUser.uid, "items", itemId);
+                    batch.delete(docRef);
                 });
-                
-                window.renderInventoryTable();
-                window.updateDashboardStats();
+                await batch.commit();
                 alert(`Deleted ${checkboxes.length} items.`);
             }
         }
 
         window.deleteSelectedPostItems = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item to delete.");
 
             if(confirm(`Are you sure you want to permanently delete ${checkboxes.length} item(s)?`)) {
+                const batch = writeBatch(db);
                 checkboxes.forEach(cb => {
                     const itemId = cb.value;
-                    window.appState.items = window.appState.items.filter(i => i.id !== itemId);
-                    deleteItemFromFirestore(itemId);
+                    const docRef = doc(db, "users", currentUser.uid, "items", itemId);
+                    batch.delete(docRef);
                 });
-                
-                window.renderItemsTable();
-                window.updateDashboardStats();
+                await batch.commit();
                 alert(`Deleted ${checkboxes.length} items.`);
             }
         }
@@ -1443,17 +1431,13 @@
                     invoiceSentAt: null,
                     createdAt: new Date().toISOString()
                 };
-                window.appState.items.push(newItem);
+                // Real-time listener will pick this up
                 await saveItemToFirestore(newItem);
-                
-                if (isInventory) window.renderInventoryTable();
-                else window.renderItemsTable();
-                
-                window.updateDashboardStats();
             }
         }
         
         window.evaluateSelectedPrices = async function(viewContext) {
+            if (!currentUser) return;
             const apiKey = window.appState.settings.geminiKey;
             if (!apiKey) {
                 alert("Please add your Gemini API Key in the Settings tab first.");
@@ -1489,7 +1473,7 @@
 
                 const promptText = "You are a Diecast Value Evaluator. I will provide a JSON array of diecast items. Your task is to estimate a fair starting bid / market value for each item based on its brand, model, and description. Return ONLY a raw JSON array of objects in exactly this format: [{\"id\": \"item_id\", \"price\": 5.00}]. Do not wrap the JSON in markdown blocks like ```json. Here are the items: " + JSON.stringify(itemsToEval);
 
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
+                const response = await fetch(`[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1509,20 +1493,21 @@
                 
                 const evaluatedData = JSON.parse(resultText);
                 
+                const batch = writeBatch(db);
+                let updateCount = 0;
+
                 evaluatedData.forEach(evalItem => {
                     const item = window.appState.items.find(i => i.id === evalItem.id);
                     if (item && evalItem.price !== undefined) {
                         item.price = parseFloat(evalItem.price);
-                        saveItemToFirestore(item);
+                        const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                        batch.set(docRef, item);
+                        updateCount++;
                     }
                 });
                 
-                if (isInventory) window.renderInventoryTable();
-                else window.renderItemsTable();
-                
-                window.updateDashboardStats();
-                
-                alert(`Successfully evaluated and applied prices to ${evaluatedData.length} items!`);
+                await batch.commit();
+                alert(`Successfully evaluated and applied prices to ${updateCount} items!`);
 
             } catch (error) {
                 console.error(error);
@@ -1578,9 +1563,11 @@
         }
         
         window.returnToInventory = async function(itemId) {
+            if (!currentUser) return;
             if(confirm("Return this item to the Master Inventory? This will remove it from its current post and undo any active sales.")) {
                 const item = window.appState.items.find(i => i.id === itemId);
                 if (item) {
+                    const batch = writeBatch(db);
                     const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
 
                     if (masterItem) {
@@ -1588,10 +1575,8 @@
                         if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
                             masterItem.status = 'Available';
                         }
-                        saveItemToFirestore(masterItem);
-
-                        window.appState.items = window.appState.items.filter(i => i.id !== itemId);
-                        deleteItemFromFirestore(itemId);
+                        batch.set(doc(db, "users", currentUser.uid, "items", masterItem.id), masterItem);
+                        batch.delete(doc(db, "users", currentUser.uid, "items", itemId));
                     } else {
                         item.postId = 'inventory';
                         item.itemNumber = null;
@@ -1601,22 +1586,15 @@
                         item.shippingStatus = 'Unshipped';
                         item.invoiceSentAt = null; 
                         item.soldAt = null;
-                        saveItemToFirestore(item);
+                        batch.set(doc(db, "users", currentUser.uid, "items", item.id), item);
                     }
-                    
-                    window.renderLiveSales();
-                    window.renderOpenBoxList();
-                    if(window.currentOBBidder) window.renderOBDetails();
-                    window.renderInventoryTable();
-                    window.updateDashboardStats();
-                    window.renderBiddersTable();
-                    window.renderReports();
-                    if (currentActivePostId) window.renderItemsTable();
+                    await batch.commit();
                 }
             }
         }
 
         window.returnAllUnsoldToInventory = async function() {
+            if (!currentUser) return;
             const selectedPostId = document.getElementById('live-sale-post-selector')?.value;
             if (!selectedPostId) return alert("Please select a post first.");
 
@@ -1628,6 +1606,8 @@
 
             if(!confirm(`Return all ${unsoldItems.length} unsold items to Master Inventory?`)) return;
 
+            const batch = writeBatch(db);
+
             unsoldItems.forEach(item => {
                 const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
 
@@ -1636,10 +1616,8 @@
                     if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
                         masterItem.status = 'Available';
                     }
-                    saveItemToFirestore(masterItem);
-
-                    window.appState.items = window.appState.items.filter(i => i.id !== item.id);
-                    deleteItemFromFirestore(item.id);
+                    batch.set(doc(db, "users", currentUser.uid, "items", masterItem.id), masterItem);
+                    batch.delete(doc(db, "users", currentUser.uid, "items", item.id));
                 } else {
                     item.postId = 'inventory';
                     item.itemNumber = null;
@@ -1649,15 +1627,11 @@
                     item.shippingStatus = 'Unshipped';
                     item.invoiceSentAt = null; 
                     item.soldAt = null;
-                    saveItemToFirestore(item);
+                    batch.set(doc(db, "users", currentUser.uid, "items", item.id), item);
                 }
             });
             
-            window.renderLiveSales();
-            window.renderInventoryTable();
-            window.updateDashboardStats();
-            if (currentActivePostId) window.renderItemsTable();
-            
+            await batch.commit();
             alert(`Successfully returned ${unsoldItems.length} items to Master Inventory.`);
         }
 
@@ -1963,6 +1937,7 @@
         }
 
         window.applyInventoryBatchEdits = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
@@ -1975,6 +1950,8 @@
             const bDesc = document.getElementById('inv-batch-desc').value.trim();
             const bPrice = document.getElementById('inv-batch-price').value;
 
+            const batch = writeBatch(db);
+            
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
                 if (item) {
@@ -1986,12 +1963,13 @@
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
                     if (bPrice !== '') item.price = parseFloat(bPrice);
-                    saveItemToFirestore(item);
+                    
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
                 }
             });
 
-            window.renderInventoryTable();
-            window.updateDashboardStats();
+            await batch.commit();
             
             document.getElementById('inv-batch-type').value = '';
             document.getElementById('inv-batch-profile').value = '';
@@ -2126,10 +2104,11 @@
                 createdAt: new Date().toISOString()
             };
             window.appState.items.push(newItem);
-            saveItemToFirestore(newItem); 
+            await saveItemToFirestore(newItem); 
         }
 
         window.addBlankItems = async function(targetPostId) {
+            if (!currentUser) return;
             const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
             const qtyStr = prompt("How many blank items would you like to create?", "1");
             if (!qtyStr) return;
@@ -2141,6 +2120,8 @@
             const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
 
             let nextNum = finalTargetId === 'inventory' ? null : getNextItemNumberForPost(finalTargetId);
+            
+            const batch = writeBatch(db);
             
             for (let i = 0; i < qty; i++) {
                 const newItem = {
@@ -2158,18 +2139,15 @@
                     shippingStatus: 'Unshipped',
                     createdAt: new Date().toISOString()
                 };
-                window.appState.items.push(newItem);
-                saveItemToFirestore(newItem);
+                const docRef = doc(db, "users", currentUser.uid, "items", newItem.id);
+                batch.set(docRef, newItem);
             }
             
-            if (finalTargetId === 'inventory') window.renderInventoryTable();
-            else window.renderItemsTable();
-            
-            window.updateDashboardStats();
+            await batch.commit();
         }
 
         window.addJammerCase = async function() {
-            if (!currentActivePostId) return;
+            if (!currentActivePostId || !currentUser) return;
             
             const qtyStr = prompt("How many Jammer Cases (24 slots each) would you like to generate?", "1");
             if (!qtyStr) return;
@@ -2190,6 +2168,8 @@
             const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
 
             let nextNum = getNextItemNumberForPost(currentActivePostId);
+            
+            const batch = writeBatch(db);
             
             for (let i = 0; i < numCases; i++) {
                 const currentCaseNum = startIdx + i;
@@ -2217,14 +2197,13 @@
                             shippingStatus: 'Unshipped',
                             createdAt: new Date().toISOString()
                         };
-                        window.appState.items.push(newItem);
-                        saveItemToFirestore(newItem);
+                        const docRef = doc(db, "users", currentUser.uid, "items", newItem.id);
+                        batch.set(docRef, newItem);
                     }
                 }
             }
 
-            window.renderItemsTable();
-            window.updateDashboardStats();
+            await batch.commit();
             alert(`${numCases} Jammer Case(s) created! ${numCases * 24} total slots added.`);
         }
 
@@ -2284,6 +2263,7 @@
         }
 
         window.applyBatchEdits = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
@@ -2296,6 +2276,8 @@
             const bDesc = document.getElementById('batch-desc').value.trim();
             const bPrice = document.getElementById('batch-price').value;
 
+            const batch = writeBatch(db);
+
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
                 if (item) {
@@ -2307,12 +2289,13 @@
                     if (bModel) item.model = bModel;
                     if (bDesc) item.description = bDesc;
                     if (bPrice !== '') item.price = parseFloat(bPrice);
-                    saveItemToFirestore(item);
+                    
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
                 }
             });
 
-            window.renderItemsTable();
-            window.updateDashboardStats();
+            await batch.commit();
             
             document.getElementById('batch-type').value = '';
             document.getElementById('batch-profit-profile').value = '';
@@ -2326,60 +2309,8 @@
             alert(`Successfully updated selected items!`);
         }
 
-        window.applyBundlePricing = async function() {
-            const tierId = document.getElementById('batch-bundle-tier').value;
-            if (!tierId) return alert("Please select a bundle pricing tier from the dropdown.");
-
-            const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
-            if (checkboxes.length === 0) return alert("Select the sold items you want to apply bundle pricing to.");
-
-            const tiers = {
-                "tier_1": { basePrice: 5, threshold: 3, proRataPrice: 4 },
-                "tier_2": { basePrice: 4, threshold: 5, proRataPrice: 3 },
-                "tier_3": { basePrice: 3, threshold: 9, proRataPrice: 2 }
-            };
-            const selectedTier = tiers[tierId];
-
-            // Group selected items by the buyer who won them
-            const itemsByBidder = {};
-            const selectedItems = [];
-
-            checkboxes.forEach(cb => {
-                const item = window.appState.items.find(i => i.id === cb.value);
-                if (item && item.status === 'Sold' && item.winnerId) {
-                    if (!itemsByBidder[item.winnerId]) itemsByBidder[item.winnerId] = [];
-                    itemsByBidder[item.winnerId].push(item);
-                    selectedItems.push(item);
-                }
-            });
-
-            if (selectedItems.length === 0) {
-                return alert("Bundle pricing can only be applied to items that are marked as 'Sold' to a specific buyer.");
-            }
-
-            let updatedCount = 0;
-
-            // Apply the pricing logic to each buyer's stack of items
-            for (const [bidderId, items] of Object.entries(itemsByBidder)) {
-                const quantity = items.length;
-                const finalPricePerCar = quantity >= selectedTier.threshold 
-                    ? selectedTier.proRataPrice 
-                    : selectedTier.basePrice;
-
-                items.forEach(item => {
-                    item.price = finalPricePerCar;
-                    saveItemToFirestore(item);
-                    updatedCount++;
-                });
-            }
-
-            window.renderItemsTable();
-            window.updateDashboardStats();
-            document.getElementById('batch-bundle-tier').value = '';
-            alert(`Successfully applied Pro-Rata Bundle Pricing to ${updatedCount} items!`);
-        };
-
         window.moveSelectedItems = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.post-item-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one visible item using the checkboxes.");
 
@@ -2404,6 +2335,8 @@
             let nextNum = targetPostId === 'inventory' ? null : getNextItemNumberForPost(targetPostId);
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
 
+            const batch = writeBatch(db);
+
             selectedItems.forEach(item => {
                 if (targetPostId === 'inventory') {
                     const masterItem = item.masterItemId ? window.appState.items.find(m => m.id === item.masterItemId && m.postId === 'inventory') : null;
@@ -2412,14 +2345,13 @@
                         if (masterItem.quantity > 0 && masterItem.status === 'Out of Stock') {
                             masterItem.status = 'Available';
                         }
-                        saveItemToFirestore(masterItem);
-                        window.appState.items = window.appState.items.filter(i => i.id !== item.id);
-                        deleteItemFromFirestore(item.id);
+                        batch.set(doc(db, "users", currentUser.uid, "items", masterItem.id), masterItem);
+                        batch.delete(doc(db, "users", currentUser.uid, "items", item.id));
                     } else {
                         item.postId = 'inventory';
                         item.itemNumber = null;
                         item.status = 'Available';
-                        saveItemToFirestore(item);
+                        batch.set(doc(db, "users", currentUser.uid, "items", item.id), item);
                     }
                 } else {
                     item.postId = targetPostId;
@@ -2428,18 +2360,18 @@
                     }
                     item.itemNumber = nextNum;
                     nextNum++;
-                    saveItemToFirestore(item);
+                    batch.set(doc(db, "users", currentUser.uid, "items", item.id), item);
                 }
             });
 
-            window.renderItemsTable();
-            window.renderInventoryTable();
-            window.updateDashboardStats();
+            await batch.commit();
+            
             document.getElementById('batch-move-post').value = '';
             alert(`Successfully moved ${selectedItems.length} items!`);
         }
 
         window.assignInventoryToPost = async function() {
+            if (!currentUser) return;
             const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
             if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
@@ -2470,6 +2402,8 @@
             let nextNum = getNextItemNumberForPost(targetPostId);
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
 
+            const batch = writeBatch(db);
+
             validItems.forEach(masterItem => {
                 let currentQty = parseInt(masterItem.quantity, 10) || 1;
                 let moveQty = 1; 
@@ -2479,7 +2413,7 @@
                 if (masterItem.quantity === 0) {
                     masterItem.status = 'Out of Stock';
                 }
-                saveItemToFirestore(masterItem);
+                batch.set(doc(db, "users", currentUser.uid, "items", masterItem.id), masterItem);
 
                 const newItem = {
                     id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -2502,21 +2436,19 @@
                     createdAt: new Date().toISOString()
                 };
 
-                window.appState.items.push(newItem);
-                saveItemToFirestore(newItem);
-
+                batch.set(doc(db, "users", currentUser.uid, "items", newItem.id), newItem);
                 nextNum++;
             });
 
-            window.renderInventoryTable();
-            window.renderPosts();
-            window.updateDashboardStats();
+            await batch.commit();
+
             document.getElementById('inventory-assign-post').value = '';
             if(document.getElementById('inventory-batch-profile')) document.getElementById('inventory-batch-profile').value = '';
             alert(`Successfully assigned item(s) to post! Master inventory quantity updated.`);
         }
 
         window.handleImageUpload = async function(event, targetPostId) {
+            if (!currentUser) return;
             const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
             if (!finalTargetId) return;
 
@@ -2528,6 +2460,7 @@
             statusText.innerHTML = `<i class="fas fa-spinner fa-spin text-primary"></i> Processing ${files.length} images... Please wait.`;
             
             const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1024, useWebWorker: true };
+            const batch = writeBatch(db);
 
             for (let i = 0; i < files.length; i++) {
                 try {
@@ -2544,7 +2477,7 @@
                     const inheritedProfile = parentPost ? (parentPost.profitProfile || 'Standard') : 'Standard';
 
                     const newItem = {
-                        id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                        id: 'item_' + Date.now() + '_' + Math.floor(Math.random() * 1000) + '_' + i,
                         postId: finalTargetId,
                         itemNumber: finalTargetId === 'inventory' ? null : getNextItemNumberForPost(finalTargetId),
                         type: inheritedType,
@@ -2558,16 +2491,18 @@
                         shippingStatus: 'Unshipped',
                         createdAt: new Date().toISOString()
                     };
-                    window.appState.items.push(newItem);
-                    saveItemToFirestore(newItem); 
+                    
+                    const docRef = doc(db, "users", currentUser.uid, "items", newItem.id);
+                    batch.set(docRef, newItem);
                     
                 } catch (error) {
                     console.error("Compression error on file " + i, error);
                 }
             }
             
-            event.target.value = '';
+            await batch.commit();
             
+            event.target.value = '';
             statusText.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> Added ${files.length} items!`;
             setTimeout(() => { statusText.innerText = "Images auto-compress on upload."; }, 3000);
         }
@@ -2578,7 +2513,7 @@
         }
 
         window.handleReplaceImage = async function(event) {
-            if (!window.itemToReplaceImage) return;
+            if (!window.itemToReplaceImage || !currentUser) return;
             const file = event.target.files[0];
             if (!file) {
                 window.itemToReplaceImage = null;
@@ -2602,19 +2537,10 @@
                 });
 
                 item.photo = base64data;
-                saveItemToFirestore(item);
+                await saveItemToFirestore(item);
                 
-                if (item.postId === 'inventory') {
-                    window.renderInventoryTable();
-                } else {
-                    window.renderItemsTable();
-                }
+                // Wait for the onSnapshot real-time listener to trigger the UI update automatically.
                 
-                if (document.getElementById('view-search').classList.contains('active')) {
-                    const query = document.getElementById('global-search').value;
-                    if(query) window.executeSearch(query);
-                }
-
             } catch (error) {
                 console.error("Compression error:", error);
                 alert("Failed to process image.");
@@ -3557,23 +3483,31 @@
             
             if (items.length === 0) return;
             
+            const batch = writeBatch(db);
             items.forEach(item => {
                 item.paymentStatus = 'Paid';
-                saveItemToFirestore(item);
+                const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                batch.set(docRef, item);
             });
+            await batch.commit();
         }
 
         window.shipBox = async function(bidderId) {
             if(confirm("Mark all unshipped items in this box as Shipped? They will be moved to the 'Shipped' filter.")) {
                 const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
                 
+                const batch = writeBatch(db);
                 items.forEach(item => {
                     item.shippingStatus = 'Shipped';
-                    saveItemToFirestore(item);
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
                 });
+                await batch.commit();
                 
                 if (window.currentOBFilter !== 'all' && window.currentOBFilter !== 'shipped') {
                     window.currentOBBidder = null; 
+                    window.renderOpenBoxList();
+                    window.renderOBDetails();
                 }
             }
         }
@@ -3582,10 +3516,13 @@
             if(confirm("Undo shipment? These items will move back to your active packing list.")) {
                 const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus === 'Shipped');
                 
+                const batch = writeBatch(db);
                 items.forEach(item => {
                     item.shippingStatus = 'Unshipped';
-                    saveItemToFirestore(item);
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
                 });
+                await batch.commit();
             }
         }
 
@@ -3815,12 +3752,10 @@
                         sCut = price / 2;
                         pCut = price / 2;
                     } else {
-                        sCut = price; // Fixed: You keep 100% of revenue for items under $3
-                        pCut = 0;
+                        pCut = price;
                     }
                 } else {
                     sCut = price;
-                    pCut = 0;
                 }
 
                 sellerTotal += sCut;
