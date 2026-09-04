@@ -3236,6 +3236,747 @@
             }
         }
 
+        // =========================================================================
+        // 4.7 OPEN BOX LOGIC (SPLIT-PANE REDESIGN)
+        // =========================================================================
+        window.setOBFilter = function(filter) {
+            window.currentOBFilter = filter;
+            document.querySelectorAll('.ob-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-primary', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300');
+            });
+            const activeBtn = document.getElementById('ob-filter-' + filter);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-gray-100', 'text-gray-600', 'dark:bg-gray-700', 'dark:text-gray-300');
+                activeBtn.classList.add('bg-primary', 'text-white');
+            }
+            window.renderOpenBoxList();
+        }
+
+        window.updateShippingFee = async function(bidderId, fee) {
+            const bidder = window.appState.bidders.find(b => b.id === bidderId);
+            if (bidder) {
+                bidder.shippingFee = parseFloat(fee) || 0;
+                await window.saveStateToFirebase();
+                window.renderOpenBoxList();
+                if(window.currentOBBidder === bidderId) window.renderOBDetails();
+                window.renderBiddersTable(); 
+            }
+        }
+
+        window.clearOpenBoxFilters = function() {
+            if(document.getElementById('open-box-bidder-filter')) document.getElementById('open-box-bidder-filter').value = '';
+            window.renderOpenBox();
+        }
+
+        window.renderOpenBox = function() {
+            window.renderOpenBoxList();
+            window.renderOBDetails();
+        }
+
+        window.renderOpenBoxList = function() {
+            const container = document.getElementById('ob-bidder-list');
+            if(!container) return;
+            
+            const search = (document.getElementById('ob-search')?.value || '').toLowerCase();
+            const filter = window.currentOBFilter || 'all';
+            
+            let allSoldItems = (window.appState.items || []).filter(i => i.status === 'Sold');
+            
+            // Supplemental filters from dropdowns
+            const bidderFilter = document.getElementById('open-box-bidder-filter')?.value;
+
+            if (bidderFilter) {
+                allSoldItems = allSoldItems.filter(i => i.winnerId === bidderFilter);
+            }
+
+            if (allSoldItems.length === 0) {
+                container.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">No open boxes currently match your view.</div>`;
+                return;
+            }
+
+            const grouped = {};
+            allSoldItems.forEach(item => {
+                if(!item.winnerId) return;
+                if(!grouped[item.winnerId]) grouped[item.winnerId] = [];
+                grouped[item.winnerId].push(item);
+            });
+
+            const bidders = window.appState.bidders || [];
+            
+            let html = '';
+            let count = 0;
+
+            const sortedBidders = bidders.filter(b => grouped[b.id]).sort((a,b) => a.name.localeCompare(b.name));
+
+            sortedBidders.forEach(bidder => {
+                if (search && !bidder.name.toLowerCase().includes(search)) return;
+                
+                const items = grouped[bidder.id];
+                const unshipped = items.filter(i => i.shippingStatus !== 'Shipped');
+                const shipped = items.filter(i => i.shippingStatus === 'Shipped');
+                const unpaid = unshipped.filter(i => i.paymentStatus !== 'Paid');
+                const paid = unshipped.filter(i => i.paymentStatus === 'Paid');
+                const shippingFee = parseFloat(bidder.shippingFee) || 0;
+                
+                // Primary Box Workflow Filters
+                if (filter === 'all' && unshipped.length === 0) return;
+                if (filter === 'unpaid' && (unshipped.length === 0 || unpaid.length === 0)) return;
+                
+                // Ready to Pack: items are paid for and have a shipping fee entered
+                if (filter === 'pack' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee <= 0)) return;
+
+                // Ready to Ship: items are paid but have no shipping fees entered
+                if (filter === 'ready' && (unshipped.length === 0 || unpaid.length > 0 || shippingFee > 0)) return;
+                
+                if (filter === 'shipped' && (shipped.length === 0 || unshipped.length > 0)) return; 
+
+                count++;
+                
+                const isActive = window.currentOBBidder === bidder.id;
+                const activeClasses = isActive ? 'bg-indigo-50 border-primary dark:bg-indigo-900/40 dark:border-indigo-500' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary dark:hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700';
+                
+                let badge = '';
+                if (unshipped.length === 0 && shipped.length > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-200 text-gray-700">Shipped</span>`;
+                } else if (unpaid.length > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">Needs Pay</span>`;
+                } else if (shippingFee > 0) {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700">Ready to Pack</span>`;
+                } else {
+                    badge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">Ready to Ship</span>`;
+                }
+
+                const unpaidTotal = unpaid.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+                const totalDue = unpaid.length > 0 ? (unpaidTotal + shippingFee) : 0;
+
+                const boxStats = window.getOpenBoxStats(bidder.id, window.appState.items);
+                let ageIcon = '';
+                if (boxStats.hasBox && boxStats.daysOpen > 30) {
+                    ageIcon = `<i class="fas fa-exclamation-circle text-red-500 ml-1" title="Stale Box (>30d)"></i>`;
+                }
+
+                html += `
+                    <div onclick="window.selectOBBidder('${bidder.id}')" class="cursor-pointer p-3 rounded-lg border transition ${activeClasses} flex justify-between items-center shadow-sm">
+                        <div class="overflow-hidden pr-2">
+                            <h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 truncate">${bidder.name} ${ageIcon}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                ${badge}
+                                <span class="text-xs text-gray-500 font-medium">$${totalDue.toFixed(2)} due</span>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right ${isActive ? 'text-primary' : 'text-gray-300 dark:text-gray-600'} text-xs transition"></i>
+                    </div>
+                `;
+            });
+
+            if (count === 0) {
+                container.innerHTML = `<div class="text-center p-8 text-sm text-gray-400 italic">No boxes found matching criteria.</div>`;
+            } else {
+                container.innerHTML = html;
+            }
+        }
+
+        window.selectOBBidder = function(bidderId) {
+            window.currentOBBidder = bidderId;
+            window.renderOpenBoxList(); 
+            window.renderOBDetails();
+        }
+
+        window.renderOBDetails = function() {
+            const pane = document.getElementById('ob-detail-pane');
+            const emptyState = document.getElementById('ob-empty-state');
+            
+            if (!window.currentOBBidder) {
+                pane.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            const bidderId = window.currentOBBidder;
+            const bidder = (window.appState.bidders || []).find(b => b.id === bidderId);
+            if (!bidder) {
+                pane.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            pane.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            const allItems = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold');
+            const unpaidItems = allItems.filter(i => i.paymentStatus !== 'Paid' && i.shippingStatus !== 'Shipped');
+            const paidItems = allItems.filter(i => i.paymentStatus === 'Paid' && i.shippingStatus !== 'Shipped');
+            const shippedItems = allItems.filter(i => i.shippingStatus === 'Shipped');
+            
+            const shippingFee = parseFloat(bidder.shippingFee) || 0;
+            const unpaidTotal = unpaidItems.reduce((sum, i) => sum + (parseFloat(i.price)||0), 0);
+            const totalDue = unpaidItems.length > 0 ? (unpaidTotal + shippingFee) : 0;
+
+            const invoiceStatus = calculateInvoiceStatus(unpaidItems);
+            let invoiceBadge = '';
+            if (invoiceStatus) {
+                if (invoiceStatus.daysLeft < 0) {
+                    invoiceBadge = `<span class="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-0.5 rounded text-[10px] font-bold uppercase animate-pulse"><i class="fas fa-exclamation-triangle mr-1"></i> Past Due</span>`;
+                } else {
+                    invoiceBadge = `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fas fa-paper-plane mr-1"></i> Invoice Sent</span>`;
+                }
+            }
+
+            let badgesHTML = '';
+            if (bidder.inGroupChat) badgesHTML += `<span class="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-users mr-1"></i> Auction Alert</span>`;
+            if (bidder.stickerSent) badgesHTML += `<span class="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-[10px] px-2 py-0.5 rounded font-bold"><i class="fas fa-stamp mr-1"></i> Sticker</span>`;
+            if (invoiceBadge) badgesHTML += invoiceBadge;
+
+            const renderItemRow = (item, isShipped) => {
+                const isPaid = item.paymentStatus === 'Paid';
+                let actions = '';
+                if (!isShipped) {
+                    actions = `
+                        <button onclick="window.returnToInventory('${item.id}')" class="text-xs text-gray-400 hover:text-orange-500 transition px-2" title="Return to Master Inventory"><i class="fas fa-level-up-alt text-lg"></i></button>
+                        <button onclick="window.toggleItemPayment('${item.id}')" class="px-3 py-1.5 text-xs font-bold rounded ${isPaid ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'} transition shadow-sm whitespace-nowrap">
+                            ${isPaid ? '<i class="fas fa-check mr-1"></i> Paid' : 'Unpaid'}
+                        </button>
+                    `;
+                } else {
+                    actions = `<span class="text-xs font-bold text-gray-400 px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600"><i class="fas fa-box"></i> Shipped</span>`;
+                }
+
+                return `
+                    <div id="ob-item-row-${item.id}" class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-indigo-50 dark:hover:bg-gray-700 transition group">
+                        <div class="flex items-center gap-3">
+                            <div class="relative inline-block w-10 h-10 group/img">
+                                ${item.photo ? `<img src="${item.photo}" class="w-10 h-10 object-cover rounded border border-gray-200 cursor-pointer" onclick="window.openImageModal('${item.photo}')">` : `<div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded flex items-center justify-center"><i class="fas fa-image text-gray-400"></i></div>`}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-indigo-300 transition">#${item.itemNumber || '-'} - ${item.category ? `<span class="text-gray-400 font-normal mr-1">[${item.category}]</span>` : ''}${item.brand || 'Unbranded'} ${item.model || ''}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">$${(parseFloat(item.price)||0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${actions}
+                        </div>
+                    </div>
+                `;
+            };
+
+            const buildSection = (itemsList, title, colorClass) => {
+                if (itemsList.length === 0) return '';
+                
+                const itemsByPost = {};
+                itemsList.forEach(item => {
+                    const pId = item.postId || 'inventory';
+                    if (!itemsByPost[pId]) itemsByPost[pId] = [];
+                    itemsByPost[pId].push(item);
+                });
+
+                let rows = '';
+                for (const [pId, postItems] of Object.entries(itemsByPost)) {
+                    const parentPost = window.appState.posts.find(p => p.id === pId);
+                    const postName = parentPost ? parentPost.name : 'Master Inventory';
+                    
+                    rows += `
+                        <div class="px-4 py-1.5 bg-gray-100 dark:bg-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider sticky top-0 z-10 border-y border-gray-200 dark:border-gray-600 shadow-sm mt-2 first:mt-0">
+                            ${postName}
+                        </div>
+                    `;
+                    rows += postItems.map(item => renderItemRow(item, item.shippingStatus === 'Shipped')).join('');
+                }
+
+                return `
+                    <div class="mb-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <div class="px-4 py-2 ${colorClass} border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h4 class="font-bold text-xs tracking-wide uppercase text-gray-800 dark:text-gray-100">${title}</h4>
+                            <span class="text-[10px] font-bold bg-white/50 dark:bg-gray-900/50 px-2 py-0.5 rounded text-gray-800 dark:text-gray-200">${itemsList.length} Items</span>
+                        </div>
+                        <div>${rows}</div>
+                    </div>
+                `;
+            };
+
+            const hasUnshipped = unpaidItems.length > 0 || paidItems.length > 0;
+            let shipButtonHtml = '';
+            if (hasUnshipped) {
+                shipButtonHtml = `<button onclick="window.shipBox('${bidderId}')" class="bg-primary hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-shipping-fast mr-2"></i> Ship Box</button>`;
+            } else if (shippedItems.length > 0) {
+                shipButtonHtml = `<button onclick="window.unshipBox('${bidderId}')" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-bold transition shadow-sm whitespace-nowrap"><i class="fas fa-undo mr-2"></i> Undo Shipped</button>`;
+            }
+
+            pane.innerHTML = `
+                <div class="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                    <div>
+                        <h3 class="font-bold text-xl text-primary dark:text-indigo-300 mb-1">${bidder.name}</h3>
+                        <p class="text-sm text-gray-500 max-w-[300px] truncate" title="${bidder.address}">${bidder.address || 'No address'}</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                           ${badgesHTML}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Total Due</p>
+                        <p class="text-3xl font-bold text-green-600 dark:text-green-400">$${totalDue.toFixed(2)}</p>
+                    </div>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-5 bg-white dark:bg-gray-800">
+                    ${buildSection(unpaidItems, "Awaiting Payment", "bg-red-50 dark:bg-red-900/20")}
+                    ${buildSection(paidItems, "Paid Items", "bg-green-50 dark:bg-green-900/20")}
+                    ${buildSection(shippedItems, "Shipped History", "bg-gray-50 dark:bg-gray-700/50")}
+                    ${allItems.length === 0 ? '<div class="text-center py-10 text-gray-400 italic">No items found for this bidder.</div>' : ''}
+                </div>
+                
+                <div class="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex flex-col sm:flex-row justify-between items-center gap-4 flex-shrink-0">
+                    <div class="flex items-center gap-3 w-full sm:w-auto bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                        <span class="text-sm font-bold text-gray-600 dark:text-gray-300 ml-1"><i class="fas fa-box mr-2"></i>Shipping:</span>
+                        <div class="relative w-28">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-2 text-sm text-gray-500">$</span>
+                            <input type="number" step="0.01" value="${shippingFee ? shippingFee.toFixed(2) : ''}" onchange="window.updateShippingFee('${bidderId}', this.value)" class="w-full pl-6 p-1.5 text-sm font-bold border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 focus:border-primary outline-none transition">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="window.generateInvoice('${bidderId}')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-bold transition shadow-sm"><i class="fas fa-file-invoice-dollar mr-1"></i> Invoice</button>
+                        <button onclick="window.markBoxPaid('${bidderId}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-bold transition shadow-sm">Mark Paid</button>
+                        <button onclick="window.printPackingSlip('${bidderId}')" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-2 rounded text-sm font-bold transition shadow-sm"><i class="fas fa-print mr-1"></i> Print</button>
+                        ${shipButtonHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.toggleItemPayment = async function(itemId) {
+            const item = window.appState.items.find(i => i.id === itemId);
+            if (item) {
+                item.paymentStatus = item.paymentStatus === 'Paid' ? 'Unpaid' : 'Paid';
+                saveItemToFirestore(item);
+            }
+        }
+
+        window.markBoxPaid = async function(bidderId) {
+            const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped' && i.paymentStatus !== 'Paid');
+            
+            if (items.length === 0) return;
+            
+            const batch = writeBatch(db);
+            items.forEach(item => {
+                item.paymentStatus = 'Paid';
+                const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                batch.set(docRef, item);
+            });
+            await batch.commit();
+        }
+
+        window.shipBox = async function(bidderId) {
+            if(confirm("Mark all unshipped items in this box as Shipped? They will be moved to the 'Shipped' filter.")) {
+                const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus !== 'Shipped');
+                
+                const batch = writeBatch(db);
+                items.forEach(item => {
+                    item.shippingStatus = 'Shipped';
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
+                });
+                await batch.commit();
+                
+                if (window.currentOBFilter !== 'all' && window.currentOBFilter !== 'shipped') {
+                    window.currentOBBidder = null; 
+                    window.renderOpenBoxList();
+                    window.renderOBDetails();
+                }
+            }
+        }
+
+        window.unshipBox = async function(bidderId) {
+            if(confirm("Undo shipment? These items will move back to your active packing list.")) {
+                const items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold' && i.shippingStatus === 'Shipped');
+                
+                const batch = writeBatch(db);
+                items.forEach(item => {
+                    item.shippingStatus = 'Unshipped';
+                    const docRef = doc(db, "users", currentUser.uid, "items", item.id);
+                    batch.set(docRef, item);
+                });
+                await batch.commit();
+            }
+        }
+
+        window.printPackingSlip = function(bidderId) {
+            const bidder = window.appState.bidders.find(b => b.id === bidderId);
+            if (!bidder) return;
+            
+            const filter = window.currentOBFilter || 'all';
+            let items = (window.appState.items || []).filter(i => i.winnerId === bidderId && i.status === 'Sold');
+            
+            if (filter !== 'shipped') {
+                items = items.filter(i => i.shippingStatus !== 'Shipped');
+            } else {
+                items = items.filter(i => i.shippingStatus === 'Shipped');
+            }
+
+            const storeName = window.appState.settings.storeName || 'My Store';
+            
+            // Group items by post
+            const itemsByPost = {};
+            items.forEach(item => {
+                const pId = item.postId || 'inventory';
+                if (!itemsByPost[pId]) itemsByPost[pId] = [];
+                itemsByPost[pId].push(item);
+            });
+
+            let rows = '';
+            let total = 0;
+
+            for (const [pId, postItems] of Object.entries(itemsByPost)) {
+                const parentPost = window.appState.posts.find(p => p.id === pId);
+                const postName = parentPost ? parentPost.name : 'Master Inventory';
+
+                // Add a compact, clean header row for the post
+                rows += `
+                    <tr style="background-color: #f3f4f6;">
+                        <td colspan="3" style="padding: 3px 4px; font-weight: bold; font-size: 10px; border-top: 1px solid #000; border-bottom: 1px solid #000; text-transform: uppercase;">
+                            ${postName}
+                        </td>
+                    </tr>
+                `;
+
+                postItems.forEach(item => {
+                    const price = parseFloat(item.price) || 0;
+                    total += price;
+                    rows += `
+                        <tr style="border-bottom: 1px dotted #ccc;">
+                            <td style="padding: 2px 4px; width: 45px; vertical-align: top;">#${item.itemNumber || '-'}</td>
+                            <td style="padding: 2px 4px; vertical-align: top;">${item.category ? `[${item.category}] ` : ''}${item.brand || ''} ${item.model || ''}</td>
+                            <td style="padding: 2px 4px; text-align: right; width: 60px; vertical-align: top;">$${price.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const shippingFee = parseFloat(bidder.shippingFee) || 0;
+            if (shippingFee > 0) {
+                total += shippingFee;
+                rows += `
+                    <tr style="border-top: 1px solid #000;">
+                        <td style="padding: 2px 4px;">--</td>
+                        <td style="padding: 2px 4px; font-style: italic;">Shipping Fee</td>
+                        <td style="padding: 2px 4px; text-align: right;">$${shippingFee.toFixed(2)}</td>
+                    </tr>
+                `;
+            }
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Packing Slip - ${bidder.name}</title>
+                    <style>
+                        @page { 
+                            size: 4in 6in; 
+                            margin: 0.15in; 
+                        }
+                        * { box-sizing: border-box; }
+                        body { 
+                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+                            font-size: 10.5px; 
+                            line-height: 1.2;
+                            margin: 0; 
+                            padding: 0; 
+                            color: #000; 
+                        }
+                        .header-row { 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: baseline; 
+                            border-bottom: 2px solid #000; 
+                            padding-bottom: 4px; 
+                            margin-bottom: 6px; 
+                        }
+                        .header-row h1 { 
+                            font-size: 14px; 
+                            font-weight: 800; 
+                            margin: 0; 
+                            text-transform: uppercase; 
+                        }
+                        .header-row span { 
+                            font-size: 11px; 
+                            font-weight: bold; 
+                        }
+                        .address-block { 
+                            font-size: 10.5px; 
+                            margin-bottom: 6px; 
+                            line-height: 1.25; 
+                            border-left: 2px solid #333;
+                            padding-left: 6px;
+                        }
+                        table { 
+                            width: 100%; 
+                            border-collapse: collapse; 
+                            margin-top: 4px; 
+                        }
+                        th { 
+                            text-align: left; 
+                            border-bottom: 1.5px solid #000; 
+                            padding: 2px 4px; 
+                            font-size: 10px;
+                            text-transform: uppercase;
+                        }
+                        .total-row { 
+                            font-weight: bold; 
+                            font-size: 12px; 
+                            margin-top: 8px; 
+                            text-align: right; 
+                            border-top: 2px solid #000; 
+                            padding-top: 4px; 
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header-row">
+                        <h1>${storeName}</h1>
+                        <span>PACKING SLIP</span>
+                    </div>
+                    <div class="address-block">
+                        <strong>SHIP TO:</strong><br>
+                        <strong>${bidder.name}</strong><br>
+                        ${(bidder.address || 'No address provided').replace(/\n/g, '<br>')}
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 45px;">Item #</th>
+                                <th>Description</th>
+                                <th style="text-align: right; width: 60px;">Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                    <div class="total-row">Total: $${total.toFixed(2)}</div>
+                    <script>
+                        window.onload = function() { window.print(); }
+                    <\/script>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
+        // =========================================================================
+        // 4.8 FINANCIAL REPORTS LOGIC
+        // =========================================================================
+        window.renderReports = function() {
+            const container = document.getElementById('report-post-selector');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!window.appState.posts || window.appState.posts.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 p-2">No posts available.</p>';
+                return;
+            }
+
+            const reversedPosts = [...window.appState.posts].reverse();
+            reversedPosts.forEach(post => {
+                const label = document.createElement('label');
+                label.className = "flex items-center space-x-3 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded cursor-pointer transition";
+                label.innerHTML = `
+                    <input type="checkbox" value="${post.id}" class="report-check w-4 h-4 text-primary rounded focus:ring-primary">
+                    <span class="font-medium text-gray-800 dark:text-gray-200 truncate" title="${post.name}">${post.name}</span>
+                `;
+                container.appendChild(label);
+            });
+        };
+
+        window.selectAllReportPosts = function(select) {
+            document.querySelectorAll('.report-check').forEach(cb => cb.checked = select);
+        };
+
+        window.generateFinancialReport = function() {
+            const selectedPostIds = Array.from(document.querySelectorAll('.report-check:checked')).map(c => c.value);
+            
+            if (selectedPostIds.length === 0) return alert("Please select at least one post to generate a report.");
+
+            document.getElementById('report-dropdown').classList.add('hidden');
+
+            const soldItems = (window.appState.items || []).filter(i => i.status === 'Sold' && selectedPostIds.includes(i.postId));
+            
+            let grossTotal = 0;
+            let sellerTotal = 0;
+            let partnerTotal = 0;
+
+            let grossPaid = 0;
+            let sellerPaid = 0;
+            let partnerPaid = 0;
+
+            const buyerStats = {};
+
+            soldItems.forEach(item => {
+                const price = parseFloat(item.price) || 0;
+                const isPaid = item.paymentStatus === 'Paid';
+
+                grossTotal += price;
+                if (isPaid) grossPaid += price;
+
+                let sCut = 0;
+                let pCut = 0;
+
+                const profile = item.profitProfile || 'Standard';
+                if (profile === 'Consignment') {
+                    if (price >= 3) {
+                        sCut = price / 2;
+                        pCut = price / 2;
+                    } else {
+                        pCut = price;
+                    }
+                } else {
+                    sCut = price;
+                }
+
+                sellerTotal += sCut;
+                partnerTotal += pCut;
+
+                if (isPaid) {
+                    sellerPaid += sCut;
+                    partnerPaid += pCut;
+                }
+
+                if (item.winnerId) {
+                    buyerStats[item.winnerId] = (buyerStats[item.winnerId] || 0) + price;
+                }
+            });
+
+            document.getElementById('rep-gross-total').innerText = `$${grossTotal.toFixed(2)}`;
+            document.getElementById('rep-seller-total').innerText = `$${sellerTotal.toFixed(2)}`;
+            document.getElementById('rep-partner-total').innerText = `$${partnerTotal.toFixed(2)}`;
+
+            document.getElementById('rep-gross-paid').innerText = `$${grossPaid.toFixed(2)}`;
+            document.getElementById('rep-seller-paid').innerText = `$${sellerPaid.toFixed(2)}`;
+            document.getElementById('rep-partner-paid').innerText = `$${partnerPaid.toFixed(2)}`;
+
+            const sortedBuyers = Object.entries(buyerStats).sort((a, b) => b[1] - a[1]);
+            const buyersList = document.getElementById('top-buyers-list');
+            buyersList.innerHTML = '';
+
+            if (sortedBuyers.length === 0) {
+                buyersList.innerHTML = '<p class="text-gray-500 italic">No sold items found in the selected posts.</p>';
+                return;
+            }
+
+            sortedBuyers.slice(0, 3).forEach(([bidderId, total], index) => {
+                const bidder = window.appState.bidders.find(b => b.id === bidderId);
+                const name = bidder ? bidder.name : 'Unknown Bidder';
+                
+                let rankIcon = '';
+                if (index === 0) rankIcon = '<i class="fas fa-medal text-yellow-500 text-xl w-8 text-center"></i>';
+                else if (index === 1) rankIcon = '<i class="fas fa-medal text-gray-400 text-xl w-8 text-center"></i>';
+                else if (index === 2) rankIcon = '<i class="fas fa-medal text-amber-700 text-xl w-8 text-center"></i>';
+
+                buyersList.innerHTML += `
+                    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                        <div class="flex items-center gap-3">
+                            ${rankIcon}
+                            <span class="font-bold text-gray-800 dark:text-gray-200">${name}</span>
+                        </div>
+                        <span class="font-bold text-green-600 dark:text-green-400">$${total.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+        };
+
+        // =========================================================================
+        // 5. GLOBAL APP UTILITIES (Navigation, Themes & Modals)
+        // =========================================================================
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+            const targetedView = document.getElementById('view-' + tabId);
+            if (targetedView) targetedView.classList.add('active');
+            
+            document.querySelectorAll('.nav-link').forEach(el => {
+                el.classList.remove('bg-indigo-50', 'dark:bg-indigo-900/30', 'text-primary', 'dark:text-indigo-300');
+            });
+            if (event && event.currentTarget && event.currentTarget.classList) {
+                event.currentTarget.classList.add('bg-indigo-50', 'dark:bg-indigo-900/30', 'text-primary', 'dark:text-indigo-300');
+            }
+
+            if (tabId === 'settings') populateSettingsUI();
+            if (tabId === 'bidders') window.renderBiddersTable();
+            if (tabId === 'live-sales') {
+                window.populateLiveSalePosts();
+                window.renderLiveSales();
+            }
+            if (tabId === 'open-box') {
+                window.renderOpenBox();
+            }
+            if (tabId === 'inventory') {
+                window.populatePostSelectors();
+                window.renderInventoryTable();
+            }
+            if (tabId === 'reports') {
+                window.renderReports();
+            }
+        }
+
+        window.toggleTheme = function() {
+            const htmlClass = document.documentElement.classList;
+            if(htmlClass.contains('dark')) {
+                htmlClass.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                htmlClass.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            const toggleBtn = document.getElementById('theme-toggle');
+            if (toggleBtn) toggleBtn.checked = true;
+        }
+
+        window.openImageModal = function(imageSrc) {
+            document.getElementById('enlarged-image').src = imageSrc;
+            document.getElementById('image-modal').classList.remove('hidden');
+        }
+
+        window.closeImageModal = function() {
+            document.getElementById('image-modal').classList.add('hidden');
+            setTimeout(() => {
+                document.getElementById('enlarged-image').src = '';
+            }, 200);
+        }
+
+        // Shift-click functionality for checkboxes
+        let lastCheckedId = null;
+        let lastCheckedType = null;
+
+        document.addEventListener('click', function(e) {
+            const isInv = e.target.matches('.inventory-checkbox');
+            const isPost = e.target.matches('.post-item-checkbox');
+            
+            if (!isInv && !isPost) return;
+
+            const currentType = isInv ? 'inventory' : 'post';
+            const checkboxSelector = isInv ? '.inventory-checkbox' : '.post-item-checkbox';
+            const checkboxes = Array.from(document.querySelectorAll(checkboxSelector));
+            
+            if (e.shiftKey && lastCheckedId && lastCheckedType === currentType) {
+                const startIdx = checkboxes.findIndex(cb => cb.value === e.target.value);
+                const endIdx = checkboxes.findIndex(cb => cb.value === lastCheckedId);
+                
+                if (startIdx !== -1 && endIdx !== -1) {
+                    const start = Math.min(startIdx, endIdx);
+                    const end = Math.max(startIdx, endIdx);
+                    
+                    const isChecked = e.target.checked; 
+                    
+                    for (let i = start; i <= end; i++) {
+                        checkboxes[i].checked = isChecked;
+                    }
+                }
+            }
+            
+            lastCheckedId = e.target.value;
+            lastCheckedType = currentType;
+        });
+
     </script>
 </body>
 </html>
