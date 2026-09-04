@@ -3264,8 +3264,11 @@
             }
         }
 
-        window.clearOpenBoxFilters = function() {
+window.clearOpenBoxFilters = function() {
             if(document.getElementById('open-box-bidder-filter')) document.getElementById('open-box-bidder-filter').value = '';
+            if(document.getElementById('filter-ob-invoice')) document.getElementById('filter-ob-invoice').value = '';
+            if(document.getElementById('filter-ob-alert')) document.getElementById('filter-ob-alert').value = '';
+            if(document.getElementById('filter-ob-sticker')) document.getElementById('filter-ob-sticker').value = '';
             window.renderOpenBox();
         }
 
@@ -3285,6 +3288,9 @@
             
             // Supplemental filters from dropdowns
             const bidderFilter = document.getElementById('open-box-bidder-filter')?.value;
+            const invoiceFilter = document.getElementById('filter-ob-invoice')?.value;
+            const alertFilter = document.getElementById('filter-ob-alert')?.value;
+            const stickerFilter = document.getElementById('filter-ob-sticker')?.value;
 
             if (bidderFilter) {
                 allSoldItems = allSoldItems.filter(i => i.winnerId === bidderFilter);
@@ -3312,12 +3318,26 @@
             sortedBidders.forEach(bidder => {
                 if (search && !bidder.name.toLowerCase().includes(search)) return;
                 
+                // Dropdown Bidder Filters
+                if (alertFilter === 'yes' && !bidder.inGroupChat) return;
+                if (alertFilter === 'no' && bidder.inGroupChat) return;
+                if (stickerFilter === 'yes' && !bidder.stickerSent) return;
+                if (stickerFilter === 'no' && bidder.stickerSent) return;
+
                 const items = grouped[bidder.id];
                 const unshipped = items.filter(i => i.shippingStatus !== 'Shipped');
                 const shipped = items.filter(i => i.shippingStatus === 'Shipped');
                 const unpaid = unshipped.filter(i => i.paymentStatus !== 'Paid');
                 const paid = unshipped.filter(i => i.paymentStatus === 'Paid');
                 const shippingFee = parseFloat(bidder.shippingFee) || 0;
+                
+                // Dropdown Invoice Filter
+                if (invoiceFilter) {
+                    const invoiceStatus = calculateInvoiceStatus(unpaid);
+                    if (invoiceFilter === 'paid' && unpaid.length > 0) return;
+                    if (invoiceFilter === 'pending' && (unpaid.length === 0 || invoiceStatus)) return;
+                    if (invoiceFilter === 'sent' && !invoiceStatus) return;
+                }
                 
                 // Primary Box Workflow Filters
                 if (filter === 'all' && unshipped.length === 0) return;
