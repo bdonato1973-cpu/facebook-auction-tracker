@@ -1000,32 +1000,43 @@
             btnLogout.addEventListener('click', () => signOut(auth));
         }
 
-        onAuthStateChanged(auth, async (user) => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                authScreen.classList.add('hidden');
-                appLayout.classList.remove('hidden');
                 
                 document.getElementById('user-name').textContent = user.displayName;
                 document.getElementById('user-avatar').src = user.photoURL;
                 
-                // 1. Load initial static data (Posts, Bidders, Settings)
+                // 1. Load & Sync Main Data (Posts, Bidders, Settings) via Real-Time Listener
                 const docRef = doc(db, "users", currentUser.uid);
-                const docSnap = await getDoc(docRef);
+                window.mainDocUnsubscribe = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const dbData = docSnap.data();
+                        window.appState.settings = dbData.settings || { storeName: '', paypal: '', venmo: '', cashapp: '', geminiKey: '' };
+                        window.appState.posts = dbData.posts || [];
+                        window.appState.bidders = dbData.bidders || [];
+                    } else {
+                        setDoc(docRef, { settings: window.appState.settings, posts: [], bidders: [] });
+                    }
 
-                if (docSnap.exists()) {
-                    const dbData = docSnap.data();
-                    window.appState.settings = dbData.settings || { storeName: '', paypal: '', venmo: '', cashapp: '', geminiKey: '' };
-                    window.appState.posts = dbData.posts || [];
-                    window.appState.bidders = dbData.bidders || [];
-                } else {
-                    await setDoc(docRef, { settings: window.appState.settings, posts: [], bidders: [] });
-                }
+                    // Reveal UI ONLY after the first data payload is fully loaded to prevent wiping!
+                    authScreen.classList.add('hidden');
+                    appLayout.classList.remove('hidden');
 
-                populateSettingsUI();
-                window.populateBidderFilters();
-                window.renderPosts();
-                window.populatePostSelectors();
+                    const activeEl = document.activeElement;
+                    const isTyping = activeEl && ['INPUT', 'SELECT', 'TEXTAREA'].includes(activeEl.tagName);
+
+                    if (!isTyping) {
+                        populateSettingsUI();
+                        window.populateBidderFilters();
+                        window.renderPosts();
+                        window.populatePostSelectors();
+                        window.updateDashboardStats();
+
+                        if (document.getElementById('view-bidders').classList.contains('active')) window.renderBiddersTable();
+                        if (document.getElementById('view-reports').classList.contains('active')) window.renderReports();
+                    }
+                });
 
                 // 2. Initialize Real-Time Listener for Items
                 const itemsRef = collection(db, "users", currentUser.uid, "items");
@@ -1051,6 +1062,7 @@
                 
             } else {
                 if (window.itemsUnsubscribe) window.itemsUnsubscribe();
+                if (window.mainDocUnsubscribe) window.mainDocUnsubscribe();
                 currentUser = null;
                 authScreen.classList.remove('hidden');
                 appLayout.classList.add('hidden');
