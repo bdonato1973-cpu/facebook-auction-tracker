@@ -1494,7 +1494,7 @@ window.evaluateSelectedPrices = async function(viewContext) {
 
                 const promptText = "You are a Diecast Value Evaluator. I will provide a JSON array of diecast items. Your task is to estimate a fair starting bid / market value for each item based on its brand, model, and description. Return ONLY a raw JSON array of objects in exactly this format: [{\"id\": \"item_id\", \"price\": 5.00}]. Do not wrap the JSON in markdown blocks like ```json. Here are the items: " + JSON.stringify(itemsToEval);
 
-                const endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=)" + apiKey;
+                const endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" + apiKey;
 
                 const response = await fetch(endpointUrl, {
                     method: 'POST',
@@ -1505,7 +1505,13 @@ window.evaluateSelectedPrices = async function(viewContext) {
                     })
                 });
 
-                const data = await response.json();
+                const textResponse = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(textResponse);
+                } catch (e) {
+                    throw new Error("API returned an invalid response (not JSON). Server says: " + textResponse.substring(0, 50) + "...");
+                }
                 
                 if (!response.ok) {
                     throw new Error(data.error?.message || "API request failed");
