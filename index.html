@@ -1485,8 +1485,10 @@ window.evaluateSelectedPrices = async function(viewContext) {
                 }
             });
 
+            const evalBtns = document.querySelectorAll('.btn-ai-eval');
+
             try {
-                const evalBtns = document.querySelectorAll('.btn-ai-eval');
+                // Set loading state
                 evalBtns.forEach(btn => {
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Evaluating...';
@@ -1494,7 +1496,7 @@ window.evaluateSelectedPrices = async function(viewContext) {
 
                 const promptText = "You are a Diecast Value Evaluator. I will provide a JSON array of diecast items. Your task is to estimate a fair starting bid / market value for each item based on its brand, model, and description. Return ONLY a raw JSON array of objects in exactly this format: [{\"id\": \"item_id\", \"price\": 5.00}]. Do not wrap the JSON in markdown blocks like ```json. Here are the items: " + JSON.stringify(itemsToEval);
 
-                const endpointUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=" + apiKey;
+                const endpointUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=]" + apiKey;
 
                 const response = await fetch(endpointUrl, {
                     method: 'POST',
@@ -1530,23 +1532,38 @@ window.evaluateSelectedPrices = async function(viewContext) {
                     if (item && evalItem.price !== undefined) {
                         item.price = parseFloat(evalItem.price);
                         const docRef = doc(db, "users", currentUser.uid, "items", item.id);
-                        batch.set(docRef, item);
+                        
+                        // CRITICAL FIX: Only update the price field to avoid 10MB payload limits
+                        batch.update(docRef, { price: item.price });
+                        
                         updateCount++;
                     }
                 });
                 
                 await batch.commit();
-                alert(`Successfully evaluated and applied prices to ${updateCount} items!`);
 
-            } catch (error) {
-                console.error(error);
-                alert("Error during evaluation: " + error.message);
-            } finally {
-                const evalBtns = document.querySelectorAll('.btn-ai-eval');
+                // Reset the button UI immediately before the alert
                 evalBtns.forEach(btn => {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-robot mr-1"></i> AI Evaluator';
                 });
+
+                // Give the browser 50ms to paint the reset button before freezing with the alert popup
+                setTimeout(() => {
+                    alert(`Successfully evaluated and applied prices to ${updateCount} items!`);
+                }, 50);
+
+            } catch (error) {
+                console.error(error);
+                // Ensure buttons reset even if an error occurs
+                evalBtns.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-robot mr-1"></i> AI Evaluator';
+                });
+                
+                setTimeout(() => {
+                    alert("Error during evaluation: " + error.message);
+                }, 50);
             }
         }
         
