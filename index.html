@@ -1492,8 +1492,10 @@ window.evaluateSelectedPrices = async function(viewContext) {
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Evaluating...';
                 });
 
-                const endpointUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-                
+                const promptText = "You are a Diecast Value Evaluator. I will provide a JSON array of diecast items. Your task is to estimate a fair starting bid / market value for each item based on its brand, model, and description. Return ONLY a raw JSON array of objects in exactly this format: [{\"id\": \"item_id\", \"price\": 5.00}]. Do not wrap the JSON in markdown blocks like ```json. Here are the items: " + JSON.stringify(itemsToEval);
+
+                const endpointUrl = "[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)" + apiKey;
+
                 const response = await fetch(endpointUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1547,6 +1549,7 @@ window.evaluateSelectedPrices = async function(viewContext) {
                 });
             }
         }
+        
         window.exportSelectedItems = function() {
             const isInventory = document.getElementById('view-inventory').classList.contains('active');
             const checkboxClass = isInventory ? '.inventory-checkbox:checked' : '.post-item-checkbox:checked';
