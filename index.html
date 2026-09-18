@@ -2429,88 +2429,59 @@ window.evaluateSelectedPrices = async function(viewContext) {
         }
 
         window.assignInventoryToPost = async function() {
-            if (!currentUser) return;
-            const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
-            if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
+    if (!currentUser) return;
+    const checkboxes = document.querySelectorAll('.inventory-checkbox:checked');
+    if (checkboxes.length === 0) return alert("Select at least one item from inventory.");
 
-            const targetPostId = document.getElementById('inventory-assign-post').value;
-            if (!targetPostId) return alert("Please select a target post.");
+    const targetPostId = document.getElementById('inventory-assign-post').value;
+    if (!targetPostId) return alert("Please select a target post.");
 
-            const selectedItems = [];
-            checkboxes.forEach(cb => {
-                const item = window.appState.items.find(i => i.id === cb.value);
-                if (item && item.postId === 'inventory' && item.status !== 'Sold') {
-                    selectedItems.push(item);
-                }
-            });
-
-            if (selectedItems.length === 0) return alert("No available items selected from inventory.");
-
-            const validItems = selectedItems.filter(i => i.status !== 'Out of Stock' && (parseInt(i.quantity, 10) || 0) > 0);
-            if (validItems.length === 0) return alert("No items with available stock selected.");
-
-            let nextNum = getNextItemNumberForPost(targetPostId);
-            const parentPost = window.appState.posts.find(p => p.id === targetPostId);
-            const bProfile = parentPost?.profitProfile || 'Standard';
-
-            const batch = writeBatch(db);
-
-            validItems.forEach(masterItem => {
-                let currentQty = parseInt(masterItem.quantity, 10) || 1;
-                let moveQty = 1; 
-                let remainingQty = currentQty - moveQty;
-
-                masterItem.quantity = remainingQty > 0 ? remainingQty : 0;
-                if (masterItem.quantity === 0) {
-                    masterItem.status = 'Out of Stock';
-                }
-                
-                // 1. Update the master inventory record in Firestore
-                const masterRef = doc(db, "users", currentUser.uid, "items", masterItem.id);
-                batch.update(masterRef, {
-                    quantity: masterItem.quantity,
-                    status: masterItem.status
-                });
-
-                // 2. Generate a clean unique ID for the cloned post item
-                const newItemId = 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-                const newItem = {
-                    id: newItemId,
-                    masterItemId: masterItem.id,
-                    postId: targetPostId,
-                    itemNumber: nextNum++,
-                    type: masterItem.type || parentPost?.type || 'Auction',
-                    profitProfile: bProfile,
-                    source: masterItem.source || 'Benjamin',
-                    category: masterItem.category || '',
-                    brand: masterItem.brand || '',
-                    model: masterItem.model || '',
-                    description: masterItem.description || '',
-                    price: masterItem.price !== undefined && masterItem.price !== '' ? masterItem.price : '',
-                    quantity: moveQty,
-                    photo: masterItem.photo || null,
-                    status: 'Available',
-                    paymentStatus: 'Unpaid',
-                    shippingStatus: 'Unshipped',
-                    createdAt: new Date().toISOString()
-                };
-
-                // 3. Queue the new item write
-                const newDocRef = doc(db, "users", currentUser.uid, "items", newItemId);
-                batch.set(newDocRef, newItem);
-            });
-
-            // Commit all at once so the listener receives the complete set simultaneously
-            await batch.commit();
-
-            // Clear inputs and checkboxes
-            document.getElementById('inventory-assign-post').value = '';
-            document.querySelectorAll('.inventory-checkbox:checked').forEach(cb => cb.checked = false);
-            const selectAll = document.getElementById('select-all-inventory');
-            if (selectAll) selectAll.checked = false;
-
-            alert(`Successfully assigned ${validItems.length} item(s) to "${parentPost?.name || 'target post'}"!`);
+    const selectedItems = [];
+    checkboxes.forEach(cb => {
+        const item = window.appState.items.find(i => i.id === cb.value);
+        if (item && item.status !== 'Sold') {
+            selectedItems.push(item);
         }
+    });
+
+    if (selectedItems.length === 0) return alert("No available items selected from inventory.");
+
+    let nextNum = getNextItemNumberForPost(targetPostId);
+    const parentPost = window.appState.posts.find(p => p.id === targetPostId);
+    const bProfile = parentPost?.profitProfile || 'Standard';
+
+    const batch = writeBatch(db);
+
+    selectedItems.forEach(item => {
+        const itemRef = doc(db, "users", currentUser.uid, "items", item.id);
+        
+        // Directly update the item's location and assignment in Firestore
+        batch.update(itemRef, {
+            postId: targetPostId,
+            itemNumber: nextNum++,
+            profitProfile: bProfile,
+            status: 'Available'
+        });
+    });
+
+    try {
+        await batch.commit();
+        
+        // Reset selectors and checkboxes
+        document.getElementById('inventory-assign-post').value = '';
+        document.querySelectorAll('.inventory-checkbox:checked').forEach(cb => cb.checked = false);
+        const selectAll = document.getElementById('select-all-inventory');
+        if (selectAll) selectAll.checked = false;
+
+        alert(`Successfully moved ${selectedItems.length} item(s) to "${parentPost?.name || 'target post'}"!`);
+        
+        if (window.renderInventoryTable) window.renderInventoryTable();
+        if (window.updateDashboardStats) window.updateDashboardStats();
+    } catch (err) {
+        console.error("Firestore batch commit failed:", err);
+        alert("Database Error: Failed to assign items. " + err.message);
+    }
+};
         window.handleImageUpload = async function(event, targetPostId) {
             if (!currentUser) return;
             const finalTargetId = typeof targetPostId === 'string' ? targetPostId : currentActivePostId;
