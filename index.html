@@ -2439,19 +2439,19 @@ window.evaluateSelectedPrices = async function(viewContext) {
             const selectedItems = [];
             checkboxes.forEach(cb => {
                 const item = window.appState.items.find(i => i.id === cb.value);
-                if (item && item.status !== 'Sold') {
+                if (item && item.postId === 'inventory' && item.status !== 'Sold') {
                     selectedItems.push(item);
                 }
             });
 
-            if (selectedItems.length === 0) return alert("No available items selected.");
+            if (selectedItems.length === 0) return alert("No available items selected from inventory.");
 
             const validItems = selectedItems.filter(i => i.status !== 'Out of Stock' && (parseInt(i.quantity, 10) || 0) > 0);
             if (validItems.length === 0) return alert("No items with available stock selected.");
 
             let nextNum = getNextItemNumberForPost(targetPostId);
             const parentPost = window.appState.posts.find(p => p.id === targetPostId);
-            const bProfile = document.getElementById('inv-batch-profile')?.value || parentPost?.profitProfile || 'Standard';
+            const bProfile = parentPost?.profitProfile || 'Standard';
 
             const batch = writeBatch(db);
 
@@ -2464,9 +2464,16 @@ window.evaluateSelectedPrices = async function(viewContext) {
                 if (masterItem.quantity === 0) {
                     masterItem.status = 'Out of Stock';
                 }
-                batch.set(doc(db, "users", currentUser.uid, "items", masterItem.id), masterItem);
+                
+                // 1. Update the master inventory record in Firestore
+                const masterRef = doc(db, "users", currentUser.uid, "items", masterItem.id);
+                batch.update(masterRef, {
+                    quantity: masterItem.quantity,
+                    status: masterItem.status
+                });
 
-                const newItemId = 'item_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                // 2. Generate a clean unique ID for the cloned post item
+                const newItemId = 'item_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
                 const newItem = {
                     id: newItemId,
                     masterItemId: masterItem.id,
@@ -2488,20 +2495,20 @@ window.evaluateSelectedPrices = async function(viewContext) {
                     createdAt: new Date().toISOString()
                 };
 
-                // Add to local state immediately so subsequent number lookups stay accurate
-                window.appState.items.push(newItem);
-                batch.set(doc(db, "users", currentUser.uid, "items", newItemId), newItem);
+                // 3. Queue the new item write
+                const newDocRef = doc(db, "users", currentUser.uid, "items", newItemId);
+                batch.set(newDocRef, newItem);
             });
 
+            // Commit all at once so the listener receives the complete set simultaneously
             await batch.commit();
 
+            // Clear inputs and checkboxes
             document.getElementById('inventory-assign-post').value = '';
             document.querySelectorAll('.inventory-checkbox:checked').forEach(cb => cb.checked = false);
             const selectAll = document.getElementById('select-all-inventory');
             if (selectAll) selectAll.checked = false;
 
-            window.renderInventoryTable();
-            window.updateDashboardStats();
             alert(`Successfully assigned ${validItems.length} item(s) to "${parentPost?.name || 'target post'}"!`);
         }
         window.handleImageUpload = async function(event, targetPostId) {
